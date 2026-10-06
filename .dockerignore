@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.env*
+Livotec_Home_Mobile_35_Wind_Mode_Panel - Copy.html
+npm-debug.log
+docs
+tmp
+*.md

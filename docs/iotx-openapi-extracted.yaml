@@ -1,0 +1,2052 @@
+# Hợp đồng OPEN API cho app di động/web của NGƯỜI DÙNG CUỐI (EU) — viết TAY từ mã thật.
+#
+# Vì sao viết tay chứ không dùng @nestjs/swagger: kéo gói đó vào là trộn thêm một nhánh phiên bản
+# Nest trong package-lock (phản biện 22/08 đã chỉ ra rủi ro), còn hợp đồng thì vẫn phải tự tả vì
+# handler không dùng DTO class. Thay vào đó: tệp này là NGUỒN SỰ THẬT về hợp đồng, và bài kiểm
+# apps/ibs/test/hop-dong-openapi.test.mjs đối chiếu HAI CHIỀU với decorator trong mã ở mỗi lần CI —
+# mã lệch spec là CI đỏ, nên tệp này không mục được.
+#
+# Phạm vi: CHỈ các cửa app gọi (Bearer EU hoặc public). admin/*, internal/*, danh-muc/*, vat-tu/*,
+# health, live/ready — KHÔNG dành cho app, không nằm ở đây (xem danh sách loại trừ trong bài kiểm).
+openapi: 3.0.3
+info:
+  title: IoTX IBS — API cho app người dùng cuối
+  version: 1.0.0
+  description: |
+    API của máy ứng dụng IBS (NestJS) phục vụ app di động Flutter và web app.
+
+    **Base URL** đã gồm `/v1` (xem `servers`). Mọi đường trong tài liệu này là đường TƯƠNG ĐỐI
+    sau `/v1`.
+
+    **Xác thực**: đăng nhập bằng `POST /auth/login` (hoặc `POST /auth/register`) lấy
+    `accessToken` (JWT Keycloak) rồi gửi `Authorization: Bearer <accessToken>` cho mọi cửa có
+    khoá. Token hết hạn (`expiresIn` giây) thì gọi `POST /auth/refresh`; refresh cũng 401 thì
+    quay về màn đăng nhập.
+
+    **Mã trạng thái**: NestJS trả `201` cho POST thành công (không phải 200); GET/PATCH/DELETE
+    trả `200`.
+
+    **Quy ước lỗi** (nguyên tắc chống dò, kế thừa pilot đã nghiệm thu):
+    - `401` — thiếu/sai/hết hạn token, sai mật khẩu. Thân thường là
+      `{"message":"Unauthorized","statusCode":401}` hoặc `{"message":"sai email hoặc mật khẩu"}`.
+    - `404` ĐỒNG NHẤT `{"message":"not_found"}` — tenant sai, user sai tenant, thiết bị không
+      tồn tại HOẶC không phải của mình (anti-IDOR), mã claim sai. Cố ý không phân biệt để không
+      lộ thứ gì tồn tại. Một số lỗi nghiệp vụ (hết hạn mức, luật không hợp lệ) cũng trả `404`
+      với `message` tiếng Việt — app cứ hiện `message` thẳng lên màn hình.
+    - `400` — thân yêu cầu sai ở cửa nhận mạch thật / lệnh mục vật tư, `message` tiếng Việt.
+    - `403` — bị chặn tạm vì thử quá nhiều lần (dò mã claim).
+    - `409` — đăng ký: email đã đăng ký, hoặc email/mật khẩu không đạt (mật khẩu ≥ 8 ký tự).
+    Thân lỗi luôn có `message`; các lỗi Nest mặc định kèm `statusCode` và có thể kèm `error`.
+
+    **Phân trang**: chưa có. `GET /notifications` trả tối đa 50 bản ghi mới nhất;
+    `GET /rules/{id}/runs` trả tối đa 20. Các danh sách khác trả trọn.
+servers:
+  - url: https://api.dev.happibot.net/v1
+    description: Cửa app chính thức (Caddy VM1 → ibs, TLS Let's Encrypt) — môi trường dev.
+  - url: https://web.dev.happibot.net/v1
+    description: Cùng ibs, đi same-origin qua trang web app (Caddy `handle /v1/*`) — cho web app khỏi CORS.
+  # Cụm k3s bậc 1 (dev-k3s) chạy cùng ảnh ibs nhưng chưa mở cửa công khai — app không trỏ vào đó.
+tags:
+  - name: auth
+    description: Đăng ký, đăng nhập, refresh, hồ sơ, theme hãng, bộ chữ đa ngôn ngữ
+  - name: devices
+    description: Danh sách thiết bị, nhận thiết bị (claim), điều khiển (RPC), meta nhà/phòng, vật tư
+  - name: home
+    description: Danh mục Nhà/Phòng/Nhóm, chia sẻ nhà cho thành viên, thông báo
+  - name: rules
+    description: Tự động hoá của người dùng (UI-05)
+  - name: virtual
+    description: Thiết bị ảo — nguồn ngoài (thời tiết/không khí), trạng thái nhà, nút bấm
+  - name: products
+    description: Catalog sản phẩm public (đã nối nhãn + đơn vị theo ngôn ngữ)
+  - name: stream
+    description: Trạng thái thiết bị thời gian thực (SSE)
+  - name: push
+    description: Đăng ký/huỷ token FCM của máy — nhận thông báo đẩy khi app không mở (D3)
+
+security: []
+
+paths:
+  # ══════════════ auth — public trước đăng nhập ══════════════
+  /tenant/theme:
+    get:
+      tags: [auth]
+      operationId: layTheme
+      summary: Theme của hãng cho màn hình đầu (public)
+      description: |
+        App gọi TRƯỚC khi đăng nhập để tô màu/logo theo hãng (UI-01). Đã đăng nhập thì theme
+        nằm sẵn trong `me.theme` của `GET /bootstrap` — không cần gọi lại cửa này.
+        Trả kèm header `ETag`; `phienBan.theme` của bootstrap bằng đúng nhãn này.
+      parameters:
+        - name: tenant
+          in: query
+          required: true
+          schema: { type: string }
+          example: livotec
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Theme của hãng đang hoạt động
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tenant]
+                properties:
+                  tenant: { type: string, example: livotec }
+                  colorPrimary: { type: string, example: '#02b6ac' }
+                  logoUrl: { type: string, nullable: true }
+                  tenantName: { type: string, example: Livotec Home }
+                additionalProperties: true
+              example:
+                tenant: livotec
+                colorPrimary: '#02b6ac'
+                logoUrl: null
+                tenantName: Livotec Home
+                quotas: { rules: 20, devices: 10000 }
+                aiEnabled: true
+                loginMethods: { eu: [password, otp, google], staff: [password, sso] }
+        '304': { $ref: '#/components/responses/KhongDoi' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /i18n:
+    get:
+      tags: [auth]
+      operationId: layI18n
+      summary: Bộ chữ theo ngôn ngữ (public — app cần trước cả lúc đăng nhập)
+      description: |
+        Trả bộ chữ đã GHÉP: chuỗi gốc + bản ghi đè của hãng (nếu có). `lang` không có trong
+        bảng thì rơi về `en`. `langs` là danh sách ngôn ngữ THẬT trong bảng (tiếng Anh luôn
+        đứng đầu) — app dựng ô xổ xuống từ đây, không viết cứng.
+
+        Trả kèm header `ETag`; `phienBan.i18n` của `GET /bootstrap` bằng đúng nhãn này — app
+        giữ nhãn cạnh bộ chữ đã cất, bootstrap báo nhãn khác mới phải tải lại cửa này.
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string }
+          example: vi
+        - name: tenant
+          in: query
+          required: false
+          schema: { type: string }
+          example: livotec
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Bộ chữ + danh sách ngôn ngữ
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lang, langs, strings]
+                properties:
+                  lang: { type: string, example: vi }
+                  langs:
+                    type: array
+                    items: { type: string }
+                    example: [en, th, vi]
+                  strings:
+                    type: object
+                    additionalProperties: { type: string }
+                    example: { 'app.hello': 'Xin chào' }
+        '304': { $ref: '#/components/responses/KhongDoi' }
+
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: dangKy
+      summary: Đăng ký tài khoản người dùng cuối
+      description: |
+        Tạo user Keycloak + customer ThingsBoard + bản ghi user_map, rồi đăng nhập luôn và trả
+        token. Mỗi email thuộc đúng MỘT tenant (v1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant, email, password]
+              properties:
+                tenant: { type: string, example: livotec }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                fullName: { type: string }
+      responses:
+        '201':
+          description: Đăng ký xong, token phát luôn
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoToken' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+        '409':
+          description: Email đã đăng ký, HOẶC email/mật khẩu không đạt (mật khẩu ≥ 8 ký tự)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '429': { $ref: '#/components/responses/QuaTai' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: dangNhap
+      summary: Đăng nhập
+      description: |
+        Email phải thuộc ĐÚNG tenant gửi lên (cách ly tenant tại IBS) — sai tenant trả `404`
+        đồng nhất, KHÁC với sai mật khẩu (`401`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant, email, password]
+              properties:
+                tenant: { type: string, example: livotec }
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '201':
+          description: Bộ token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoToken' }
+        '401':
+          description: Sai mật khẩu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+        '429': { $ref: '#/components/responses/QuaTai' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: lamMoiToken
+      summary: Đổi refreshToken lấy bộ token mới
+      description: App gọi khi accessToken hết hạn/401. Refresh cũng 401 thì quay về đăng nhập.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '201':
+          description: Bộ token mới (không kèm `tenant`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoToken' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+
+  /me:
+    get:
+      tags: [auth]
+      operationId: hoSo
+      summary: Hồ sơ người đang đăng nhập
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: Email, tenant và theme của người dùng
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [email, tenant, tenantName, theme, tbCustomerId]
+                properties:
+                  email: { type: string, format: email }
+                  tenant: { type: string, example: livotec }
+                  tenantName: { type: string, example: Livotec Home }
+                  theme:
+                    type: object
+                    additionalProperties: true
+                  tbCustomerId: { type: string, format: uuid }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /bootstrap:
+    get:
+      tags: [auth]
+      operationId: moApp
+      summary: MỘT cửa cho lúc mở app — devices + categories + me + unread + nhãn phiên bản (B-UI.5)
+      description: |
+        Gộp 4 cửa app gọi lúc mở (`/devices`, `/categories`, `/me`, `/notifications` phần
+        `unread`) thành một; poll giữ nhịp cũng chuyển sang đây kèm `If-None-Match` — không có
+        gì đổi thì `304` thân rỗng. Các cửa lẻ VẪN GIỮ NGUYÊN cho app bản cũ.
+
+        `phienBan` là NHÃN PHIÊN BẢN để app so với bản đang giữ, khớp thì THÔI tải cửa tương ứng:
+        - `i18n` — bằng đúng `ETag` của `GET /i18n?lang&tenant` (cùng thân, cùng hàm băm)
+        - `products` — nhãn đổi khi catalogue hoặc bộ chữ đổi; lệch bản đang giữ thì tải lại
+          `GET /products` (KHÔNG cam kết bằng ETag của cửa đó)
+        - `theme` — bằng đúng `ETag` của `GET /tenant/theme?tenant`; theme cũng nằm sẵn trong
+          `me.theme` nên app đã đăng nhập không cần gọi lại cửa theme
+
+        `ETag` của CHÍNH cửa này băm trọn thân (kể cả `lastValues`) — chỉ để poll rẻ, KHÔNG
+        dùng làm nhãn phiên bản lâu dài.
+
+        KHÔNG NHẦM với `POST /v1/admin/bootstrap` — cửa đó là Sadmin KHỞI TẠO hệ thống
+        (migrate + realm + seed), khoá `x-admin-key`, không dành cho app; trùng mỗi cái tên.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string }
+          description: Ngôn ngữ nối nhãn capability trong devices (mặc định en), như GET /devices
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Đủ dữ liệu dựng màn Home trong một lần hỏi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices, categories, me, unread, phienBan]
+                properties:
+                  devices:
+                    type: array
+                    description: Y HỆT thân của GET /devices (đã gộp thiết bị thật + chia sẻ + ảo)
+                    items: { $ref: '#/components/schemas/ThietBi' }
+                  categories:
+                    type: array
+                    description: Y HỆT thân của GET /categories
+                    items:
+                      type: object
+                      required: [kind, name]
+                      properties:
+                        kind: { type: string, enum: [house, room, grp] }
+                        name: { type: string }
+                  me:
+                    type: object
+                    description: Y HỆT thân của GET /me
+                    required: [email, tenant, tenantName, theme, tbCustomerId]
+                    properties:
+                      email: { type: string, format: email }
+                      tenant: { type: string, example: livotec }
+                      tenantName: { type: string, example: Livotec Home }
+                      theme:
+                        type: object
+                        additionalProperties: true
+                      tbCustomerId: { type: string, format: uuid }
+                  unread:
+                    type: integer
+                    description: Số thông báo chưa đọc — đếm như GET /notifications (trong 50 bản ghi mới nhất)
+                  phienBan:
+                    type: object
+                    required: [i18n, products, theme]
+                    properties:
+                      i18n: { type: string, example: W/"jZx0f3kq1a2b3c4d" }
+                      products: { type: string, example: W/"a1b2c3d4e5f6a7b8" }
+                      theme: { type: string, example: W/"0f1e2d3c4b5a6978" }
+        '304': { $ref: '#/components/responses/KhongDoi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ products — catalog public ══════════════
+  /products:
+    get:
+      tags: [products]
+      operationId: catalogSanPham
+      summary: Catalog sản phẩm (public, đã dịch nhãn theo lang/tenant)
+      description: |
+        Map `type sản phẩm → định nghĩa`. Mỗi capability đã NỐI SẴN `label`, `unit`
+        (và `unitSpace` nếu đơn vị cần dấu cách, ví dụ `24 giờ` vs `24°C`) — app không phải tự
+        nối danh mục. `lang` mặc định `en`; chưa dịch thì rơi bậc, không bao giờ trống.
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string }
+          example: vi
+        - name: tenant
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: '#/components/schemas/SanPham' }
+
+  # ══════════════ devices — cần Bearer ══════════════
+  /devices:
+    get:
+      tags: [devices]
+      operationId: dsThietBi
+      summary: Mọi thiết bị của tôi + được chia sẻ cho tôi + thiết bị ảo
+      description: |
+        MỘT danh sách gộp: thiết bị mình claim, thiết bị người khác chia sẻ (`shared: true`,
+        quyền trong `perms`) và thiết bị ảo (`virtual: true`). Mỗi hàng kèm `product`
+        (capabilities + khuôn UI) và `lastValues` (số đo mới nhất) — app dựng màn Home từ đúng
+        một cửa này.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string }
+          description: Ngôn ngữ nối nhãn capability (mặc định en)
+      responses:
+        '200':
+          description: Danh sách thiết bị
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ThietBi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /claim:
+    post:
+      tags: [devices]
+      operationId: nhanThietBi
+      summary: Nhận thiết bị bằng tên + mã claim một-lần (tem/QR)
+      description: |
+        Mã claim dùng xong bị xoá — claim lại lần 2 trả `404`. Sai tên, sai mã, thiết bị đã có
+        chủ: đều `404` đồng nhất (không lộ thứ gì tồn tại). Sai quá 10 lần trong 10 phút thì bị
+        chặn tạm (`403`).
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, secret]
+              properties:
+                name: { type: string, description: Tên thiết bị in trên tem/QR }
+                secret: { type: string, description: Mã claim 5 số một-lần }
+      responses:
+        '201':
+          description: Đã về tài khoản
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id, name, type]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  type: { type: string, example: fan }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '403':
+          description: Thử sai quá nhiều lần — chờ vài phút
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /claim-mach-that:
+    post:
+      tags: [devices]
+      operationId: nhanMachThat
+      summary: Nhận MẠCH THẬT chỉ bằng serial in trên vỏ
+      description: |
+        Mạch thật không có mã claim — điều kiện thay thế là mạch PHẢI đang online (hoặc vừa
+        hoạt động trong cửa sổ ~30 phút): người lắp đặt thì đứng cạnh mạch đang cắm điện. Mọi
+        nhánh sai trả `400` với `message` tiếng Việt để hiện thẳng lên app (serial sai/đã có
+        chủ nói CÙNG một câu — chống dò). Mạch có mã trên tem thì bị hướng sang cửa `/claim`.
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serial]
+              properties:
+                serial: { type: string, description: Serial in trên vỏ mạch }
+      responses:
+        '201':
+          description: Đã về tài khoản
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id, name, type, dangNoi]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  type: { type: string }
+                  dangNoi: { type: boolean, description: Mạch đang online lúc nhận }
+        '400':
+          description: Serial sai/đã có chủ/mạch offline/thử quá nhiều — `message` nói rõ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}:
+    patch:
+      tags: [devices]
+      operationId: suaMetaThietBi
+      summary: Sửa meta thiết bị theo NGƯỜI DÙNG (tên, nhà, phòng, nhóm, ★, ẩn)
+      description: |
+        Chỉ gửi trường muốn đổi (trường vắng giữ nguyên). Gán tên nhà/phòng/nhóm MỚI thì danh
+        mục tự sinh server-side (xem `GET /categories`).
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string }
+                house: { type: string }
+                room: { type: string }
+                grp: { type: string }
+                fav: { type: boolean }
+                hidden: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/rpc:
+    post:
+      tags: [devices]
+      operationId: guiLenh
+      summary: Gửi lệnh điều khiển (RPC) xuống thiết bị
+      description: |
+        `method` phải nằm trong `capabilities[].rpc` của product — method lạ trả `404`. Với
+        thiết bị ảo: `method: press` bấm nút; mọi method khác đọc `params.on` để bật/tắt trạng
+        thái nhà. Header `Idempotency-Key` (tuỳ chọn, CHỈ áp cho thiết bị thật — nhánh thiết
+        bị ảo trả lời trước khi tới lớp khoá): gửi lại cùng khoá thì KHÔNG chạy lệnh lần nữa,
+        trả kết quả cũ kèm `replayed: true` — app nên gửi UUID mỗi lần bấm nút để an toàn khi
+        mạng chập. Sau lệnh tay, tự động hoá NHƯỜNG TAY (không đụng thiết bị này ngay).
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: UUID chống lặp lệnh khi mạng chập/bấm đúp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, example: setPower }
+                params:
+                  type: object
+                  additionalProperties: true
+                  example: { power: true }
+      responses:
+        '201':
+          description: 'Kết quả lệnh (`replayed: true` nếu Idempotency-Key trùng)'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  replayed: { type: boolean }
+                additionalProperties: true
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/muc/{cap}:
+    post:
+      tags: [devices]
+      operationId: lenhMucVatTu
+      summary: Lệnh trên MỘT MỤC của capability kiểu `list` (lõi lọc, vật tư…)
+      description: |
+        `kieu`: `them` (lắp thêm — quét serial chính hãng hoặc nhập tên), `thay` (đặt lại đồng
+        hồ), `tuoi` (sửa tuổi thọ ngày), `bo` (ngừng theo dõi). Máy chủ tự biết mục do MẠCH giữ
+        (gửi RPC xuống, cần mạch online) hay do MÁY CHỦ giữ (ghi mốc, không cần mạch) — app chỉ
+        nói mình muốn gì, đọc `nguon` trong kết quả để biết đường đã đi.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - {
+            name: cap,
+            in: path,
+            required: true,
+            schema: { type: string },
+            description: Key capability kiểu list,
+          }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kieu]
+              properties:
+                kieu: { type: string, enum: [them, thay, tuoi, bo] }
+                id: { type: string, description: Mã mục (bắt buộc trừ kieu=them) }
+                tuoiTho: { type: integer, description: Tuổi thọ ngày (kieu=tuoi bắt buộc > 0) }
+                serial: { type: string, description: kieu=them — serial chính hãng (tuỳ chọn) }
+                sanPham: { type: string, description: kieu=them — mã sản phẩm vật tư }
+                ten: { type: string, description: kieu=them — tên tự nhập khi không có serial }
+      responses:
+        '201':
+          description: |
+            Đã làm. `nguon: server|mach` cho biết mục do ai giữ; kieu=them trả `id` mục mới và
+            `xacThuc` (có serial chính hãng hay không).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  nguon: { type: string, enum: [server, mach] }
+                  id: { type: string }
+                  xacThuc: { type: boolean }
+        '400':
+          description: Serial giả/đã dùng/lô khoá, thiếu tên, lệnh không hiểu — `message` tiếng Việt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ devices/hen-gio — hẹn giờ & chương trình theo thiết bị (D4) ══════════════
+  # CHỈ CHỦ thiết bị (người được chia sẻ → 404 đồng nhất). Sản phẩm tắt hẹn giờ
+  # (henGio.bat=false hoặc không có capability điều khiển được) → cửa GHI trả 403,
+  # cửa XOÁ vẫn mở để còn dọn được dữ liệu cũ.
+  /devices/{id}/hen-gio:
+    get:
+      tags: [devices]
+      operationId: xemHenGio
+      summary: Toàn cảnh hẹn giờ của một thiết bị — hẹn, chương trình, cái đang dùng
+      description: |
+        `capChoPhep` là key capability được phép nằm trong bước (điều khiển được và không bị
+        sản phẩm loại qua `henGio.tatCap`). `capThuHoi` của từng chương trình liệt kê cap đã
+        bị thu hồi SAU khi lưu — app đeo cảnh báo; lúc chạy hệ tự bỏ qua hành động đó.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Trạng thái hẹn giờ của thiết bị
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HenGioTongQuan' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/hen-gio/hen:
+    put:
+      tags: [devices]
+      operationId: datHenGio
+      summary: Đặt hẹn bật/tắt — THAY hẹn cũ, mỗi thiết bị chỉ một hẹn
+      description: |
+        Thân gồm `bat` + đúng MỘT trong `phut` (1..720) | `luc` ("HH:MM"). `luc` đã qua trong
+        ngày (theo múi giờ hệ) thì hiểu là NGÀY MAI. Hẹn chạy SONG SONG chương trình; trùng
+        phút thì lệnh hẹn giờ thắng.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bat]
+              properties:
+                bat: { type: boolean, description: true = tới giờ thì BẬT, false = TẮT }
+                phut: { type: integer, minimum: 1, maximum: 720, description: Sau bao nhiêu phút }
+                luc: { type: string, example: '21:30', description: Giờ trong ngày HH:MM }
+      responses:
+        '200':
+          description: Đã thay hẹn; `hen.luc` là epoch ms lúc sẽ bắn
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, hen]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  hen:
+                    type: object
+                    properties:
+                      luc: { type: integer, format: int64 }
+                      bat: { type: boolean }
+        '400':
+          description: Thiếu bat, chọn cả hai/không cách nào, phut ngoài 1..720, luc sai HH:MM
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '403': { $ref: '#/components/responses/HenGioTat' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    delete:
+      tags: [devices]
+      operationId: huyHenGio
+      summary: Huỷ hẹn bật/tắt đang chờ
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/hen-gio/chuong-trinh:
+    post:
+      tags: [devices]
+      operationId: taoChuongTrinhHenGio
+      summary: Tạo chương trình theo thiết bị (tối đa 10 chương trình/thiết bị)
+      description: |
+        Giới hạn cứng: 10 chương trình/thiết bị · 8 bước/chương trình · 5 hành động/bước ·
+        tên ≤40 ký tự · `khoang`: mốc phút 1..1440 TĂNG DẦN · `gio`: HH:MM hợp lệ, không trùng
+        mốc · `chay: lap` cần `ngay` ≥1 · `khoang`+`lap` cần `batDau` · `hd.cap` phải nằm trong
+        `capChoPhep` lúc ghi. Sai → 400 với `message` tiếng Việt.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThanChuongTrinhHenGio' }
+      responses:
+        '201':
+          description: Đã tạo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: integer }
+        '400':
+          description: Vượt giới hạn hoặc thân sai — `message` tiếng Việt chỉ đúng bước sai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '403': { $ref: '#/components/responses/HenGioTat' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/hen-gio/chuong-trinh/{ctId}:
+    put:
+      tags: [devices]
+      operationId: suaChuongTrinhHenGio
+      summary: Sửa chương trình (motlan đang chạy giữa chừng → 409)
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: ctId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThanChuongTrinhHenGio' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400':
+          description: Thân sai — cùng luật với lúc tạo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '403': { $ref: '#/components/responses/HenGioTat' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+        '409':
+          description: Chương trình motlan đang chạy giữa chừng — dừng rồi hãy sửa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+    delete:
+      tags: [devices]
+      operationId: xoaChuongTrinhHenGio
+      summary: Xoá chương trình — đang dùng thì đồng thời thôi dùng
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: ctId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/hen-gio/chuong-trinh/{ctId}/dung:
+    post:
+      tags: [devices]
+      operationId: dungChuongTrinhHenGio
+      summary: Kích hoạt chương trình — thay cái đang dùng trong MỘT giao dịch
+      description: |
+        Bỏ đang-dùng cũ (motlan chạy giữa chừng thì dừng), đặt cái mới. `motlan` tính giờ từ
+        BÂY GIỜ và chạy xong TỰ RỜI; `lap` tính mốc từ phút kích hoạt. Mỗi thiết bị chỉ một
+        chương trình đang dùng.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: ctId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201':
+          description: Đã kích hoạt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, dangDung]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  dangDung: { type: integer }
+                  dangChay:
+                    type: object
+                    nullable: true
+                    description: motlan — tiến độ vừa khởi tạo; lap — null
+                    properties:
+                      buocXong: { type: integer }
+                      tuLuc: { type: integer, format: int64 }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '403': { $ref: '#/components/responses/HenGioTat' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /devices/{id}/hen-gio/dang-dung:
+    delete:
+      tags: [devices]
+      operationId: thoiDungChuongTrinhHenGio
+      summary: Thôi dùng / dừng chương trình đang chạy (không xoá chương trình)
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ home — danh mục, chia sẻ, thông báo ══════════════
+  /categories:
+    get:
+      tags: [home]
+      operationId: dsDanhMuc
+      summary: Danh mục Nhà/Phòng/Nhóm của tôi (server-side)
+      description: Trả kèm header `ETag` (B-UI.5) — gửi lại qua If-None-Match để nhận 304 khi chưa đổi.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Danh sách phẳng, đã sắp theo kind rồi tên
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [kind, name]
+                  properties:
+                    kind: { type: string, enum: [house, room, grp] }
+                    name: { type: string }
+        '304': { $ref: '#/components/responses/KhongDoi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    post:
+      tags: [home]
+      operationId: themDanhMuc
+      summary: Thêm một danh mục
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, name]
+              properties:
+                kind: { type: string, enum: [house, room, grp] }
+                name: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    patch:
+      tags: [home]
+      operationId: doiTenDanhMuc
+      summary: Đổi tên danh mục — thiết bị kéo theo; trùng tên có sẵn = GỘP hai mục
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, from, to]
+              properties:
+                kind: { type: string, enum: [house, room, grp] }
+                from: { type: string }
+                to: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /categories/{kind}/{name}:
+    delete:
+      tags: [home]
+      operationId: xoaDanhMuc
+      summary: Xoá danh mục — thiết bị KHÔNG mất, chỉ về “chưa phân loại”
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [house, room, grp] } }
+        - { name: name, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /shares:
+    get:
+      tags: [home]
+      operationId: dsChiaSe
+      summary: Chia sẻ tôi đã cấp + chia sẻ người khác cấp cho tôi
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: Hai danh sách
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [granted, receivedFromOthers]
+                properties:
+                  granted:
+                    type: array
+                    items: { $ref: '#/components/schemas/ChiaSeDaCap' }
+                  receivedFromOthers:
+                    type: array
+                    items: { $ref: '#/components/schemas/ChiaSeNhanDuoc' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    post:
+      tags: [home]
+      operationId: themChiaSe
+      summary: Chia sẻ nhà / phòng / thiết bị cho một email
+      description: |
+        Người được mời CHƯA đăng ký cũng mời được (`pending: true`) — sub gắn vào khi họ đăng
+        nhập lần đầu. Mặc định TOÀN QUYỀN, siết bằng `perms`. Gửi lại cùng (email, house,
+        scope, scopeRef) = cập nhật quyền.
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, house]
+              properties:
+                email: { type: string, format: email }
+                house: { type: string, description: Tên nhà (danh mục house của tôi) }
+                scope: { type: string, enum: [house, room, device], default: house }
+                scopeRef:
+                  { type: string, description: Tên phòng (scope=room) hoặc id thiết bị (scope=device) }
+                perms: { $ref: '#/components/schemas/Quyen' }
+      responses:
+        '201':
+          description: Đã chia sẻ
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id, pending]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: integer }
+                  pending: { type: boolean, description: true = người nhận chưa đăng ký }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /shares/{id}:
+    patch:
+      tags: [home]
+      operationId: suaQuyenChiaSe
+      summary: Siết/nới quyền của một chia sẻ đã cấp
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [perms]
+              properties:
+                perms: { $ref: '#/components/schemas/Quyen' }
+      responses:
+        '200':
+          description: Quyền sau khi ghép
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, perms]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  perms: { $ref: '#/components/schemas/Quyen' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    delete:
+      tags: [home]
+      operationId: xoaChiaSe
+      summary: Thu hồi một chia sẻ đã cấp
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /notifications:
+    get:
+      tags: [home]
+      operationId: dsThongBao
+      summary: 50 thông báo mới nhất + số chưa đọc
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: Thông báo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread, items]
+                properties:
+                  unread: { type: integer }
+                  items:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/ThongBao' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /notifications/read:
+    post:
+      tags: [home]
+      operationId: docThongBao
+      summary: Đánh dấu đã đọc — một cái (`id`) hoặc tất cả (thân rỗng)
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /notifications/{id}:
+    delete:
+      tags: [home]
+      operationId: xoaThongBao
+      summary: Xoá một thông báo
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ push — token FCM của máy (D3) ══════════════
+  /push/dang-ky:
+    post:
+      tags: [push]
+      operationId: dangKyPush
+      summary: Đăng ký token FCM của máy này — gọi sau đăng nhập và mỗi lần FCM cấp token mới
+      description: |
+        Upsert theo `token`: một máy chỉ thuộc về MỘT người — đăng nhập tài khoản khác trên
+        cùng máy thì token tự sang chủ mới, người cũ không nhận nhầm thông báo. Token chết
+        (FCM báo UNREGISTERED) được máy chủ tự dọn, app không phải huỷ thủ công.
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string, description: Registration token do SDK FCM cấp }
+                platform: { type: string, enum: [android, ios] }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '400':
+          description: Thiếu `token` hoặc `platform` không phải android/ios — `message` tiếng Việt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /push/huy:
+    post:
+      tags: [push]
+      operationId: huyPush
+      summary: Huỷ token FCM (đăng xuất) — chỉ xoá được token của chính mình
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '400':
+          description: Thiếu `token` — `message` tiếng Việt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /push/thu:
+    post:
+      tags: [push]
+      operationId: guiThuPush
+      summary: Gửi thử validate_only tới token của chính mình — FCM chỉ kiểm, không đẩy thật
+      description: |
+        Cho e2e/chẩn đoán soi đường gửi đầu-cuối. Máy chủ chưa gắn credential FCM
+        (`FCM_SA_FILE`) thì trả `push:false` và không gọi FCM — thông báo trong app vẫn
+        hoạt động bình thường, chỉ thiếu phần đẩy.
+      security: [{ bearerJWT: [] }]
+      responses:
+        '201':
+          description: Kết quả gửi thử
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, push]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  push: { type: boolean, description: Máy chủ có credential FCM hay không }
+                  sent: { type: integer, description: Số token FCM nhận hợp lệ }
+                  pruned: { type: integer, description: Số token chết vừa bị dọn }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ rules — tự động hoá (UI-05) ══════════════
+  /rules:
+    get:
+      tags: [rules]
+      operationId: dsTuDongHoa
+      summary: Mọi tự động hoá của tôi (kèm trạng thái + tiến độ) + nhóm "Từ thiết bị"
+      description: |
+        Từ D4 thân trả về là OBJECT `{rules, tuThietBi}` (trước là mảng trần — mảng JSON không
+        đeo thêm trường được). `tuThietBi` CHỈ ĐỌC: chương trình hẹn giờ đang dùng của từng
+        thiết bị, sửa thì về màn thiết bị; các bản ghi này KHÔNG đếm vào trần 20 luật/người.
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: '`status` suy từ enabled/thời hạn, `progress` khi chương trình theo giai đoạn đang chạy'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rules, tuThietBi]
+                properties:
+                  rules:
+                    type: array
+                    items: { $ref: '#/components/schemas/TuDongHoa' }
+                  tuThietBi:
+                    type: array
+                    description: Nhóm "Từ thiết bị" — chỉ đọc
+                    items:
+                      type: object
+                      required: [deviceId, tenThietBi, tenCT, trangThai]
+                      properties:
+                        deviceId: { type: string }
+                        tenThietBi: { type: string }
+                        tenCT: { type: string }
+                        trangThai:
+                          type: string
+                          enum: [dang_chay, dang_dung]
+                          description: dang_chay = motlan giữa chừng · dang_dung = lap chờ tới mốc
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    post:
+      tags: [rules]
+      operationId: taoTuDongHoa
+      summary: Tạo tự động hoá — mặc định vào CHẾ ĐỘ THỬ (shadow)
+      description: |
+        `kind: cond` (nếu…thì) cần `actions`; `kind: sched` (chương trình giai đoạn) cần
+        `stages`. Giới hạn: 10 “Nếu”, 5 “Chỉ khi”, 5 “Trừ khi”, 20 hành động, 12 giai đoạn,
+        mặc định 20 luật/người (hãng chỉnh được). Luật KHÔNG hợp lệ trả `404` với `message`
+        tiếng Việt hiện thẳng lên app.
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThanTuDongHoa' }
+      responses:
+        '201':
+          description: Đã tạo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id, shadow]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: integer }
+                  shadow: { type: boolean }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /rules/{id}:
+    patch:
+      tags: [rules]
+      operationId: suaTuDongHoa
+      summary: Sửa tự động hoá (bật/tắt, đổi tên, hoặc đổi cả cấu trúc)
+      description: |
+        Thân không có trường cấu trúc (conds/actions/stages/gates/exclusions) = chỉ đổi
+        enabled/shadow/tên/thời hạn. Có trường cấu trúc = ghép với bản hiện tại rồi kiểm lại
+        toàn bộ; chương trình đang chạy theo bản cũ bị dừng.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThanTuDongHoa' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    delete:
+      tags: [rules]
+      operationId: xoaTuDongHoa
+      summary: Xoá tự động hoá
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /rules/{id}/run:
+    post:
+      tags: [rules]
+      operationId: chayTuDongHoaNgay
+      summary: Chạy tay ngay — bỏ qua điều kiện, vẫn tôn trọng chế độ thử
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /rules/{id}/stop:
+    post:
+      tags: [rules]
+      operationId: dungChuongTrinh
+      summary: Dừng chương trình giai đoạn đang chạy
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201': { $ref: '#/components/responses/OkTao' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /rules/{id}/runs:
+    get:
+      tags: [rules]
+      operationId: lichSuChay
+      summary: 20 lần chạy gần nhất của một tự động hoá
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Nhật ký chạy, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 20
+                items:
+                  type: object
+                  properties:
+                    at: { type: string, format: date-time }
+                    shadow: { type: boolean, description: true = lần chạy ở chế độ thử (không gửi lệnh) }
+                    detail: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /rules/simulate:
+    post:
+      tags: [rules]
+      operationId: xemTruocTuDongHoa
+      summary: Xem trước — với số đo hiện tại thì luật có chạy không, từng dòng đúng/sai
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conds]
+              properties:
+                conds:
+                  type: array
+                  items: { $ref: '#/components/schemas/DieuKien' }
+                gates:
+                  type: array
+                  items: { $ref: '#/components/schemas/DieuKien' }
+                exclusions:
+                  type: array
+                  items: { $ref: '#/components/schemas/DieuKien' }
+      responses:
+        '201':
+          description: Kết quả mô phỏng từng dòng
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ virtual — thiết bị ảo (UI-05b) ══════════════
+  /virtual/places:
+    get:
+      tags: [virtual]
+      operationId: dsThanhPho
+      summary: Thành phố có sẵn cho nguồn thời tiết
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: Danh sách thành phố
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [key, name]
+                  properties:
+                    key: { type: string, example: hanoi }
+                    name: { type: string, example: Hà Nội }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /virtual:
+    get:
+      tags: [virtual]
+      operationId: dsThietBiAo
+      summary: Thiết bị ảo của tôi (kèm capabilities)
+      security: [{ bearerJWT: [] }]
+      responses:
+        '200':
+          description: Danh sách thiết bị ảo
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ThietBiAo' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    post:
+      tags: [virtual]
+      operationId: taoThietBiAo
+      summary: Tạo thiết bị ảo (tối đa 10/người)
+      description: |
+        `kind: external` (thời tiết + không khí, Open-Meteo) cần `place` từ `/virtual/places`
+        HOẶC `lat`+`lon`; `kind: state` = công tắc trạng thái nhà; `kind: button` = nút bấm.
+        Sai kiểu/thiếu tên/quá 10 cái trả `404` với `message` tiếng Việt.
+      security: [{ bearerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, name]
+              properties:
+                kind: { type: string, enum: [external, state, button] }
+                name: { type: string }
+                place: { type: string, example: hanoi }
+                lat: { type: number }
+                lon: { type: number }
+      responses:
+        '201':
+          description: Đã tạo — `id` bắt đầu bằng `v`, dùng được ngay trong `/devices` và tự động hoá
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, id]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  id: { type: string, example: v1f0c9f2a41d84f36b2f7 }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /virtual/{id}:
+    patch:
+      tags: [virtual]
+      operationId: doiTenThietBiAo
+      summary: Đổi tên thiết bị ảo
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+    delete:
+      tags: [virtual]
+      operationId: xoaThietBiAo
+      summary: Xoá thiết bị ảo — đang được luật nào dùng thì báo tên luật, không xoá
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /virtual/{id}/state:
+    post:
+      tags: [virtual]
+      operationId: datTrangThaiAo
+      summary: Bật/tắt một “trạng thái nhà”
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: ['on']
+              properties:
+                on: { type: boolean }
+      responses:
+        '201':
+          description: Trạng thái mới
+          content:
+            application/json:
+              schema:
+                type: object
+                required: ['ok', 'on']
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  on: { type: boolean }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  /virtual/{id}/press:
+    post:
+      tags: [virtual]
+      operationId: bamNutAo
+      summary: Bấm nút ảo — bật 3 giây rồi tự tắt (mồi kích cho tự động hoá)
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: Số lần đã bấm
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, count]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  count: { type: integer }
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+        '404': { $ref: '#/components/responses/KhongThay' }
+
+  # ══════════════ stream — SSE thời gian thực ══════════════
+  # Hợp đồng ĐÃ CHỐT, mã đang lên ở nhánh t5/realtime-sse (bài kiểm hợp đồng có ghi ngoại lệ
+  # spec-only cho đường này tới khi nhánh đó vào main).
+  /stream:
+    get:
+      tags: [stream]
+      operationId: luongTrangThai
+      summary: Luồng SSE trạng thái thiết bị thời gian thực
+      description: |
+        Server-Sent Events (`Content-Type: text/event-stream`). Xác thực Bearer Y HỆT
+        `/devices` — thiếu/sai token trả `401` NGAY (không mở luồng). Kết nối mở là server đẩy:
+
+        - Sự kiện `event: trang-thai` — mỗi lần một chỉ số của thiết bị mình xem được đổi giá
+          trị. `data` là JSON một dòng:
+          `{"deviceId":"<id>","key":"<chỉ số>","value":<giá trị>,"ts":<epoch ms>}`
+        - Nhịp giữ kết nối: dòng chú thích `: giu-ket-noi` TỐI ĐA mỗi 30 giây — client đọc quá
+          30 giây không thấy gì thì coi như đứt, tự đóng và nối lại.
+
+        Query `?thiet_bi=<id,id>` (tuỳ chọn) lọc theo danh sách id thiết bị, phân tách bằng dấu
+        phẩy; vắng thì nhận mọi thiết bị mình xem được (của mình + được chia sẻ + ảo).
+
+        Client TỰ NỐI LẠI khi đứt (backoff tuỳ client). Server KHÔNG hỗ trợ `Last-Event-ID` —
+        không phát lại sự kiện đã lỡ; nối lại xong app nên gọi `GET /devices` một lần để lấy
+        `lastValues` hiện tại rồi nghe tiếp.
+      security: [{ bearerJWT: [] }]
+      parameters:
+        - name: thiet_bi
+          in: query
+          required: false
+          schema: { type: string }
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6,v1f0c9f2a41d84f36b2f7
+          description: Danh sách id thiết bị cần nghe, phân tách dấu phẩy; vắng = tất cả
+      responses:
+        '200':
+          description: Luồng SSE mở — server đẩy sự kiện tới khi client đóng
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Khung SSE chuẩn; xem x-sse-events
+              example: |
+                : giu-ket-noi
+
+                event: trang-thai
+                data: {"deviceId":"3fa85f64-5717-4562-b3fc-2c963f66afa6","key":"power","value":true,"ts":1756500000000}
+        '401': { $ref: '#/components/responses/KhongQuyen' }
+      x-sse-events:
+        trang-thai:
+          description: Một chỉ số của một thiết bị vừa đổi giá trị
+          data:
+            type: object
+            required: [deviceId, key, value, ts]
+            properties:
+              deviceId: { type: string, description: Id thiết bị (thật hoặc ảo) }
+              key: { type: string, description: Tên chỉ số (trùng key trong lastValues) }
+              value:
+                description: Giá trị mới — kiểu theo capability (boolean/số/chuỗi)
+              ts: { type: integer, format: int64, description: Thời điểm — epoch mili-giây }
+        heartbeat:
+          description: 'Dòng chú thích `: giu-ket-noi` tối đa mỗi 30 giây, không phải event có tên'
+
+components:
+  securitySchemes:
+    bearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: accessToken từ /auth/login hoặc /auth/register (JWT Keycloak)
+
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string }
+      description: |
+        ETag nhận ở lần gọi trước (B-UI.5). Nội dung chưa đổi thì máy chủ trả `304` thân rỗng —
+        app giữ nguyên bản đang cầm. ETag băm THÂN JSON (dạng yếu `W/"..."`), không dựa bộ nhớ
+        tiến trình, nên nhiều bản ibs sau bộ cân bằng tải vẫn trả cùng nhãn cho cùng nội dung.
+
+  responses:
+    KhongDoi:
+      description: 304 — nội dung không đổi so với ETag trong If-None-Match; thân rỗng, app dùng bản đang cầm
+    Ok:
+      description: Đã làm
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ok]
+            properties:
+              ok: { type: boolean, enum: [true] }
+    OkTao:
+      description: Đã làm (POST — Nest trả 201)
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ok]
+            properties:
+              ok: { type: boolean, enum: [true] }
+    KhongQuyen:
+      description: Thiếu/sai/hết hạn token (hoặc sai mật khẩu ở cửa đăng nhập)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    KhongThay:
+      description: |
+        404 ĐỒNG NHẤT `{"message":"not_found"}` — không tồn tại HOẶC không phải của mình
+        (anti-IDOR), cố ý không phân biệt. Một số lỗi nghiệp vụ (hết hạn mức, luật không hợp
+        lệ…) cũng 404 với `message` tiếng Việt để app hiện thẳng.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    QuaTai:
+      description: Hãng chạm trần hạn mức (B7) — thực tế trả 404 với message tiếng Việt, giữ mục này để client sinh sẵn nhánh xử lý
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    HenGioTat:
+      description: |
+        403 — sản phẩm tắt hẹn giờ (`henGio.bat=false`, hoặc không có capability điều khiển
+        được). App đọc `batDuoc` của GET /devices/{id}/hen-gio để giấu hẳn màn này.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+
+  schemas:
+    Loi:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Luôn có. `not_found` (404 đồng nhất) hoặc câu tiếng Việt hiện thẳng lên app
+          example: not_found
+        statusCode: { type: integer, example: 401 }
+        error: { type: string, example: Bad Request }
+
+    BoToken:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string, description: JWT — gửi 'Authorization Bearer' }
+        refreshToken: { type: string, description: Đổi token mới qua /auth/refresh }
+        expiresIn: { type: integer, example: 300, description: Hạn accessToken tính bằng giây }
+        tenant: { type: string, description: Chỉ có ở register/login — refresh không kèm }
+
+    Quyen:
+      type: object
+      description: Quyền trên thiết bị được chia sẻ — vắng trường nào coi như true
+      properties:
+        control: { type: boolean, description: Được điều khiển (RPC + lệnh mục) }
+        create: { type: boolean, description: Được tạo (tự động hoá dùng thiết bị này…) }
+        delete: { type: boolean, description: Được xoá }
+
+    KhaNang:
+      type: object
+      description: Một capability của sản phẩm (hợp đồng Matter-informed, nhãn đã dịch)
+      required: [key, kind, label]
+      properties:
+        key: { type: string, example: speed }
+        kind: { type: string, enum: [onoff, level, enum, sensor, list] }
+        label: { type: string, description: Nhãn đã dịch theo lang }
+        rpc:
+          type: string
+          description: Method gửi /devices/{id}/rpc để chỉnh capability này
+        min: { type: number }
+        max: { type: number }
+        step: { type: number }
+        unit: { type: string, example: '%' }
+        unitSpace: { type: boolean, description: true = có dấu cách trước đơn vị ('24 giờ') }
+        values:
+          type: array
+          items: { type: string }
+          description: kind=enum — các giá trị gửi xuống mạch
+        labels:
+          type: object
+          additionalProperties: { type: string }
+          description: kind=enum — nhãn đã dịch cho từng giá trị
+      additionalProperties: true
+
+    SanPham:
+      type: object
+      description: Định nghĩa một loại sản phẩm trong catalog (đã nối nhãn/đơn vị)
+      required: [nameVi, category, icon, capabilities, telemetry, version]
+      properties:
+        nameVi: { type: string, description: Tên đã dịch theo lang (rơi về nameEn/nameVi) }
+        nameEn: { type: string }
+        category: { type: string, example: comfort }
+        icon: { type: string, example: 🌀 }
+        productGroup: { type: string, nullable: true }
+        ui: { $ref: '#/components/schemas/KhuonUi' }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/KhaNang' }
+        telemetry:
+          type: array
+          items: { type: string }
+          description: Các key số đo sản phẩm đẩy lên
+        version: { type: integer }
+      additionalProperties: true
+
+    KhuonUi:
+      type: object
+      nullable: true
+      description: Màn hình riêng của sản phẩm; app chưa biết `renderer` thì RƠI VỀ màn chung, không bao giờ trắng màn
+      properties:
+        renderer: { type: string, example: fan }
+        controls:
+          type: array
+          items: { type: string }
+        gauges:
+          type: array
+          items: { type: string }
+        image: { type: string, description: emoji hoặc data URI }
+        slots:
+          type: object
+          description: Vị trí/kiểu vẽ/cỡ cho từng capability
+          additionalProperties:
+            type: object
+            properties:
+              nhom: { type: string }
+              variant: { type: string }
+              co: { type: integer }
+      additionalProperties: true
+
+    ThietBi:
+      type: object
+      description: Một hàng của GET /devices — thiết bị thật, được chia sẻ, hoặc ảo
+      required:
+        [id, name, type, label, house, room, grp, fav, hidden, active, createdTime, lastValues, shared, perms]
+      properties:
+        id: { type: string, description: UUID thiết bị thật — hoặc id bắt đầu bằng `v` cho thiết bị ảo }
+        name: { type: string, description: Tên gốc (serial với mạch thật) }
+        type:
+          {
+            type: string,
+            example: fan,
+            description: 'Loại sản phẩm; thiết bị ảo: virtual_external/state/button',
+          }
+        product:
+          allOf: [{ $ref: '#/components/schemas/SanPham' }]
+          nullable: true
+          description: null khi sản phẩm không còn trong catalog — app vẽ màn CHUNG từ capabilities
+        label: { type: string, description: Tên NGƯỜI DÙNG đặt (meta theo người xem) }
+        house: { type: string, description: Rỗng = chưa phân loại }
+        room: { type: string }
+        grp: { type: string }
+        fav: { type: boolean }
+        hidden: { type: boolean }
+        active: { type: boolean, description: Đang online }
+        createdTime: { type: integer, format: int64, description: Epoch mili-giây }
+        lastValues:
+          type: object
+          additionalProperties: true
+          description: Số đo mới nhất theo key telemetry; capability kiểu `list` là mảng mục đã GỘP mạch + máy chủ
+        shared: { type: boolean, description: true = người khác chia sẻ cho tôi }
+        perms: { $ref: '#/components/schemas/Quyen' }
+        virtual: { type: boolean, description: Chỉ có ở thiết bị ảo }
+        virtualKind: { type: string, enum: [external, state, button] }
+        place: { type: string, nullable: true, description: Thiết bị ảo nguồn ngoài — tên thành phố }
+
+    ChiaSeDaCap:
+      type: object
+      description: Một chia sẻ tôi đã cấp (hàng bảng home_shares)
+      properties:
+        id: { type: integer }
+        member_email: { type: string }
+        member_sub: { type: string, nullable: true, description: null = người nhận chưa đăng nhập lần nào }
+        house: { type: string }
+        scope: { type: string, enum: [house, room, device] }
+        scope_ref: { type: string, description: Phòng hoặc id thiết bị; rỗng khi scope=house }
+        perms: { $ref: '#/components/schemas/Quyen' }
+        created_at: { type: string, format: date-time }
+
+    ChiaSeNhanDuoc:
+      type: object
+      description: Một chia sẻ người khác cấp cho tôi
+      properties:
+        id: { type: integer }
+        ownerEmail: { type: string }
+        house: { type: string }
+        scope: { type: string, enum: [house, room, device] }
+        scopeRef: { type: string }
+        perms: { $ref: '#/components/schemas/Quyen' }
+
+    ThongBao:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, example: share }
+        title: { type: string }
+        body: { type: string, nullable: true }
+        read: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    DieuKien:
+      type: object
+      description: |
+        Điều kiện của tự động hoá — MỘT trong hai dạng:
+        theo THIẾT BỊ (`type` vắng hoặc `device`: deviceId, key, op, value) hoặc theo KHUNG GIỜ
+        (`type: time`: from, to 'HH:MM', days 0=CN…6=T7; chỉ dùng ở "Chỉ khi"/"Trừ khi").
+        `conn` là cách nối với điều kiện TRƯỚC nó.
+      properties:
+        type: { type: string, enum: [device, time] }
+        deviceId: { type: string }
+        key: { type: string, example: temperature }
+        op: { type: string, enum: [gt, lt, eq, neq] }
+        value: {}
+        from: { type: string, example: '22:00' }
+        to: { type: string, example: '06:00' }
+        days:
+          type: array
+          items: { type: integer, minimum: 0, maximum: 6 }
+        conn: { type: string, enum: [and, or] }
+
+    HanhDong:
+      type: object
+      description: Một hành động — gửi RPC xuống thiết bị, hoặc gửi thông báo (`notify`)
+      properties:
+        deviceId: { type: string }
+        method: { type: string, example: setPower }
+        params:
+          type: object
+          additionalProperties: true
+        delaySec: { type: integer, minimum: 0 }
+        notify: { type: string, description: Có trường này = hành động "gửi thông báo" với nội dung này }
+
+    GiaiDoan:
+      type: object
+      description: Một giai đoạn của chương trình (kind=sched)
+      required: [durationSec, actions]
+      properties:
+        name: { type: string }
+        durationSec:
+          type: integer
+          nullable: true
+          minimum: 60
+          maximum: 86400
+          description: null = chặng cuối, chạy đến khi dừng
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/HanhDong' }
+
+    ThanTuDongHoa:
+      type: object
+      description: Thân tạo/sửa tự động hoá (PATCH gửi trường nào đổi trường đó)
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [cond, sched], default: cond }
+        conds:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/DieuKien' }
+        gates:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/DieuKien' }
+          description: '"Chỉ khi" — bối cảnh phải đúng'
+        exclusions:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/DieuKien' }
+          description: '"Trừ khi" — bối cảnh chặn'
+        actions:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/HanhDong' }
+          description: kind=cond
+        stages:
+          type: array
+          maxItems: 12
+          items: { $ref: '#/components/schemas/GiaiDoan' }
+          description: kind=sched
+        startsAt: { type: string, format: date-time, nullable: true }
+        endsAt: { type: string, format: date-time, nullable: true }
+        onFinish: { type: string, enum: [stop, loop, restore], default: stop }
+        onRetrigger: { type: string, enum: [restart, ignore], default: restart }
+        yieldSec:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 3600,
+            default: 300,
+            description: Nhường tay người dùng (giây),
+          }
+        holdSec:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 3600,
+            default: 0,
+            description: Điều kiện phải đúng liên tục đủ lâu,
+          }
+        cooldownSec: { type: integer, minimum: 1, maximum: 3600, default: 10, description: Nghỉ sau khi kích }
+        shadow: { type: boolean, default: true, description: 'Chế độ THỬ — ghi nhật ký, không gửi lệnh' }
+        enabled: { type: boolean }
+
+    TuDongHoa:
+      type: object
+      description: Một hàng của GET /rules — cột bảng rules (snake_case) + status/progress suy ra
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string, enum: [cond, sched] }
+        conds:
+          type: array
+          items: { $ref: '#/components/schemas/DieuKien' }
+        gates:
+          type: array
+          items: { $ref: '#/components/schemas/DieuKien' }
+        exclusions:
+          type: array
+          items: { $ref: '#/components/schemas/DieuKien' }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/HanhDong' }
+        stages:
+          type: array
+          items: { $ref: '#/components/schemas/GiaiDoan' }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        on_finish: { type: string, enum: [stop, loop, restore] }
+        on_retrigger: { type: string, enum: [restart, ignore] }
+        yield_sec: { type: integer }
+        hold_sec: { type: integer }
+        cooldown_sec: { type: integer }
+        enabled: { type: boolean }
+        shadow: { type: boolean }
+        last_run: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [running, waiting, expired, off] }
+        progress:
+          type: object
+          nullable: true
+          description: Khác null khi chương trình giai đoạn đang chạy
+          properties:
+            stageIdx: { type: integer }
+            stageName: { type: string }
+            total: { type: integer }
+            nextAt: { type: string, format: date-time, nullable: true }
+            startedAt: { type: string, format: date-time, nullable: true }
+      additionalProperties: true
+
+    BuocHenGio:
+      type: object
+      description: Một bước của chương trình hẹn giờ theo thiết bị
+      required: [moc, hd]
+      properties:
+        moc:
+          description: kieu='gio' → "HH:MM"; kieu='khoang' → phút thứ mấy (int 1..1440, tăng dần)
+          oneOf:
+            - { type: string, example: '21:30' }
+            - { type: integer, minimum: 1, maximum: 1440 }
+        hd:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            required: [cap, val]
+            properties:
+              cap: { type: string, description: Key capability — phải nằm trong capChoPhep lúc ghi }
+              val: { description: Giá trị đặt cho capability đó (true/false, số mức, mã enum) }
+
+    ThanChuongTrinhHenGio:
+      type: object
+      description: Thân tạo/sửa chương trình hẹn giờ theo thiết bị (hợp đồng D4-B/C)
+      required: [ten, kieu, buoc, chay]
+      properties:
+        ten: { type: string, maxLength: 40 }
+        kieu: { type: string, enum: [gio, khoang] }
+        buoc:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/BuocHenGio' }
+        chay: { type: string, enum: [motlan, lap] }
+        ngay:
+          type: array
+          items: { type: integer, minimum: 0, maximum: 6 }
+          description: 0=CN … 6=T7 — bắt buộc ≥1 khi chay='lap'
+        batDau:
+          type: string
+          nullable: true
+          example: '06:00'
+          description: Giờ bắt đầu chu kỳ — bắt buộc khi kieu='khoang' và chay='lap'
+
+    ChuongTrinhHenGio:
+      allOf:
+        - $ref: '#/components/schemas/ThanChuongTrinhHenGio'
+        - type: object
+          required: [id, capThuHoi]
+          properties:
+            id: { type: integer }
+            capThuHoi:
+              type: array
+              items: { type: string }
+              description: Cap từng lưu trong bước nhưng ĐÃ bị thu hồi — app đeo cảnh báo (Q9)
+
+    HenGioTongQuan:
+      type: object
+      description: GET /devices/{id}/hen-gio — toàn cảnh hẹn giờ của MỘT thiết bị
+      required: [batDuoc, capChoPhep, hen, dangDung, dangChay, chuongTrinh]
+      properties:
+        batDuoc: { type: boolean, description: false = sản phẩm tắt hẹn giờ, app giấu màn này }
+        capChoPhep:
+          type: array
+          items: { type: string }
+        hen:
+          type: object
+          nullable: true
+          properties:
+            luc: { type: integer, format: int64, description: Epoch ms lúc sẽ bắn }
+            bat: { type: boolean }
+        dangDung: { type: integer, nullable: true, description: id chương trình đang dùng }
+        dangChay:
+          type: object
+          nullable: true
+          description: Khác null khi chương trình motlan đang chạy giữa chừng
+          properties:
+            buocXong: { type: integer }
+            tuLuc: { type: integer, format: int64 }
+        chuongTrinh:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ChuongTrinhHenGio' }
+
+    ThietBiAo:
+      type: object
+      description: Một hàng của GET /virtual
+      required: [id, kind, name, config, state, capabilities]
+      properties:
+        id: { type: string, example: v1f0c9f2a41d84f36b2f7 }
+        kind: { type: string, enum: [external, state, button] }
+        name: { type: string }
+        config:
+          type: object
+          additionalProperties: true
+          description: 'kind=external: {place, lat, lon}; còn lại rỗng'
+        state:
+          type: object
+          additionalProperties: true
+          description: 'external: temperature/humidity/rain/raining/aqi/pm25/sky; state: {on}; button: {pressed, count}'
+        updatedAt: { type: string, format: date-time, nullable: true }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/KhaNang' }
+
