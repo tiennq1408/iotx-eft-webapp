@@ -26,39 +26,49 @@ await p.evaluate(u=>fetch(u), `${GOC_GIA}/v1/__phat?id=${AC}&key=ac_temp_setting
 await p.waitForTimeout(800);
 ok('SSE ac_temp_setting: dòng trạng thái có 27', (await the('Điều hòa L1 - 2').locator('.dline').innerText()).includes('27'));
 
-/* ---------- 2. Trong màn chi tiết, từng kiểu control phải gửi lệnh đúng ---------- */
-await the('Điều hòa L1 - 2').locator('.card-hit').click(); await p.waitForTimeout(900);
-ok('SSE vào tận màn chi tiết: vòng hiện 27', (await p.locator('.ctl-dial').innerText()).includes('27'));
+/* ---------- 2. Màn chi tiết đường KHUÔN: từng kiểu control phải gửi lệnh đúng ----------
+   Sản phẩm nào catalog đã khai `ui.boCuc` thì đi đường lưới và có bài riêng (bo-cuc.mjs);
+   ở đây cố ý chọn `fan_smart` — sản phẩm KHÔNG khai boCuc — để đường khuôn cũ còn được
+   canh giữ, đừng mục ra mà không ai biết. */
+const QUAT='9bed9f20-a6c7-11f1-b79e-ad8fe8623469';   // fan63903, hero là `speed` (0–12)
+await p.evaluate(u=>fetch(u), `${GOC_GIA}/v1/__phat?id=${QUAT}&key=speed&value=7`);
+await p.waitForTimeout(800);
+await the('fan63903').locator('.card-hit').click(); await p.waitForTimeout(900);
+ok('SSE vào tận màn chi tiết: vòng hiện 7', (await p.locator('.ctl-dial').innerText()).includes('7'));
 const dem=()=>doc().length;
 let n=dem();
 await p.locator('.ctl-steprow .ctl-step').last().click(); await p.waitForTimeout(700);
 let g=doc(); ok('Vòng +: có gửi lệnh', g.length>n); n=g.length;
 const than=g.length?JSON.parse(g[g.length-1].than):null;
-ok('Vòng +: đúng method setTempTarget + params số', than?.method==='setTempTarget' && than?.params?.ac_temp_setting===28);
+ok('Vòng +: đúng method setSpeed + params số', than?.method==='setSpeed' && than?.params?.speed===8);
 ok('Vòng +: có Idempotency-Key', Boolean(g[g.length-1].idem));
 await p.locator('.card .mchips span').nth(2).click(); await p.waitForTimeout(700);
 g=doc(); const t2=g.length>n?JSON.parse(g[g.length-1].than):null; n=g.length;
-ok('Chip chế độ: gửi setMode kèm chuỗi', t2?.method==='setMode' && typeof t2?.params?.ac_ope_mode==='string');
+ok('Chip chế độ: gửi setMode kèm chuỗi', t2?.method==='setMode' && typeof t2?.params?.mode==='string');
 await p.locator('.ctl-pwrbtn').click(); await p.waitForTimeout(700);
 g=doc(); const t3=g.length>n?JSON.parse(g[g.length-1].than):null; n=g.length;
-ok('Nút nguồn: gửi setPower kèm boolean', t3?.method==='setPower' && typeof t3?.params?.ac_power_status==='boolean');
+ok('Nút nguồn: gửi setPower kèm boolean', t3?.method==='setPower' && typeof t3?.params?.power==='boolean');
 const idems=new Set(doc().map(x=>x.idem));
 ok('Mỗi lệnh một Idempotency-Key riêng', idems.size===doc().length && !idems.has(null));
-await p.locator('.devback').click(); await p.waitForTimeout(500);
 
-/* ---------- 3. Quạt: thanh trượt và công tắc phụ ---------- */
-await the('SBI314').locator('.card-hit').click(); await p.waitForTimeout(900);
+/* ---------- 3. Vẫn màn đó: thanh trượt và công tắc phụ ---------- */
 n=dem();
 const truot=p.locator('.devbody input[type=range]').first();
-if (await truot.count()) { await truot.fill('7'); await truot.dispatchEvent('change'); await p.waitForTimeout(700); }
+// Thanh trượt nào cũng có min/max/step riêng — chọn một nấc HỢP LỆ thay vì gõ số cứng.
+const nac = await truot.count() ? await truot.evaluate(n => {
+  const min=+n.min||0, max=+n.max||100, b=+n.step||1, nay=+n.value;
+  const muon = nay + b <= max ? nay + b : nay - b;
+  return String(Math.round((muon - min) / b) * b + min);
+}) : null;
+if (nac !== null) { await truot.fill(nac); await truot.dispatchEvent('change'); await p.waitForTimeout(700); }
 else { await p.locator('.ctl-steprow .ctl-step').last().click(); await p.waitForTimeout(700); }
 g=doc(); const t4=g.length>n?JSON.parse(g[g.length-1].than):null; n=g.length;
-// Thanh trượt đầu màn của SBI314 là `timerOff`, không phải `speed` — kiểm tra theo kiểu
+// Thanh trượt đầu màn không chắc là `speed` — kiểm tra theo kiểu
 // dữ liệu chứ đừng đoán tên: capability `level` thì params phải là SỐ, không phải chuỗi.
-ok('Quạt, capability mức: gửi lệnh kèm SỐ', Boolean(t4?.method) && typeof Object.values(t4?.params??{})[0]==='number');
+ok('Capability mức: gửi lệnh kèm SỐ', Boolean(t4?.method) && typeof Object.values(t4?.params??{})[0]==='number');
 const ct=p.locator('.devbody button.switch-hit, .devbody .ctl-sw button').first();
 if (await ct.count()) { await ct.click(); await p.waitForTimeout(700); }
-g=doc(); ok('Quạt, công tắc phụ: có gửi lệnh', g.length>n);
+g=doc(); ok('Công tắc phụ: có gửi lệnh', g.length>n);
 
 /* ---------- 4. Lệnh hỏng thì phải trả trạng thái về, không nuốt ---------- */
 await p.evaluate(()=>{const f=window.fetch;window.fetch=(u,o)=>String(u).includes('/rpc')?Promise.resolve(new Response(JSON.stringify({message:'quota'}),{status:429,headers:{'Content-Type':'application/json'}})):f(u,o);});

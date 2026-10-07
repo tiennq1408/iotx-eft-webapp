@@ -68,7 +68,8 @@ export type IotxProduct = {
     }>;
     [key: string]: unknown;
   } | null;
-  henGio?: { bat?: boolean; tatCap?: number[] };
+  /** `tatCap` liệt kê KEY capability bị loại khỏi hẹn giờ (spec: cùng miền với `capChoPhep`). */
+  henGio?: { bat?: boolean; tatCap?: string[] };
   codec?: Record<string, unknown>;
   capabilities: IotxCapability[];
   telemetry: string[];

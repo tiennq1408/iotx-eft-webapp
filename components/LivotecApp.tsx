@@ -18,7 +18,7 @@ import { BannerCarousel, DeviceCard, FilterRow } from "@/components/newui/home";
 import { nhomCuaThietBi } from "@/lib/newui/uiType";
 import { capNguonCua } from "@/lib/newui/khuon";
 import {
-  AddDeviceSheet, DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal, ToastModal,
+  DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal, ToastModal,
   type MucMenu,
 } from "@/components/newui/modals";
 import DeviceDetail from "@/components/newui/device/DeviceDetail";
@@ -28,20 +28,22 @@ import { IMG } from "@/lib/newui/assets";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
 
 type Panel =
-  | null | "drawer" | "profile" | "notif" | "housePicker" | "roomPicker" | "groupPicker" | "placeholder" | "toast" | "addSheet"
+  | null | "drawer" | "profile" | "notif" | "housePicker" | "roomPicker" | "groupPicker" | "placeholder" | "toast"
   | "device" | "spaces" | "members" | "add" | "hengio" | "chonThietBi" | "virtual" | "if-editor";
 
 export default function LivotecApp() {
+  // Khai trước lời gọi hook: nhịp hỏi lại trạng thái nhanh hơn khi màn chi tiết đang mở.
+  const [panel, setPanel] = useState<Panel>(null);
+
   const {
     hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, setLuatTuThietBi,
-    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices,
-  } = useDuLieuIotx();
+    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
+  } = useDuLieuIotx({ xemKy: panel === "device" });
 
   const [thongBaoLoi, setThongBaoLoi] = useState("");
   const [man, setMan] = useState<ManChinh>("home");
-  const [panel, setPanel] = useState<Panel>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [nha, setNha] = useState("all");
   const [phong, setPhong] = useState("all");
@@ -121,8 +123,11 @@ export default function LivotecApp() {
       }),
     }));
     if (!isIotxMode) return;
+    // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
+    ghiNhanLenh(id, capability.key, value);
     try { await iotxClient.rpc(id, capability.rpc, { [capability.key]: value }); }
     catch (error) {
+      boGhiNhanLenh(id, capability.key);
       if (truoc) setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? truoc : device) }));
       throw error;
     }
@@ -288,7 +293,7 @@ export default function LivotecApp() {
               onMoThietBi={id => { setDeviceId(id); setPanel("device"); }}
               onNguon={id => { void doiNguon(id); }}
               onGhim={id => { void doiGhim(id); }}
-              onThemThietBi={() => setPanel("addSheet")}
+              onThemThietBi={() => setPanel("add")}
               onTaoNeuThi={() => setPanel("if-editor")}
               onTaoTheoGio={() => setPanel("chonThietBi")}
               onBatTatLuat={rule => { void batTatLuat(rule); }}
@@ -324,7 +329,6 @@ export default function LivotecApp() {
                 vaiTro={profile?.tenantName || ""}
                 onClose={() => setPanel(null)}
                 onLogout={dangXuat}
-                onSettings={() => setPanel("spaces")}
               />
             )}
             {panel === "notif" && (
@@ -359,7 +363,6 @@ export default function LivotecApp() {
                 onChon={ten => { setNhom(ten); setPanel(null); setMan("devices"); }}
               />
             )}
-            {panel === "addSheet" && <AddDeviceSheet onClose={() => setPanel(null)} onMoLuong={() => setPanel("add")} />}
             {panel === "placeholder" && <PlaceholderModal title={cauPhu} onClose={() => setPanel(null)} />}
             {panel === "toast" && <ToastModal cau={cauPhu} onClose={() => setPanel(null)} />}
 
@@ -386,7 +389,9 @@ export default function LivotecApp() {
                 onChon={id => { setDeviceId(id); setPanel("hengio"); }}
               />
             )}
-            {panel === "hengio" && thietBiDangMo && <HenGioPanel device={thietBiDangMo} onClose={() => { setPanel(null); setDeviceId(null); }} />}
+            {/* Đóng màn hẹn giờ thì QUAY VỀ màn chi tiết, không văng ra danh sách: người dùng
+                mở nó TỪ màn chi tiết, nên nút trở lại phải trả họ về đúng chỗ vừa rời. */}
+            {panel === "hengio" && thietBiDangMo && <HenGioPanel device={thietBiDangMo} onClose={() => setPanel("device")} />}
             {panel === "virtual" && <VirtualPanel onClose={() => setPanel(null)} onThayDoi={syncRemote} />}
             {panel === "if-editor" && <IfThenEditor devices={data.devices} onSaved={taiLuat} onClose={() => setPanel(null)} />}
           </div></div>
@@ -439,9 +444,7 @@ function ManHinh(props: {
       nha={props.nha}
       phong={props.phong}
       nhom={props.nhom}
-      lang={props.lang}
       gonGang={props.gonGang}
-      onLang={props.onLang}
       onChonNha={props.onChonNha}
       onChonPhong={props.onChonPhong}
       onChonNhom={props.onChonNhom}

@@ -55,13 +55,12 @@ export function MenuDrawer({ lang, phienBan, onLang, onClose, onChon }: {
 
 /* ------------------------------------------------------------------ */
 
-export function ProfileModal({ ten, email, vaiTro, onClose, onLogout, onSettings }: {
+export function ProfileModal({ ten, email, vaiTro, onClose, onLogout }: {
   ten: string;
   email: string;
   vaiTro: string;
   onClose: () => void;
   onLogout: () => void;
-  onSettings: () => void;
 }) {
   const { t } = useChu();
   return (
@@ -73,7 +72,6 @@ export function ProfileModal({ ten, email, vaiTro, onClose, onLogout, onSettings
         <h3 style={{ margin: "0 0 3px", fontSize: 16 }}>{ten}</h3>
         <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>{email || vaiTro}</p>
       </div>
-      <button className="btn-full secondary" onClick={onSettings}>{t("menu_spaces")}</button>
       <button className="btn-full danger" onClick={onLogout}>{t("logout")}</button>
     </Sheet>
   );
@@ -190,13 +188,3 @@ export function ToastModal({ cau, onClose }: { cau: string; onClose: () => void 
  * Tấm mở đầu việc thêm thiết bị. Prototype chỉ giả lập "đang dò thiết bị"; ở đây nút dẫn
  * sang luồng ghép nối 5 bước thật (QR / serial mạch → Wi-Fi → đặt tên → gán phòng).
  */
-export function AddDeviceSheet({ onClose, onMoLuong }: { onClose: () => void; onMoLuong: () => void }) {
-  const { t } = useChu();
-  return (
-    <Sheet title={t("add_title")} onClose={onClose}>
-      <p className="modal-title">{t("add_title")}</p>
-      <p className="placeholder-msg left">{t("add_hint")}</p>
-      <button className="btn-full" onClick={onMoLuong}>{t("add_full_flow")}</button>
-    </Sheet>
-  );
-}

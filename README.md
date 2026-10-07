@@ -2,17 +2,12 @@
 
 Ứng dụng người dùng cuối của nền tảng IoTX, chuyển từ prototype HTML Livotec Home sang React components thật, không dùng iframe.
 
-Giao diện hiện tại dựng theo prototype `livotec-home-new-ui.html` (5 tab, menu phải, màn
-điều hòa flagship, 3 ngôn ngữ). Cách ánh xạ prototype → components, những chỗ cố ý làm
-khác bản thiết kế và các lỗi đã chặn: xem `docs/GIAO-DIEN-MOI.md`.
-
 Kiến trúc đã được căn chỉnh theo tài liệu IOTX:
 
 - Web gọi API qua `/v1` same-origin; proxy nằm ở `app/v1/[...path]/route.ts`.
 - Mock `localStorage` và IoTX API được tách riêng.
 - Lớp API có refresh token, retry một lần, idempotency cho RPC và SSE reconnect có jitter.
 - TypeScript contracts và mapper chuyển dữ liệu `/bootstrap` sang model UI hiện tại.
-- Màn điều khiển dựng từ `product.capabilities`; sản phẩm lạ rơi về màn chung.
 - Chi tiết tại `docs/IOTX-INTEGRATION.md`.
 
 ```bash
@@ -27,13 +22,6 @@ Mặc định chạy ở chế độ IoTX và kết nối API DEV.
 ```bash
 cp .env.example .env.local
 ```
-
-## Tài sản tĩnh
-
-- `public/images/livotec/*` — ảnh sản phẩm, logo, cờ, icon nav (bóc ra từ prototype, trước
-  đây nhúng base64 vào mã chạy).
-- `public/data/ac-features.<lang>.json` — 114 tính năng nâng cao của điều hòa, tải lười khi
-  người dùng mở màn đó.
 
 ## Biến môi trường: lúc build và lúc chạy
 
@@ -70,6 +58,27 @@ docker build --build-arg NEXT_PUBLIC_IOTX_MODE=mock -t livotec-home:mock .
 
 Ảnh dùng `output: "standalone"` nên tầng runner không cài lại phụ thuộc, chạy bằng `node server.js` với người dùng `node`, và có `HEALTHCHECK` gọi vào trang chủ.
 
+## Cloud Run
+
+Để có một địa chỉ cố định gửi người khác xem, không phụ thuộc máy ai đang bật:
+
+```bash
+gcloud auth login
+gcloud config set project <ten-project>
+./trien-khai-cloudrun.sh
+```
+
+Script in ra link `https://<ten>-<ma>.asia-southeast1.run.app` ở dòng cuối. Mỗi lần chạy lại,
+link **giữ nguyên** — khác hẳn quick tunnel của Cloudflare vốn đổi địa chỉ mỗi lần khởi động.
+
+Hai tham số không hiển nhiên, lý do nằm trong chú thích của script: `--timeout 3600` vì app
+dùng SSE mà Cloud Run mặc định cắt request ở 300 giây, và `--min-instances 1` để khách bấm
+link không gặp khởi động nguội. Xong đợt demo thì hạ về 0 cho khỏi tốn:
+
+```bash
+gcloud run services update livotec-home --region asia-southeast1 --min-instances 0
+```
+
 ## Các lệnh kiểm tra
 
 ```bash
@@ -77,4 +86,3 @@ npm run lint
 npx tsc --noEmit
 npm run build
 ```
-# iotx-eft

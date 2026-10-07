@@ -10,6 +10,15 @@ import type { Device } from "@/lib/types";
 /** Trần cứng của hợp đồng — chặn ngay ở client, máy chủ vẫn kiểm lại. */
 const TRAN = { chuongTrinh: 10, buoc: 8, hanhDong: 5, ten: 40, phut: { min: 1, max: 720 } };
 const NGAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+/**
+ * Giờ bắt đầu gieo sẵn khi chu kỳ chuyển sang cần nó.
+ *
+ * Trước đây ô nhập lấy `soan.batDau ?? "06:00"` làm GIÁ TRỊ HIỂN THỊ trong khi state vẫn
+ * null. Người dùng nhìn thấy "06:00" nằm đó mà màn vẫn báo "cần giờ bắt đầu", và gõ lại
+ * đúng 06:00 thì trình duyệt không bắn onChange nên không thoát ra được. Gieo vào state
+ * thì cái nhìn thấy và cái gửi đi là một.
+ */
+const MAC_DINH_BAT_DAU = "06:00";
 
 function gioCuaEpoch(ms: number) {
   const d = new Date(ms);
@@ -95,12 +104,44 @@ export default function HenGioPanel({ device, onClose }: { device: Device; onClo
     return cap.min ?? 0;
   }
 
-  const hopLe = soan
-    && soan.ten.trim().length > 0 && soan.ten.length <= TRAN.ten
-    && soan.buoc.length >= 1 && soan.buoc.length <= TRAN.buoc
-    && soan.buoc.every(b => b.hd.length >= 1 && b.hd.length <= TRAN.hanhDong && b.hd.every(h => h.cap))
-    && (soan.chay !== "lap" || (soan.ngay?.length ?? 0) >= 1)
-    && (soan.kieu !== "khoang" || soan.chay !== "lap" || Boolean(soan.batDau));
+  /**
+   * Soát đúng những ràng buộc hợp đồng nêu, và trả về câu NÓI RÕ sai ở đâu.
+   *
+   * Máy chủ vẫn kiểm lại — nhưng để nó từ chối thì người dùng mất một vòng mạng mới biết
+   * mình gõ sai bước nào. Hai luật dễ vi phạm nhất mà bản cũ bỏ qua hẳn: mốc `khoang` phải
+   * TĂNG DẦN, và mốc `gio` không được trùng nhau.
+   */
+  const loiSoan = (() => {
+    if (!soan) return "";
+    if (!soan.ten.trim() || soan.ten.length > TRAN.ten) return t("hg_loi_ten");
+    if (soan.buoc.length < 1 || soan.buoc.length > TRAN.buoc) return t("hg_invalid");
+
+    const daGap = new Set<string>();
+    let truoc = -1;
+    for (let i = 0; i < soan.buoc.length; i++) {
+      const b = soan.buoc[i], n = i + 1;
+      if (b.hd.length < 1 || b.hd.length > TRAN.hanhDong) return t("hg_loi_hd", { n });
+      // Cap có thể đã bị thu hồi SAU khi lưu (`capThuHoi`) — lúc đó nó không còn trong
+      // `capChoPhep`, máy chủ sẽ chối, nên bắt ngay tại đây.
+      if (b.hd.some(h => !h.cap || !capChoPhep.some(c => c.key === h.cap))) return t("hg_loi_cap", { n });
+
+      if (soan.kieu === "gio") {
+        const moc = String(b.moc);
+        if (daGap.has(moc)) return t("hg_loi_trung", { n });
+        daGap.add(moc);
+      } else {
+        const moc = Number(b.moc);
+        if (!Number.isInteger(moc) || moc < 1 || moc > 1440) return t("hg_loi_moc", { n });
+        if (moc <= truoc) return t("hg_loi_tang", { n });
+        truoc = moc;
+      }
+    }
+
+    if (soan.chay === "lap" && (soan.ngay?.length ?? 0) < 1) return t("hg_loi_ngay");
+    if (soan.kieu === "khoang" && soan.chay === "lap" && !soan.batDau) return t("hg_loi_batdau");
+    return "";
+  })();
+  const hopLe = Boolean(soan) && loiSoan === "";
 
   async function luuChuongTrinh() {
     if (!soan || !hopLe) return;
@@ -139,13 +180,13 @@ export default function HenGioPanel({ device, onClose }: { device: Device; onClo
           <p className="form-label">{t("hg_kind")}</p>
           <div className="seg-group">
             <button className={`seg-btn${soan.kieu === "gio" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, kieu: "gio", buoc: soan.buoc.map(b => ({ ...b, moc: "06:00" })) })}>{t("hg_kind_gio")}</button>
-            <button className={`seg-btn${soan.kieu === "khoang" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, kieu: "khoang", buoc: soan.buoc.map((b, i) => ({ ...b, moc: (i + 1) * 30 })) })}>{t("hg_kind_khoang")}</button>
+            <button className={`seg-btn${soan.kieu === "khoang" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, kieu: "khoang", batDau: soan.chay === "lap" ? (soan.batDau ?? MAC_DINH_BAT_DAU) : soan.batDau, buoc: soan.buoc.map((b, i) => ({ ...b, moc: (i + 1) * 30 })) })}>{t("hg_kind_khoang")}</button>
           </div>
 
           <p className="form-label">{t("hg_run")}</p>
           <div className="seg-group">
             <button className={`seg-btn${soan.chay === "motlan" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, chay: "motlan" })}>{t("hg_run_once")}</button>
-            <button className={`seg-btn${soan.chay === "lap" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, chay: "lap" })}>{t("hg_run_repeat")}</button>
+            <button className={`seg-btn${soan.chay === "lap" ? " sel" : ""}`} onClick={() => setSoan({ ...soan, chay: "lap", batDau: soan.kieu === "khoang" ? (soan.batDau ?? MAC_DINH_BAT_DAU) : soan.batDau })}>{t("hg_run_repeat")}</button>
           </div>
 
           {soan.chay === "lap" && (
@@ -161,7 +202,7 @@ export default function HenGioPanel({ device, onClose }: { device: Device; onClo
 
           {soan.kieu === "khoang" && soan.chay === "lap" && (
             <label className="field" style={{ marginTop: 12 }}><span>{t("hg_start")}</span>
-              <input type="time" value={soan.batDau ?? "06:00"} onChange={e => setSoan({ ...soan, batDau: e.target.value })} />
+              <input type="time" value={soan.batDau ?? ""} onChange={e => setSoan({ ...soan, batDau: e.target.value })} />
             </label>
           )}
 
@@ -222,7 +263,7 @@ export default function HenGioPanel({ device, onClose }: { device: Device; onClo
           </button>
 
           {loi && <p className="form-message">{loi}</p>}
-          {!hopLe && <p className="hint">{t("hg_invalid")}</p>}
+          {loiSoan && <p className="hint">{loiSoan}</p>}
           <div className="form-actions">
             <button className="secondary" onClick={() => { setSoan(null); setSoanId(null); }}>{t("cancel")}</button>
             <button className="primary" disabled={!hopLe || dangLam} onClick={() => { void luuChuongTrinh(); }}>{t("save")}</button>

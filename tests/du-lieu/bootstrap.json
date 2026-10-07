@@ -1,1 +1,342 @@
-{"devices":[{"id":"9bed9f20-a6c7-11f1-b79e-ad8fe8623469","name":"fan63903","type":"fan_smart","label":"fan63903","house":"Nhà A","room":"Phòng Khách","grp":"","fav":true,"hidden":false,"active":true,"lastValues":{"power":"true","speed":"12","mode":"turbo","curSpeed":"12","roomTemp":"18.3","roomHumid":"82","motorTemp":"56.7","watt":"51","err":"0","sleepSpeed":"6","oscillate":"false","timerOff":"555","autoMode":"off","tempTarget":"20","humidTarget":"53"},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"29ff86a0-a76a-11f1-b79e-ad8fe8623469","name":"03092026A1","type":"fan_sbi314","label":"03092026A1","house":"","room":"","grp":"","fav":false,"hidden":false,"active":false,"lastValues":{"buzzer":"true","curSpeed":null,"light":"true","mode":null,"oscillate":"false","power":"true","speed":"12","timerOff":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"312b8a70-a8da-11f1-b79e-ad8fe8623469","name":"05092026A1","type":"fan_sbi314","label":"SBI814","house":"","room":"","grp":"","fav":false,"hidden":false,"active":true,"lastValues":{"buzzer":"true","curSpeed":null,"light":"true","mode":null,"oscillate":"false","power":"true","speed":"6","timerOff":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"3177d5b0-a8da-11f1-b79e-ad8fe8623469","name":"05092026A2","type":"fan_sbi314","label":"05092026A2","house":"","room":"","grp":"","fav":false,"hidden":false,"active":false,"lastValues":{"buzzer":null,"curSpeed":null,"light":null,"mode":null,"oscillate":null,"power":"false","speed":"12","timerOff":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"31e9d160-a8da-11f1-b79e-ad8fe8623469","name":"05092026A3","type":"fan_sbi314","label":"SBI314","house":"","room":"Phòng Khách","grp":"","fav":false,"hidden":false,"active":true,"lastValues":{"buzzer":"true","curSpeed":null,"light":"true","mode":null,"oscillate":"false","power":"false","speed":"4","timerOff":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"78ce3ec0-af21-11f1-b79e-ad8fe8623469","name":"40A00008901","type":"fan","label":"40A00008901","house":"Nhà A","room":"Phòng Khách","grp":"","fav":false,"hidden":false,"active":false,"lastValues":{"power":"true","speed":"2","mode":"normal"},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"7913d340-af21-11f1-b79e-ad8fe8623469","name":"40A00008902","type":"fan","label":"40A00008902","house":"","room":"","grp":"","fav":false,"hidden":false,"active":false,"lastValues":{"power":"true","speed":"2","mode":"normal"},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"86fc8cd0-b66b-11f1-b79e-ad8fe8623469","name":"22022026A1","type":"ac","label":"22022026A1","house":"","room":"","grp":"","fav":false,"hidden":false,"active":true,"lastValues":{"ac_com_temp":null,"ac_eco_mode":null,"ac_error_catalog":null,"ac_frequency":null,"ac_heater_temp":null,"ac_hot_temp":null,"ac_idu_speed":null,"ac_ifeel_mode":null,"ac_is_iclean":null,"ac_is_sleep_mode":null,"ac_mil_mode":null,"ac_mute_mode":null,"ac_odu_speed":null,"ac_ope_mode":null,"ac_power_status":null,"ac_swing_mode":null,"ac_temp_setting":null,"ac_voltage":null,"ac_IoT_status":null,"ac_coil_temp":null,"ac_current":null,"ac_dk_firmware_version":null,"ac_dk_status":"0","ac_fan_speed":null,"ac_room_temp":null,"ac_temp_setting_max":null,"ac_temp_setting_min":null,"ac_timer_control":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"105b9cd0-b71d-11f1-b79e-ad8fe8623469","name":"DHL10001","type":"ac_1","label":"Quạt mới","house":"Nhà A","room":"Phòng Khách","grp":"Mặc định","fav":false,"hidden":false,"active":false,"lastValues":{"ac_fan_speed":null,"ac_ope_mode":null,"ac_power_status":null,"ac_swing_mode":null,"ac_temp_setting":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}},{"id":"10c81a40-b71d-11f1-b79e-ad8fe8623469","name":"DHL10002","type":"ac_1","label":"Điều hòa L1 - 2","house":"Nhà A","room":"Phòng Khách","grp":"Mặc định","fav":false,"hidden":false,"active":false,"lastValues":{"ac_fan_speed":null,"ac_ope_mode":null,"ac_power_status":null,"ac_swing_mode":null,"ac_temp_setting":null},"shared":false,"perms":{"control":true,"create":true,"delete":true}}],"categories":[{"kind":"grp","name":"Mặc định"},{"kind":"house","name":"Nhà A"},{"kind":"room","name":"Phòng Khách"}],"me":{"email":"p@p","tenant":"livotec","tenantName":"Livotec Home","theme":{"quotas":{"rules":20,"devices":10000},"logoUrl":null,"aiEnabled":true,"tenantName":"Livotec Home","colorPrimary":"#02b6ac","loginMethods":{"eu":["password","otp","google"],"staff":["password","sso"]}},"tbCustomerId":"3719a780-9e4b-11f1-b79e-ad8fe8623469"},"unread":0,"phienBan":{"i18n":"W/\"a\"","products":"W/\"b\"","theme":"W/\"c\""}}
+{
+ "devices": [
+  {
+   "id": "9bed9f20-a6c7-11f1-b79e-ad8fe8623469",
+   "name": "fan63903",
+   "type": "fan_smart",
+   "label": "fan63903",
+   "house": "Nhà A",
+   "room": "Phòng Khách",
+   "grp": "",
+   "fav": true,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "power": "true",
+    "speed": "12",
+    "mode": "turbo",
+    "curSpeed": "12",
+    "roomTemp": "18.3",
+    "roomHumid": "82",
+    "motorTemp": "56.7",
+    "watt": "51",
+    "err": "0",
+    "sleepSpeed": "6",
+    "oscillate": "false",
+    "timerOff": "555",
+    "autoMode": "off",
+    "tempTarget": "20",
+    "humidTarget": "53"
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "29ff86a0-a76a-11f1-b79e-ad8fe8623469",
+   "name": "03092026A1",
+   "type": "fan_sbi314",
+   "label": "03092026A1",
+   "house": "",
+   "room": "",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "buzzer": "true",
+    "curSpeed": null,
+    "light": "true",
+    "mode": null,
+    "oscillate": "false",
+    "power": "true",
+    "speed": "12",
+    "timerOff": null
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "312b8a70-a8da-11f1-b79e-ad8fe8623469",
+   "name": "05092026A1",
+   "type": "fan_sbi314",
+   "label": "SBI814",
+   "house": "",
+   "room": "",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "buzzer": "true",
+    "curSpeed": null,
+    "light": "true",
+    "mode": null,
+    "oscillate": "false",
+    "power": "true",
+    "speed": "6",
+    "timerOff": null
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "3177d5b0-a8da-11f1-b79e-ad8fe8623469",
+   "name": "05092026A2",
+   "type": "fan_sbi314",
+   "label": "05092026A2",
+   "house": "",
+   "room": "",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": false,
+   "lastValues": {
+    "buzzer": null,
+    "curSpeed": null,
+    "light": null,
+    "mode": null,
+    "oscillate": null,
+    "power": "false",
+    "speed": "12",
+    "timerOff": null
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "31e9d160-a8da-11f1-b79e-ad8fe8623469",
+   "name": "05092026A3",
+   "type": "fan_sbi314",
+   "label": "SBI314",
+   "house": "",
+   "room": "Phòng Khách",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "buzzer": "true",
+    "curSpeed": null,
+    "light": "true",
+    "mode": null,
+    "oscillate": "false",
+    "power": "false",
+    "speed": "4",
+    "timerOff": null
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "78ce3ec0-af21-11f1-b79e-ad8fe8623469",
+   "name": "40A00008901",
+   "type": "fan",
+   "label": "40A00008901",
+   "house": "Nhà A",
+   "room": "Phòng Khách",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": false,
+   "lastValues": {
+    "power": "true",
+    "speed": "2",
+    "mode": "normal"
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "7913d340-af21-11f1-b79e-ad8fe8623469",
+   "name": "40A00008902",
+   "type": "fan",
+   "label": "40A00008902",
+   "house": "",
+   "room": "",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": false,
+   "lastValues": {
+    "power": "true",
+    "speed": "2",
+    "mode": "normal"
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "86fc8cd0-b66b-11f1-b79e-ad8fe8623469",
+   "name": "22022026A1",
+   "type": "ac",
+   "label": "22022026A1",
+   "house": "",
+   "room": "",
+   "grp": "",
+   "fav": false,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "ac_com_temp": null,
+    "ac_eco_mode": null,
+    "ac_error_catalog": null,
+    "ac_frequency": null,
+    "ac_heater_temp": null,
+    "ac_hot_temp": null,
+    "ac_idu_speed": null,
+    "ac_ifeel_mode": null,
+    "ac_is_iclean": null,
+    "ac_is_sleep_mode": null,
+    "ac_mil_mode": null,
+    "ac_mute_mode": null,
+    "ac_odu_speed": null,
+    "ac_ope_mode": null,
+    "ac_power_status": null,
+    "ac_swing_mode": null,
+    "ac_temp_setting": null,
+    "ac_voltage": null,
+    "ac_IoT_status": null,
+    "ac_coil_temp": null,
+    "ac_current": null,
+    "ac_dk_firmware_version": null,
+    "ac_dk_status": "0",
+    "ac_fan_speed": null,
+    "ac_room_temp": null,
+    "ac_temp_setting_max": null,
+    "ac_temp_setting_min": null,
+    "ac_timer_control": null
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "105b9cd0-b71d-11f1-b79e-ad8fe8623469",
+   "name": "DHL10001",
+   "type": "ac_1",
+   "label": "Quạt mới",
+   "house": "Nhà A",
+   "room": "Phòng Khách",
+   "grp": "Mặc định",
+   "fav": false,
+   "hidden": false,
+   "active": true,
+   "lastValues": {
+    "ac_fan_speed": "Trung bình",
+    "ac_ope_mode": "Làm lạnh",
+    "ac_power_status": "true",
+    "ac_swing_mode": "Đảo gió dọc",
+    "ac_temp_setting": "24"
+   },
+   "shared": false,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  },
+  {
+   "id": "10c81a40-b71d-11f1-b79e-ad8fe8623469",
+   "name": "DHL10002",
+   "type": "ac_1",
+   "label": "Điều hòa L1 - 2",
+   "house": "Nhà A",
+   "room": "Phòng Khách",
+   "grp": "Mặc định",
+   "fav": false,
+   "hidden": false,
+   "active": false,
+   "lastValues": {
+    "ac_fan_speed": null,
+    "ac_ope_mode": null,
+    "ac_power_status": null,
+    "ac_swing_mode": null,
+    "ac_temp_setting": null
+   },
+   "shared": true,
+   "perms": {
+    "control": true,
+    "create": true,
+    "delete": true
+   }
+  }
+ ],
+ "categories": [
+  {
+   "kind": "grp",
+   "name": "Mặc định"
+  },
+  {
+   "kind": "house",
+   "name": "Nhà A"
+  },
+  {
+   "kind": "room",
+   "name": "Phòng Khách"
+  }
+ ],
+ "me": {
+  "email": "p@p",
+  "tenant": "livotec",
+  "tenantName": "Livotec Home",
+  "theme": {
+   "quotas": {
+    "rules": 20,
+    "devices": 10000
+   },
+   "logoUrl": null,
+   "aiEnabled": true,
+   "tenantName": "Livotec Home",
+   "colorPrimary": "#02b6ac",
+   "loginMethods": {
+    "eu": [
+     "password",
+     "otp",
+     "google"
+    ],
+    "staff": [
+     "password",
+     "sso"
+    ]
+   }
+  },
+  "tbCustomerId": "3719a780-9e4b-11f1-b79e-ad8fe8623469"
+ },
+ "unread": 0,
+ "phienBan": {
+  "i18n": "W/\"a\"",
+  "products": "W/\"b\"",
+  "theme": "W/\"c\""
+ }
+}

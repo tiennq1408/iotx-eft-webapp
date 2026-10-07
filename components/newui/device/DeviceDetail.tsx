@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
+import BoCucGrid from "./BoCucGrid";
+import { boCucCua } from "@/lib/newui/boCuc";
 import { baoDangKeu, mauSkin, phanGiai, type O } from "@/lib/newui/khuon";
 import { moTaLoi } from "@/lib/iotx/errors";
+import { iotxClient, isIotxMode } from "@/lib/iotx";
+import { anhDaiDienSanPham } from "@/lib/newui/assets";
 import { coSo, doSo, laBat } from "@/lib/iotx/giaTri";
 import { nhanCap as nhanCapChung, nhanGiaTriCap as nhanGiaTriChung } from "@/lib/newui/nhanCap";
-import type { IotxCapability, IotxLenhVatTu } from "@/lib/iotx/contracts";
+import type { IotxCapability, IotxHenGioTongQuan, IotxLenhVatTu } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 
 /**
@@ -240,9 +244,54 @@ function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: boolean }) {
 /* Màn                                                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Một dòng tóm tắt cho thanh ghim hẹn giờ. Thứ tự ưu tiên theo cái người dùng cần biết
+ * trước: chương trình đang CHẠY giữa chừng → hẹn sắp bắn → chương trình đang dùng → chưa gì.
+ */
+function tomTatHenGio(tq: IotxHenGioTongQuan | null, t: HamChu): string {
+  if (!tq) return t("hg_chua_dat");
+  if (tq.dangChay && tq.dangDung !== null) {
+    const ten = tq.chuongTrinh.find(c => c.id === tq.dangDung)?.ten ?? "";
+    return t("hg_ghim_chay", { ten, n: tq.dangChay.buocXong });
+  }
+  if (tq.hen) {
+    const luc = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+      .format(new Date(tq.hen.luc));
+    return t(tq.hen.bat ? "hg_ghim_bat" : "hg_ghim_tat", { luc });
+  }
+  if (tq.dangDung !== null) {
+    return t("hg_ghim_dung", { ten: tq.chuongTrinh.find(c => c.id === tq.dangDung)?.ten ?? "" });
+  }
+  return t("hg_chua_dat");
+}
+
 export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGio, onVatTu }: PropsMan) {
   const { t } = useChu();
   const [loi, setLoi] = useState("");
+
+  /**
+   * Thanh ghim phải nói ĐÚNG trạng thái, không in cứng "chưa đặt gì".
+   *
+   * Hỏi thẳng `/hen-gio` thay vì suy từ catalog, vì chỉ máy chủ mới biết có hẹn đang chờ
+   * hay chương trình đang chạy. Ba kết cục:
+   *   batDuoc=false  → sản phẩm tắt hẹn giờ
+   *   404            → máy được chia sẻ; hợp đồng chỉ cho CHỦ dùng hẹn giờ
+   * Cả hai đều GIẤU hẳn thanh, thay vì mời người dùng bấm vào một màn chỉ báo lỗi.
+   */
+  const [hg, setHg] = useState<IotxHenGioTongQuan | null>(null);
+  const [hienGhim, setHienGhim] = useState(!isIotxMode);
+
+  const taiHenGio = useCallback(async () => {
+    if (!isIotxMode) return;
+    try {
+      const tq = await iotxClient.xemHenGio(device.id);
+      setHg(tq);
+      setHienGhim(tq.batDuoc);
+    } catch { setHienGhim(false); }
+  }, [device.id]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void taiHenGio(); }, [taiHenGio]);
   const [moThem, setMoThem] = useState(false);
 
   const kq = useMemo(
@@ -271,7 +320,10 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
   }
 
   const ngu: Ngu = { device, t, chan: !choDieuKhien, gui, vatTu: guiVatTu };
-  const da = mauSkin(kq?.skin);
+  const anhDaiDien = anhDaiDienSanPham(device.product);
+  // Catalog khai lưới thì lưới quyết tất; chưa khai thì vẫn đi đường khuôn/slots cũ.
+  const bc = boCucCua(device.product);
+  const da = mauSkin(bc?.skin ?? kq?.skin);
   const bien = da
     ? ({ display: "contents", "--brand": da.brand, "--brand-deep": da.deep, "--brand-soft": da.soft } as React.CSSProperties)
     : undefined;
@@ -284,7 +336,11 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
     .map(o => ({ ...o, variant: "state01" }));
   const them = [...(kq?.veMore ?? []), ...baoIm];
 
-  const than = kq && (
+  const than = bc ? (
+    <div style={bien}>
+      <BoCucGrid bc={bc} device={device} onCommand={gui} onVatTu={guiVatTu} />
+    </div>
+  ) : kq && (
     <div style={bien}>
       {baoKeu.map(o => <VeO key={o.cap.key} o={o} ngu={ngu} />)}
 
@@ -322,14 +378,17 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
 
   return (
     <div className="sheet devpage">
-      <div className="devbar">
-        <button className="devback" aria-label={t("back")} onClick={onClose}>‹</button>
-        <div className="devbar-tt">{device.name || t("device")}</div>
-      </div>
-
       <div className="devbody">
-        <div className="row">
-          <span className="dev-ico" aria-hidden="true">{device.product?.icon || "📦"}</span>
+        {/* Một hàng duy nhất mang tên thiết bị: thanh tiêu đề phía trên lặp lại đúng cái
+            tên này nên đã bỏ, nút trở lại dọn xuống đây cùng hàng. */}
+        <div className="row devdau">
+          <button className="devback" aria-label={t("back")} onClick={onClose}>‹</button>
+          <span className="dev-ico" aria-hidden="true">
+            {anhDaiDien.kieu === "anh"
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={anhDaiDien.src} alt="" />
+              : anhDaiDien.chu}
+          </span>
           <div className="dev-giua">
             <div className="dev-tenhang">
               <span className="dev-ten">{device.name}</span>
@@ -343,7 +402,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
         </div>
 
         {/* Sản phẩm không có khuôn nhận ra được: nói thẳng thay vì vẽ một màn nửa vời. */}
-        {!kq && <p className="small dim">{t("khong_co_khuon")}</p>}
+        {!bc && !kq && <p className="small dim">{t("khong_co_khuon")}</p>}
 
         {than}
 
@@ -357,10 +416,10 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
           <button className="btn gh" onClick={onClose}>{t("close")}</button>
         </div>
 
-        {device.product?.henGio?.bat !== false && (
+        {hienGhim && device.product?.henGio?.bat !== false && (
           <button className="hg-ghim" onClick={onHenGio}>
             <b>⏱ {t("hg_open")}</b>
-            <i>{t("hg_chua_dat")}</i>
+            <i>{tomTatHenGio(hg, t)}</i>
           </button>
         )}
       </div>

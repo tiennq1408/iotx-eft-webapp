@@ -21,7 +21,7 @@ await p.locator('.bn-item',{hasText:'Thiết bị'}).click(); await w(400);
 
 await mo('Điều hòa phòng khách');
 ok('Khung .sheet.devpage như bản tham chiếu', await p.locator('.sheet.devpage').count()===1);
-ok('Thanh tiêu đề .devbar + .devback', await p.locator('.devbar .devback').count()===1);
+ok('Chỉ MỘT hàng tên, nút trở lại nằm trong hàng đó', await p.locator('.devbar').count()===0 && await p.locator('.devdau .devback').count()===1);
 ok('Hàng thiết bị .dev-ico/.dev-ten/.dev-dot', await p.locator('.row .dev-ico').count()===1 && await p.locator('.dev-dot').count()===1);
 ok('Khối chính là vòng .ctl-dial', await p.locator('.card.ctl-hero .ctl-dial svg circle').count()===2);
 ok('Vòng có − và +', await p.locator('.ctl-steprow .ctl-step').count()===2);

@@ -3,9 +3,8 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import Icon from "./Icon";
-import { FlagRow } from "./shell";
 import { useChu, type HamChu } from "./chu";
-import { IMG, anhSanPham } from "@/lib/newui/assets";
+import { IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
 import { capNguonCua, phanGiai } from "@/lib/newui/khuon";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 import { laBat } from "@/lib/iotx/giaTri";
@@ -62,13 +61,11 @@ export function BannerCarousel() {
  * Ba bộ lọc độc lập: nhà, phòng, nhóm. Mỗi cái mở một danh sách chọn thật (không còn toast
  * "sắp ra mắt"), và nút nào đang lọc thì sáng lên để người dùng biết vì sao danh sách ngắn.
  */
-export function FilterRow({ nha, phong, nhom, lang, gonGang, onLang, onChonNha, onChonPhong, onChonNhom, onGonGang }: {
+export function FilterRow({ nha, phong, nhom, gonGang, onChonNha, onChonPhong, onChonNhom, onGonGang }: {
   nha: string;
   phong: string;
   nhom: string;
-  lang: string;
   gonGang: boolean;
-  onLang: (ma: string) => void;
   onChonNha: () => void;
   onChonPhong: () => void;
   onChonNhom: () => void;
@@ -76,21 +73,22 @@ export function FilterRow({ nha, phong, nhom, lang, gonGang, onLang, onChonNha, 
 }) {
   const { t } = useChu();
   const lop = (dangLoc: boolean) => `filter-pill${dangLoc ? " active" : ""}`;
+  // Chưa lọc thì nút chỉ mang tên loại ("Nhà"), lọc rồi thì mang tên đang chọn. Không để
+  // chữ "Tất cả" trên nút: nó chiếm chỗ mà không nói thêm gì so với trạng thái không lọc.
   return (
     <div className="filter-row">
       <button className={lop(nha !== "all")} onClick={onChonNha}>
-        <Icon name="house" /> {nha === "all" ? t("all_houses") : nha} <Icon name="chevDown" />
+        <Icon name="house" /> <span className="fp-ten">{nha === "all" ? t("loc_nha") : nha}</span> <Icon name="chevDown" />
       </button>
       <button className={lop(phong !== "all")} onClick={onChonPhong}>
-        <Icon name="box" /> {phong === "all" ? t("all_rooms") : phong} <Icon name="chevDown" />
+        <Icon name="box" /> <span className="fp-ten">{phong === "all" ? t("loc_phong") : phong}</span> <Icon name="chevDown" />
       </button>
       <button className={lop(nhom !== "all")} onClick={onChonNhom}>
-        {nhom === "all" ? t("all_groups") : nhom} <Icon name="chevDown" />
+        <span className="fp-ten">{nhom === "all" ? t("loc_nhom") : nhom}</span> <Icon name="chevDown" />
       </button>
       <button className="filter-pill eye" aria-label={t("nav_devices")} aria-pressed={gonGang} onClick={onGonGang}>
         <Icon name="eye" />
       </button>
-      <FlagRow lang={lang} onLang={onLang} className="inline" />
     </div>
   );
 }
@@ -159,7 +157,7 @@ export function DeviceCard({ device, onOpen, onToggle, onFav }: {
   const { t } = useChu();
   // Ảnh chỉ đến từ catalog (`product.ui.image`); không gửi thì thẻ vẽ vòng tròn trống chứ
   // app không tự gán ảnh cho sản phẩm. Công tắc chỉ vẽ khi catalog khai nguồn có `rpc`.
-  const anh = anhSanPham(device.product);
+  const anh = anhDaiDienSanPham(device.product);
   // Nút nguồn trên thẻ: dò capability nguồn theo `variant: "power01"` của catalog, và KHÔNG
   // đòi thiết bị phải online — bản tham chiếu cũng cho bấm khi máy đang ngoại tuyến.
   const capNguon = capNguonCua(device.product);
@@ -185,7 +183,12 @@ export function DeviceCard({ device, onOpen, onToggle, onFav }: {
         <span className="droom">{[device.house, device.room || t("unassigned_room")].filter(Boolean).join(" · ")}</span>
       </div>
       <div className="dvisual">
-        {anh ? <Image unoptimized src={anh} alt="" width={120} height={72} /> : <span className="ring" />}
+        {/* Ảnh của catalog nằm ở máy chủ media của hãng, địa chỉ chỉ biết lúc chạy, nên
+            dùng <img> thường thay cho next/image — khỏi phải khai trước tên miền. */}
+        {anh.kieu === "anh"
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={anh.src} alt="" />
+          : <span className="dvisual-bt" aria-hidden="true">{anh.chu}</span>}
       </div>
       <div className="dcard-bottom">
         <span className="dline">{dongTrangThai(device, t)}</span>

@@ -1,0 +1,41 @@
+{
+  "ghiChu": "Ba chương trình hẹn giờ của thiết bị 03092026A1 (fan_sbi314) bị xoá khỏi máy chủ DEV lúc ~16:5x ngày 07/10/2026. Định nghĩa dưới đây cứu từ nhật ký mạng của trang, đủ để tạo lại y nguyên qua POST /v1/devices/{id}/hen-gio/chuong-trinh (bỏ trường id và capThuHoi khi gửi).",
+  "thietBi": { "id": "29ff86a0-a76a-11f1-b79e-ad8fe8623469", "ten": "03092026A1", "type": "fan_sbi314" },
+  "chuongTrinh": [
+    {
+      "idCu": 39,
+      "ten": "Off",
+      "kieu": "gio",
+      "chay": "motlan",
+      "ngay": [],
+      "batDau": null,
+      "buoc": [ { "moc": "14:55", "hd": [ { "cap": "power", "val": false } ] } ]
+    },
+    {
+      "idCu": 40,
+      "ten": "boom",
+      "kieu": "gio",
+      "chay": "motlan",
+      "ngay": [],
+      "batDau": null,
+      "buoc": [
+        { "moc": "17:30", "hd": [ { "cap": "speed", "val": 12 } ] },
+        { "moc": "17:33", "hd": [
+          { "cap": "buzzer", "val": false },
+          { "cap": "light", "val": false },
+          { "cap": "oscillate", "val": true },
+          { "cap": "speed", "val": 1 }
+        ] }
+      ]
+    },
+    {
+      "idCu": 43,
+      "ten": "offline",
+      "kieu": "gio",
+      "chay": "motlan",
+      "ngay": [],
+      "batDau": null,
+      "buoc": [ { "moc": "17:30", "hd": [ { "cap": "speed", "val": 12 }, { "cap": "light", "val": false } ] } ]
+    }
+  ]
+}

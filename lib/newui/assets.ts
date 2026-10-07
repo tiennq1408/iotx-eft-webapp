@@ -3,6 +3,8 @@
  * trong `public/images/livotec/`. Nhờ vậy bundle JS không phình và trình duyệt cache được
  * từng ảnh.
  */
+import { iotxConfig } from "@/lib/iotx/config";
+
 const BASE = "/images/livotec";
 
 export const IMG = {
@@ -24,19 +26,50 @@ export const IMG = {
 } as const;
 
 /**
- * Ảnh sản phẩm CHỈ đến từ catalog (`product.ui.image` — URL, data URI hoặc emoji).
+ * Ảnh đại diện của sản phẩm, do catalog quyết.
  *
- * Bản trước còn ba bảng cắm cứng (`HERO`, `PRODUCT_PHOTOS`, `MODEL_PHOTOS`) tra theo
- * renderer và mã model. Đã bỏ hẳn: ảnh mà app tự gắn cho một sản phẩm không phải dữ liệu
- * của sản phẩm đó, và nó che mất việc catalog đang thiếu `ui.image`. Catalog không gửi ảnh
- * thì màn không vẽ ảnh — thấy thiếu là biết ngay phải bổ sung ở đâu.
+ * Đo trên DEV 06/10: máy chủ để ảnh ở `product.icon` — CÙNG một trường vừa có thể là
+ * emoji ("❄️", "🌀") vừa có thể là URL ảnh thật (sản phẩm nào đã tải ảnh lên sadmin).
+ * `ui.image` thì rỗng ở mọi sản phẩm. Vì vậy phải phân loại theo NỘI DUNG chứ không theo
+ * tên trường, nếu không màn hình in nguyên cái URL ra thay cho ảnh.
  *
- * Các tệp ảnh cũ vẫn nằm trong `public/images/livotec/` để bên máy chủ dùng làm nguồn nạp
- * vào catalog; app không tham chiếu tới chúng nữa.
+ * Trả về một trong hai dạng để nơi gọi biết phải vẽ `<img>` hay vẽ chữ — không để nơi gọi
+ * tự đoán, vì đoán sai một lần là cả ba màn cùng sai.
  */
-export function anhSanPham(product?: { ui?: { image?: string } | null } | null): string | null {
-  const anh = product?.ui?.image?.trim();
-  if (!anh) return null;
-  // Emoji hay chuỗi ngắn không phải đường dẫn — nơi gọi tự quyết vẽ chữ to thay vì <img>.
-  return /^(https?:|data:|\/)/i.test(anh) ? anh : null;
+export type AnhDaiDien = { kieu: "anh"; src: string } | { kieu: "chu"; chu: string };
+
+const LA_DUONG_DAN = /^(https?:|data:image|\/)/i;
+
+export function anhDaiDienSanPham(
+  product?: { icon?: string; ui?: { image?: string | null } | null } | null,
+): AnhDaiDien {
+  for (const ungVien of [product?.ui?.image, product?.icon]) {
+    const v = ungVien?.trim();
+    if (v && LA_DUONG_DAN.test(v)) return { kieu: "anh", src: v };
+  }
+  const bt = product?.icon?.trim();
+  return { kieu: "chu", chu: bt && !LA_DUONG_DAN.test(bt) ? bt : "\u{1F4E6}" };
+}
+
+/**
+ * Icon do catalog chỉ định, dùng trong `gtIco` của lưới `ui.boCuc`.
+ *
+ * Ba dạng sadmin có thể trả, phân loại theo NỘI DUNG chứ không theo trường:
+ *   "❄️"             — emoji, vẽ thẳng ra chữ
+ *   "https://…" "/…" — địa chỉ ảnh, vẽ bằng <img>
+ *   "@wind"          — tham chiếu KHO ICON của sadmin → `/v1/icons/wind`
+ *
+ * Dạng `@` là cái webapp từng bỏ qua hoàn toàn, nên chuyển sang kho icon là mọi nút chọn
+ * mất sạch biểu tượng. Kho trả SVG hoặc PNG tuỳ icon, không cần đăng nhập.
+ *
+ * Tên chỉ nhận chữ–số–gạch: giá trị này đến từ máy chủ, đừng để nó bẻ được đường dẫn.
+ */
+const TEN_ICON = /^[a-z0-9][a-z0-9_-]*$/i;
+
+export function diaChiIcon(ico?: string): string | null {
+  const v = ico?.trim();
+  if (!v) return null;
+  if (!v.startsWith("@")) return v;
+  const ten = v.slice(1);
+  return TEN_ICON.test(ten) ? `${iotxConfig.apiBase}/icons/${encodeURIComponent(ten)}` : null;
 }
