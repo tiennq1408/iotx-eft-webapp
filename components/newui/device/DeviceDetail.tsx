@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useChu, type HamChu } from "../chu";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
 import VeO, { type Ngu } from "./VeO";
 import { boCucCua } from "@/lib/newui/boCuc";
-import { baoDangKeu, mauSkin, phanGiai } from "@/lib/newui/khuon";
+import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/newui/khuon";
 import { moTaLoi } from "@/lib/iotx/errors";
 import { isIotxMode } from "@/lib/iotx";
 import { anhDaiDienSanPham } from "@/lib/newui/assets";
@@ -73,10 +73,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
   const hienGhim = !isIotxMode || (hg?.batDuoc === true && !loiHenGio);
   const [moThem, setMoThem] = useState(false);
 
-  const kq = useMemo(
-    () => phanGiai(device.product, device.product?.capabilities ?? []),
-    [device.product],
-  );
+  const kq = phanGiaiSanPham(device.product);
 
   // Ngoại tuyến KHÔNG chặn thao tác — bản tham chiếu cũng không chặn, và thực tế lệnh gửi
   // cho máy đang offline vẫn tới nơi (nền tảng xếp hàng / máy lấy lại khi kết nối lại). Chỉ
@@ -187,7 +184,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
           </div>
         </div>
 
-        {/* Sản phẩm không có khuôn nhận ra được: nói thẳng thay vì vẽ một màn nửa vời. */}
+        {/* Không có capability nào để vẽ: nói thẳng thay vì một màn trống không giải thích. */}
         {!bc && !kq && <p className="small dim">{t("khong_co_khuon")}</p>}
 
         {than}

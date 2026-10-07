@@ -61,7 +61,7 @@ function dungHet() {
 
 const NHOM = {
   'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs'] },
-  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs'] },
+  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs'] },
 };
 
 const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM);

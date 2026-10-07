@@ -5,23 +5,38 @@ import type { BoChu } from "./i18n";
 type PhienBan = IotxBootstrap["phienBan"];
 type NoiDungCache = {
   phienBan?: Partial<PhienBan>;
-  products?: Record<string, IotxProduct>;
+  /** Catalog theo NGÔN NGỮ: nhãn capability là chữ đã dịch, đổi lang là phải tải lại. */
+  products?: Record<string, { nhan?: string; products: Record<string, IotxProduct> }>;
   i18n?: Record<string, { nhan?: string; boChu: BoChu }>;
   theme?: { nhan?: string; theme: IotxTheme };
   /** ETag đã nhận kèm thân phản hồi, để gửi lại If-None-Match và dùng lại khi máy chủ trả 304. */
   etag?: Record<string, { etag: string; data: unknown }>;
 };
 
-const KEY = "livotec-iotx-cache";
+// v2: catalog xếp theo ngôn ngữ. Bản v1 có hình dạng khác, đọc vào sẽ sai — để khóa mới.
+const KEY = "livotec-iotx-cache-v2";
+
+/**
+ * Bản đã parse, giữ trong bộ nhớ. Mỗi request đều hỏi ETag, và nhịp đồng bộ chạy mỗi 2,5
+ * giây — parse lại cả khối (catalog, bảng chữ, /bootstrap) mỗi lần là phí. Tab khác ghi đè
+ * thì sự kiện `storage` bỏ bản nhớ để lần đọc sau lấy lại từ localStorage.
+ */
+let banNho: NoiDungCache | null = null;
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", e => { if (e.key === KEY || e.key === null) banNho = null; });
+}
 
 function doc(): NoiDungCache {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(KEY) || "{}") as NoiDungCache; }
-  catch { return {}; }
+  if (banNho) return banNho;
+  try { banNho = JSON.parse(localStorage.getItem(KEY) || "{}") as NoiDungCache; }
+  catch { banNho = {}; }
+  return banNho;
 }
 
 function ghi(value: NoiDungCache) {
   if (typeof window === "undefined") return;
+  banNho = value;
   try { localStorage.setItem(KEY, JSON.stringify(value)); }
   catch { /* hết chỗ hoặc trình duyệt chặn: bỏ cache, không làm hỏng luồng chính */ }
 }
@@ -30,15 +45,15 @@ function ghi(value: NoiDungCache) {
  * Catalog đang giữ, chỉ trả về khi nhãn phiên bản còn khớp với nhãn bootstrap vừa báo.
  * Lệch nhãn nghĩa là hãng đã đổi catalog — phải tải lại.
  */
-export function docProducts(nhan: string | undefined): Record<string, IotxProduct> | null {
-  const cache = doc();
-  if (!nhan || cache.phienBan?.products !== nhan) return null;
-  return cache.products ?? null;
+export function docProducts(lang: string, nhan: string | undefined): Record<string, IotxProduct> | null {
+  const muc = doc().products?.[lang];
+  if (!muc || !nhan || muc.nhan !== nhan) return null;
+  return muc.products;
 }
 
-export function ghiProducts(nhan: string | undefined, products: Record<string, IotxProduct>) {
+export function ghiProducts(lang: string, nhan: string | undefined, products: Record<string, IotxProduct>) {
   const cache = doc();
-  ghi({ ...cache, products, phienBan: { ...cache.phienBan, products: nhan } });
+  ghi({ ...cache, products: { ...cache.products, [lang]: { nhan, products } } });
 }
 
 /**
@@ -99,18 +114,22 @@ export function ghiEtag(khoa: string, etag: string, data: unknown) {
  */
 const KHOA_ANH_CHUP = "livotec-iotx-anh-chup";
 
-export function docAnhChup(): AppData | null {
+export function docAnhChup(lang: string): AppData | null {
   if (typeof window === "undefined") return null;
   try {
     const goc = JSON.parse(localStorage.getItem(KHOA_ANH_CHUP) || "null") as Partial<AppData> | null;
     if (!goc || !Array.isArray(goc.devices) || !goc.spaces) return null;
-    return { devices: goc.devices, spaces: goc.spaces };
+    // Ảnh chụp không mang catalog (xem `ghiAnhChup`); gắn lại từ catalog đang giữ.
+    const products = doc().products?.[lang]?.products ?? {};
+    return { devices: goc.devices.map(device => ({ ...device, product: products[device.model] ?? null })), spaces: goc.spaces };
   } catch { return null; }
 }
 
+/** Bỏ `product` khỏi từng thiết bị: catalog đã nằm trong cache, chép thêm N lần chỉ tốn chỗ. */
 export function ghiAnhChup(data: AppData) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(KHOA_ANH_CHUP, JSON.stringify(data)); }
+  const gon = { ...data, devices: data.devices.map(device => ({ ...device, product: undefined })) };
+  try { localStorage.setItem(KHOA_ANH_CHUP, JSON.stringify(gon)); }
   catch { /* hết chỗ: bỏ qua, chỉ mất khả năng xem lúc ngoại tuyến */ }
 }
 
@@ -122,6 +141,8 @@ export function ghiAnhChup(data: AppData) {
 export function xoaCacheNguoiDung() {
   if (typeof window === "undefined") return;
   try { localStorage.removeItem(KHOA_ANH_CHUP); } catch { /* bị chặn: không có gì để xoá */ }
+  // Đọc lại từ localStorage thay vì tin bản nhớ: việc hiếm, và phải xoá cả thứ tab khác vừa ghi.
+  banNho = null;
   const cache = doc();
   if (!cache.etag) return;
   const conLai = Object.fromEntries(Object.entries(cache.etag).filter(([khoa]) => !khoa.startsWith("bootstrap:")));

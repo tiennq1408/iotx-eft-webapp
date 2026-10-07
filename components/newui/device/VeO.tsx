@@ -6,6 +6,7 @@ import type { O } from "@/lib/newui/khuon";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
+import { phimKichHoat } from "@/lib/newui/phim";
 import type { IotxCapability } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 
@@ -122,7 +123,7 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
                 // Vẫn gọi `gui` khi đang bị chặn: chính nó nói lý do. Nuốt cú bấm ở đây thì
                 // người dùng bấm mà không thấy gì xảy ra, tưởng app hỏng.
                 onClick={() => gui(cap, x)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); gui(cap, x); } }}
+                onKeyDown={e => phimKichHoat(e, () => gui(cap, x))}
               >
                 {nhanGiaTriCap(cap, x, t)}
               </span>
@@ -137,7 +138,7 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
       return (
         <div className="card capline">
           <span className="small">{ten}</span>
-          <button className="switch-hit" aria-label={ten} aria-pressed={bat} disabled={khoa} onClick={() => gui(cap, !bat)}>
+          <button className="switch-hit" role="switch" aria-label={ten} aria-checked={bat} disabled={khoa} onClick={() => gui(cap, !bat)}>
             <span className={`switch${bat ? " on" : ""}`} />
           </button>
         </div>
@@ -157,7 +158,9 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
       );
     }
 
+    // Kiểu vẽ lạ rơi về số đọc: luôn thấy ĐƯỢC giá trị, không bao giờ là ô trống.
     case "readout01":
+    default:
       return (
         <div className="card ctl-doc">
           <div className="ctl-doc-so">{rong(v) ? "—" : `${v}`}<em>{cap.unit ?? ""}</em></div>
@@ -186,7 +189,7 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
       return (
         <div className="card ctl-bao" role="status">
           <b>{ten}</b>
-          <span className="small">{v === undefined ? "—" : nhanGiaTriCap(cap, String(v), t)}</span>
+          <span className="small">{rong(v) ? "—" : nhanGiaTriCap(cap, String(v), t)}</span>
         </div>
       );
 
@@ -199,7 +202,5 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
         </div>
       );
 
-    default:
-      return null;
   }
 }

@@ -33,8 +33,14 @@ const khongThay = () => Response.json({ message: "not_found" }, { status: 404 })
 
 async function chuyenTiep(request: NextRequest, path: string[]) {
   if (path.length === 0 || NHANH_CAM.has(path[0].toLowerCase())) return khongThay();
+  // `x/../admin` qua được phép thử trên vì fetch chuẩn hoá đường dẫn về `/v1/admin`. Không
+  // cửa hợp lệ nào cần `.`, `..` hay dấu gạch trong một đoạn, nên chối thẳng.
+  if (path.some(doan => doan === "." || doan === ".." || /[\\/]/.test(doan))) return khongThay();
   const duong = path.map(encodeURIComponent).join("/");
   const dich = `${upstream()}/v1/${duong}${request.nextUrl.search}`;
+  // Chốt chặn cuối: soát lại đúng đường dẫn sẽ gửi đi sau khi URL chuẩn hoá.
+  const doanDau = new URL(dich).pathname.split("/")[2]?.toLowerCase() ?? "";
+  if (NHANH_CAM.has(doanDau)) return khongThay();
 
   const headers = new Headers();
   request.headers.forEach((value, key) => {

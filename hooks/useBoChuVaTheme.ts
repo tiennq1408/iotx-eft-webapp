@@ -31,6 +31,8 @@ export function useBoChuVaTheme() {
     try {
       const moi = await iotxClient.i18n(ma);
       ghiI18n(ma, nhan, moi);
+      // Người dùng đã bấm sang ngôn ngữ khác trong lúc chờ: bản này về muộn, không được thắng.
+      if (ma !== langRef.current) return;
       setBoChu(moi);
     } catch { /* mất mạng: giữ bản đang có, app vẫn chạy bằng bảng chữ trong mã */ }
   }, []);
@@ -80,5 +82,8 @@ export function useBoChuVaTheme() {
     void taiTheme(phienBan?.theme);
   }, [taiBoChu, taiTheme]);
 
-  return { boChu, theme, lang, doiNgonNgu, khoiDong, theoPhienBan };
+  /** Ngôn ngữ đang chọn, đọc được từ callback mà không phải đưa `lang` vào phụ thuộc. */
+  const langHienTai = useCallback(() => langRef.current, []);
+
+  return { boChu, theme, lang, doiNgonNgu, khoiDong, theoPhienBan, langHienTai };
 }

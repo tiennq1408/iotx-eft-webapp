@@ -1,4 +1,5 @@
 import type { IotxCapability, IotxProduct } from "@/lib/iotx/contracts";
+import { VARIANT_THEO_KIND } from "./khuon";
 
 /**
  * Bố cục lưới kiểu bảng tính (`product.ui.boCuc`) — bản dựng lại từ bộ vẽ của
@@ -17,15 +18,6 @@ const CAO_HANG_MAC = 64;
 
 /** Số cột cố định của lưới. */
 const SO_COT = 4;
-
-/** Kiểu vẽ hợp lệ theo `kind` — khai sai thì rơi về mặc định của kind. */
-const VARIANT_THEO_KIND: Record<string, string[]> = {
-  onoff: ["switch01", "power01"],
-  level: ["slider01", "dial01", "step01"],
-  enum: ["chips01"],
-  sensor: ["readout01", "gauge01", "state01", "alarm01"],
-  list: ["filterlist01"],
-};
 
 /** Control tự giãn hết chiều ngang ô: thân xếp DỌC, nhãn nằm trên. */
 const DAY_NGANG = ["switch01", "slider01", "step01", "chips01", "filterlist01"];
@@ -138,7 +130,7 @@ export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[]) {
   const caoHang = CAO_HANG.includes(Number(bc.caoHang)) ? Number(bc.caoHang) : CAO_HANG_MAC;
   const { map, soHang } = hangHienThi(o, bc.donHang !== false);
   const capBao = bc.alarm?.key ? theoKhoa.get(bc.alarm.key) ?? null : null;
-  return { o, map, soHang, caoHang, soCot: Number(bc.cot) || SO_COT, skin: bc.skin ?? null, capBao, nenAnh: bc.nenAnh ?? null };
+  return { o, map, soHang, caoHang, soCot: Number(bc.cot) || SO_COT, capBao };
 }
 
 /**

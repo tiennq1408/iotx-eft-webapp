@@ -3,46 +3,12 @@
 import { useState } from "react";
 import Icon from "../Icon";
 import { useChu } from "../chu";
-import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu } from "@/lib/iotx/contracts";
+import type { IotxCapability, IotxLenhVatTu } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
-import { rong } from "@/lib/iotx/giaTri";
+import { danhSachMuc, docSo, phanTramConLai, tenMuc } from "@/lib/newui/vatTu";
 
 /** Gửi một lệnh vật tư; trả `true` khi máy chủ nhận. Hỏng thì nơi gọi đã tự báo lỗi. */
 export type GuiVatTu = (cap: IotxCapability, lenh: IotxLenhVatTu) => Promise<boolean>;
-
-/** Hợp đồng để mở cho từng mục nên đọc phòng thủ, không đòi đúng một tên trường. */
-function danhSachMuc(device: Device, cap: IotxCapability): IotxMucVatTu[] {
-  const giaTri = device.lastValues?.[cap.key];
-  return Array.isArray(giaTri) ? giaTri as IotxMucVatTu[] : [];
-}
-
-function tenMuc(muc: IotxMucVatTu) {
-  return String(muc.ten || muc.name || muc.sanPham || muc.serial || muc.id || "—");
-}
-
-/** Đọc một số từ mục vật tư theo nhiều tên trường có thể gặp; không có thì trả undefined. */
-function docSo(muc: IotxMucVatTu, ungVien: string[]): number | undefined {
-  const ban = muc as Record<string, unknown>;
-  for (const ten of ungVien) {
-    const giaTri = ban[ten];
-    if (rong(giaTri)) continue;
-    const so = typeof giaTri === "number" ? giaTri : Number(giaTri);
-    if (Number.isFinite(so)) return so;
-  }
-  return undefined;
-}
-
-/** Phần trăm còn lại: máy chủ có thể trả sẵn `phanTram`, hoặc `conLai`/`tuoiTho` để tự tính. */
-function phanTramConLai(muc: IotxMucVatTu): number | null {
-  const pct = docSo(muc, ["phanTram", "percent", "remainPercent"]);
-  if (pct !== undefined) return Math.round(pct);
-  const conLai = docSo(muc, ["conLai", "ngayConLai", "daysLeft", "remainDays"]);
-  const tuoiTho = docSo(muc, ["tuoiTho", "life", "lifeDays"]);
-  if (conLai !== undefined && tuoiTho !== undefined && tuoiTho > 0) {
-    return Math.round((conLai / tuoiTho) * 100);
-  }
-  return null;
-}
 
 /**
  * Capability kiểu `list` — vật tư/lõi lọc. Bốn lệnh của hợp đồng đi qua
@@ -80,13 +46,15 @@ export function VatTuBlock({ device, cap, khoa, gui }: {
       {muc.map((item, i) => {
         const id = String(item.id ?? i);
         const pct = phanTramConLai(item);
+        // Cùng cách đọc với thanh tiến độ: nhận cả chuỗi và các tên trường khác nhau.
+        const tuoi = docSo(item, ["tuoiTho", "life", "lifeDays"]);
         return (
           <div className="vat-tu-row" key={id}>
             <div className="vat-tu-chu">
               <strong>{tenMuc(item)}{item.xacThuc === false && <em className="tag-cho"> {t("supplies_unverified")}</em>}</strong>
               {pct !== null && (
                 <>
-                  <div className="filter-name-row"><span>{typeof item.tuoiTho === "number" ? t("supplies_life", { ngay: item.tuoiTho }) : ""}</span><span>{pct}%</span></div>
+                  <div className="filter-name-row"><span>{tuoi !== undefined ? t("supplies_life", { ngay: tuoi }) : ""}</span><span>{pct}%</span></div>
                   <div className="progress-wrap"><div className={`progress-bar${pct < 20 ? " low" : ""}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} /></div>
                 </>
               )}

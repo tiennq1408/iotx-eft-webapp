@@ -6,17 +6,20 @@ import type { AppData } from "@/lib/types";
 import { iotxClient, isIotxMode } from "@/lib/iotx";
 import { useTacVu } from "@/hooks/useTacVu";
 import { Modal } from "./chung";
+import { useChu } from "@/components/newui/chu";
 
 type LoaiKhongGian = keyof AppData["spaces"];
 
-const NHAN: Record<LoaiKhongGian, string> = { houses: "Nhà", rooms: "Phòng", groups: "Nhóm" };
+const KHOA_NHAN: Record<LoaiKhongGian, string> = { houses: "loc_nha", rooms: "loc_phong", groups: "loc_nhom" };
 const LOAI_API = { houses: "house", rooms: "room", groups: "grp" } as const;
 const BIEU_TUONG: Record<LoaiKhongGian, string> = { houses: "🏠", rooms: "🚪", groups: "◉" };
 
 /** Quản lý Nhà / Phòng / Nhóm — `POST/DELETE /categories`. */
 export function Spaces({ data, setData, onClose }: { data: AppData; setData: Dispatch<SetStateAction<AppData>>; onClose: () => void }) {
+  const { t } = useChu();
   const [kind, setKind] = useState<LoaiKhongGian>("houses");
   const [name, setName] = useState("");
+  const [hoiXoa, setHoiXoa] = useState<string | null>(null);
   // Lỗi máy chủ phải hiện ra: trước đây lời gọi bị nuốt thành unhandled rejection và
   // người dùng bấm "Tạo" mà không thấy gì xảy ra.
   const { loi, chay } = useTacVu();
@@ -39,10 +42,10 @@ export function Spaces({ data, setData, onClose }: { data: AppData; setData: Dis
   }
 
   return (
-    <Modal title="Quản lý không gian" onClose={onClose} wide>
+    <Modal title={t("spaces.title")} onClose={onClose} wide>
       <div className="segment three">
-        {(Object.keys(NHAN) as LoaiKhongGian[]).map(key => (
-          <button key={key} className={kind === key ? "active" : ""} onClick={() => setKind(key)}>{NHAN[key]}</button>
+        {(Object.keys(KHOA_NHAN) as LoaiKhongGian[]).map(key => (
+          <button key={key} className={kind === key ? "active" : ""} onClick={() => setKind(key)}>{t(KHOA_NHAN[key])}</button>
         ))}
       </div>
       <div className="space-list">
@@ -50,16 +53,18 @@ export function Spaces({ data, setData, onClose }: { data: AppData; setData: Dis
           <div className="space-row" key={item}>
             <span className="space-icon">{BIEU_TUONG[kind]}</span>
             <strong>{item}</strong>
-            <button aria-label="Xóa" onClick={() => { void remove(item); }}><Trash2 /></button>
+            {hoiXoa === item
+              ? <button className="go-that" onClick={() => { setHoiXoa(null); void remove(item); }}>{t("confirm_delete")}</button>
+              : <button aria-label={t("auto_delete")} onClick={() => setHoiXoa(item)}><Trash2 /></button>}
           </div>
         ))}
       </div>
       <div className="inline-form">
-        <input value={name} onChange={e => setName(e.target.value)} placeholder={`Tên ${NHAN[kind].toLowerCase()} mới`} />
-        <button onClick={() => { void add(); }}><Plus /> Tạo</button>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={t("spaces.newPh", { loai: t(KHOA_NHAN[kind]).toLowerCase() })} />
+        <button onClick={() => { void add(); }}><Plus /> {t("common.create")}</button>
       </div>
       {loi && <p className="form-message">{loi}</p>}
-      <p className="hint">Không gian được đồng bộ với tài khoản Livotec của bạn.</p>
+      <p className="hint">{t("spaces.syncNote")}</p>
     </Modal>
   );
 }

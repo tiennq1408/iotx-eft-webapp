@@ -99,7 +99,7 @@ export type IotxDevice = {
   shared: boolean;
   perms: IotxPermission;
   virtual?: boolean;
-  virtualKind?: "external" | "state" | "button";
+  virtualKind?: IotxKieuAo;
   place?: string | null;
 };
 
@@ -149,8 +149,6 @@ export type IotxShares = {
 
 export type IotxRule = IotxRuleInput & {
   id: number;
-  name: string;
-  enabled?: boolean;
   status?: string;
 };
 
@@ -215,18 +213,11 @@ export type IotxStreamEvent = {
 };
 
 /** Một dòng trong kết quả POST /rules/simulate (hình dạng đo thật trên DEV). */
-export type IotxMoPhongDong = {
+export type IotxMoPhongDong = Omit<IotxRuleCondition, "op"> & {
   pass: boolean;
-  conn?: "and" | "or";
-  deviceId?: string;
-  key?: string;
+  /** Máy chủ trả toán tử thô, không ép về bốn giá trị như lúc gửi lên. */
   op?: string;
-  value?: unknown;
   current?: unknown;
-  type?: "device" | "time";
-  from?: string;
-  to?: string;
-  days?: number[];
 };
 
 export type IotxMoPhong = {

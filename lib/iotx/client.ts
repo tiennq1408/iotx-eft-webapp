@@ -1,8 +1,9 @@
 import { iotxConfig } from "./config";
 import { docEtag, ghiEtag, xoaCacheNguoiDung } from "./cache";
+import { IotxApiError } from "./errors";
 import type {
-  IotxBootstrap, IotxCategory, IotxDevice, IotxNotification, IotxProduct,
-  IotxKieuAo, IotxLanChay, IotxMoPhong, IotxNoiChon, IotxProfile, IotxRuleCondition, IotxRuleInput,
+  IotxBootstrap, IotxCategory, IotxNotification, IotxProduct,
+  IotxKieuAo, IotxLanChay, IotxMoPhong, IotxNoiChon, IotxRuleCondition, IotxRuleInput,
   IotxHenGioTongQuan, IotxLenhVatTu, IotxThanChuongTrinh,
   IotxPermission, IotxRules, IotxShares, IotxThietBiAo,
   IotxStreamEvent, IotxTheme, IotxTokenSet,
@@ -10,12 +11,8 @@ import type {
 
 const TOKEN_KEY = "livotec-iotx-session";
 
-export class IotxApiError extends Error {
-  constructor(public status: number, message: string, public payload?: unknown) {
-    super(message);
-    this.name = "IotxApiError";
-  }
-}
+/** Thân `{ ok: true }` mà hầu hết cửa ghi trả về, kèm vài trường riêng của từng cửa. */
+type Ok<T = object> = { ok: true } & T;
 
 export type TokenStore = {
   get(): IotxTokenSet | null;
@@ -68,6 +65,13 @@ export class IotxClient {
 
   /** Lần làm mới đang bay — mọi request cùng gặp 401 đợi chung nó, không mỗi cái tự refresh. */
   private dangLamMoi: Promise<boolean> | null = null;
+  /**
+   * Thế hệ phiên: tăng mỗi lần đăng nhập và mỗi lần phiên kết thúc. Request bắt đầu ở thế hệ
+   * cũ mà về sau đó thì bị bỏ — không ghi token, không ghi ETag. Nếu không, một lần refresh
+   * hay một `/bootstrap` đang bay lúc đăng xuất sẽ ghi lại token (tải lại trang là tự đăng
+   * nhập lại) hoặc email và thiết bị của người vừa rời đi.
+   */
+  private theHe = 0;
   private readonly nguoiNgheHetPhien = new Set<() => void>();
 
   /**
@@ -81,9 +85,18 @@ export class IotxClient {
   }
 
   private hetPhien() {
+    // Đã hết phiên rồi thì chỉ dọn lại cho chắc, không báo lần nữa: một 401 có thể đi qua
+    // client, luồng SSE và hook — mỗi nơi gọi một lần.
+    const conPhien = this.tokens.get() !== null;
+    this.theHe++;
     this.tokens.clear();
     xoaCacheNguoiDung();
-    for (const nghe of this.nguoiNgheHetPhien) nghe();
+    if (conPhien) for (const nghe of this.nguoiNgheHetPhien) nghe();
+  }
+
+  /** Request bắt đầu ở thế hệ `theHe` mà phiên đã đổi — bỏ kết quả của nó. */
+  private kiemTheHe(theHe: number) {
+    if (theHe !== this.theHe) throw new IotxApiError(0, "phien_da_doi");
   }
 
   /**
@@ -107,6 +120,7 @@ export class IotxClient {
 
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const { auth = true, body, retryAuth = true, etagKey, headers: suppliedHeaders, ...init } = options;
+    const theHe = this.theHe;
     const headers = new Headers(suppliedHeaders);
     if (body !== undefined) headers.set("Content-Type", "application/json");
     const tokenSet = this.tokens.get();
@@ -119,9 +133,13 @@ export class IotxClient {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    this.kiemTheHe(theHe);
 
-    if (response.status === 401 && auth && retryAuth && tokenSet) {
-      if (await this.lamMoiSau401(tokenSet.accessToken)) return this.request<T>(path, { ...options, retryAuth: false });
+    if (response.status === 401 && auth && tokenSet) {
+      if (retryAuth && await this.lamMoiSau401(tokenSet.accessToken)) return this.request<T>(path, { ...options, retryAuth: false });
+      // Token vừa làm mới mà vẫn bị từ chối (phiên bị thu hồi, lệch đồng hồ): làm mới tiếp chỉ
+      // thành vòng `/auth/refresh` mỗi nhịp hỏi lại. Đúng luật: refresh một lần rồi thôi.
+      if (!retryAuth) this.hetPhien();
     }
 
     // 304 không có thân; dùng lại bản đang giữ. Mất cache mà vẫn nhận 304 thì phải hỏi lại
@@ -138,6 +156,7 @@ export class IotxClient {
 
     if (response.status === 204) return undefined as T;
     const ketQua = await response.json() as T;
+    this.kiemTheHe(theHe);
     const etag = response.headers.get("ETag");
     if (etagKey && etag) ghiEtag(etagKey, etag, ketQua);
     return ketQua;
@@ -153,12 +172,14 @@ export class IotxClient {
 
   async login(email: string, password: string) {
     const result = await this.request<IotxTokenSet>("/auth/login", { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, email, password } });
+    this.theHe++;
     this.tokens.set(result);
     return result;
   }
 
   async register(email: string, password: string, fullName?: string) {
     const result = await this.request<IotxTokenSet>("/auth/register", { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, email, password, fullName } });
+    this.theHe++;
     this.tokens.set(result);
     return result;
   }
@@ -171,25 +192,22 @@ export class IotxClient {
   }
 
   logout() { this.hetPhien(); }
-  me() { return this.request<IotxProfile>("/me"); }
   bootstrap(lang = iotxConfig.lang) { return this.request<IotxBootstrap>(`/bootstrap?lang=${encodeURIComponent(lang)}`, { etagKey: `bootstrap:${lang}` }); }
   products(lang = iotxConfig.lang) { return this.request<Record<string, IotxProduct>>(`/products?lang=${encodeURIComponent(lang)}&tenant=${encodeURIComponent(iotxConfig.tenant)}`, { auth: false, etagKey: `products:${iotxConfig.tenant}:${lang}` }); }
-  devices(lang = iotxConfig.lang) { return this.request<IotxDevice[]>(`/devices?lang=${encodeURIComponent(lang)}`); }
-  categories() { return this.request<IotxCategory[]>("/categories"); }
   notifications() { return this.request<{ unread: number; items: IotxNotification[] }>("/notifications"); }
   shares() { return this.request<IotxShares>("/shares"); }
   rules() { return this.request<IotxRules>("/rules"); }
 
   claim(name: string, secret: string) {
-    return this.request<{ ok: true; id: string; name: string; type: string }>("/claim", { method: "POST", body: { name, secret } });
+    return this.request<Ok<{ id: string; name: string; type: string }>>("/claim", { method: "POST", body: { name, secret } });
   }
 
   claimBoard(serial: string) {
-    return this.request<{ ok: true; id: string; name: string; type: string; dangNoi: boolean }>("/claim-mach-that", { method: "POST", body: { serial } });
+    return this.request<Ok<{ id: string; name: string; type: string; dangNoi: boolean }>>("/claim-mach-that", { method: "POST", body: { serial } });
   }
 
   updateDevice(id: string, patch: { label?: string; house?: string; room?: string; grp?: string; fav?: boolean; hidden?: boolean }) {
-    return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}`, { method: "PATCH", body: patch });
+    return this.request<Ok>(`/devices/${encodeURIComponent(id)}`, { method: "PATCH", body: patch });
   }
 
   rpc(id: string, method: string, params: Record<string, unknown>, idempotencyKey = crypto.randomUUID()) {
@@ -202,7 +220,7 @@ export class IotxClient {
 
   /** Lệnh trên MỘT mục của capability kiểu `list` (lõi lọc, vật tư…). */
   lenhMucVatTu(id: string, cap: string, lenh: IotxLenhVatTu) {
-    return this.request<{ ok: true; nguon?: "server" | "mach"; id?: string; xacThuc?: boolean }>(
+    return this.request<Ok<{ nguon?: "server" | "mach"; id?: string; xacThuc?: boolean }>>(
       `/devices/${encodeURIComponent(id)}/muc/${encodeURIComponent(cap)}`,
       { method: "POST", body: lenh },
     );
@@ -213,64 +231,64 @@ export class IotxClient {
   xemHenGio(id: string) { return this.request<IotxHenGioTongQuan>(`/devices/${encodeURIComponent(id)}/hen-gio`); }
   /** Gửi `bat` kèm ĐÚNG MỘT trong `phut` (1..720) hoặc `luc` ("HH:MM"). */
   datHenGio(id: string, than: { bat: boolean; phut?: number; luc?: string }) {
-    return this.request<{ ok: true; hen: { luc: number; bat: boolean } }>(`/devices/${encodeURIComponent(id)}/hen-gio/hen`, { method: "PUT", body: than });
+    return this.request<Ok<{ hen: { luc: number; bat: boolean } }>>(`/devices/${encodeURIComponent(id)}/hen-gio/hen`, { method: "PUT", body: than });
   }
-  huyHenGio(id: string) { return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}/hen-gio/hen`, { method: "DELETE" }); }
+  huyHenGio(id: string) { return this.request<Ok>(`/devices/${encodeURIComponent(id)}/hen-gio/hen`, { method: "DELETE" }); }
   taoChuongTrinh(id: string, than: IotxThanChuongTrinh) {
-    return this.request<{ ok: true; id: number }>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh`, { method: "POST", body: than });
+    return this.request<Ok<{ id: number }>>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh`, { method: "POST", body: than });
   }
   suaChuongTrinh(id: string, ctId: number, than: IotxThanChuongTrinh) {
-    return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}`, { method: "PUT", body: than });
+    return this.request<Ok>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}`, { method: "PUT", body: than });
   }
   xoaChuongTrinh(id: string, ctId: number) {
-    return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}`, { method: "DELETE" });
+    return this.request<Ok>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}`, { method: "DELETE" });
   }
   /** Kích hoạt một chương trình — mỗi thiết bị chỉ một chương trình đang dùng. */
   dungChuongTrinhNay(id: string, ctId: number) {
-    return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}/dung`, { method: "POST" });
+    return this.request<Ok>(`/devices/${encodeURIComponent(id)}/hen-gio/chuong-trinh/${ctId}/dung`, { method: "POST" });
   }
   thoiDungChuongTrinh(id: string) {
-    return this.request<{ ok: true }>(`/devices/${encodeURIComponent(id)}/hen-gio/dang-dung`, { method: "DELETE" });
+    return this.request<Ok>(`/devices/${encodeURIComponent(id)}/hen-gio/dang-dung`, { method: "DELETE" });
   }
 
-  createCategory(category: IotxCategory) { return this.request<{ ok: true }>("/categories", { method: "POST", body: category }); }
-  renameCategory(kind: IotxCategory["kind"], from: string, to: string) { return this.request<{ ok: true }>("/categories", { method: "PATCH", body: { kind, from, to } }); }
-  deleteCategory(kind: IotxCategory["kind"], name: string) { return this.request<{ ok: true }>(`/categories/${kind}/${encodeURIComponent(name)}`, { method: "DELETE" }); }
+  createCategory(category: IotxCategory) { return this.request<Ok>("/categories", { method: "POST", body: category }); }
+  deleteCategory(kind: IotxCategory["kind"], name: string) { return this.request<Ok>(`/categories/${kind}/${encodeURIComponent(name)}`, { method: "DELETE" }); }
   createShare(input: { email: string; house: string; scope?: string; scopeRef?: string; perms?: IotxPermission }) {
-    return this.request<{ ok: true; id: number; pending: boolean }>("/shares", { method: "POST", body: input });
+    return this.request<Ok<{ id: number; pending: boolean }>>("/shares", { method: "POST", body: input });
   }
   /** Siết/nới quyền một chia sẻ đã cấp. Máy chủ trả về quyền SAU KHI ghép, nên lấy theo đó. */
   suaQuyenChiaSe(id: number | string, perms: IotxPermission) {
-    return this.request<{ ok: true; perms: IotxPermission }>(`/shares/${encodeURIComponent(String(id))}`, { method: "PATCH", body: { perms } });
+    return this.request<Ok<{ perms: IotxPermission }>>(`/shares/${encodeURIComponent(String(id))}`, { method: "PATCH", body: { perms } });
   }
-  deleteShare(id: number | string) { return this.request<{ ok: true }>(`/shares/${encodeURIComponent(String(id))}`, { method: "DELETE" }); }
-  readNotifications(id?: number) { return this.request<{ ok: true }>("/notifications/read", { method: "POST", body: id === undefined ? {} : { id } }); }
-  deleteNotification(id: number | string) { return this.request<{ ok: true }>(`/notifications/${encodeURIComponent(String(id))}`, { method: "DELETE" }); }
-  createRule(rule: IotxRuleInput) { return this.request<{ ok: true; id: number; shadow: boolean }>("/rules", { method: "POST", body: { shadow: true, ...rule } }); }
-  updateRule(id: number, rule: Partial<IotxRuleInput>) { return this.request<{ ok: true }>(`/rules/${id}`, { method: "PATCH", body: rule }); }
-  deleteRule(id: number) { return this.request<{ ok: true }>(`/rules/${id}`, { method: "DELETE" }); }
-  chayLuatNgay(id: number) { return this.request<{ ok: true }>(`/rules/${id}/run`, { method: "POST" }); }
-  dungLuat(id: number) { return this.request<{ ok: true }>(`/rules/${id}/stop`, { method: "POST" }); }
+  deleteShare(id: number | string) { return this.request<Ok>(`/shares/${encodeURIComponent(String(id))}`, { method: "DELETE" }); }
+  readNotifications(id?: number) { return this.request<Ok>("/notifications/read", { method: "POST", body: id === undefined ? {} : { id } }); }
+  deleteNotification(id: number | string) { return this.request<Ok>(`/notifications/${encodeURIComponent(String(id))}`, { method: "DELETE" }); }
+  /** Luật mới LUÔN ở chế độ chạy thử (hợp đồng); lên thật đi qua `updateRule({ shadow: false })`. */
+  createRule(rule: Omit<IotxRuleInput, "shadow">) { return this.request<Ok<{ id: number; shadow: boolean }>>("/rules", { method: "POST", body: { ...rule, shadow: true } }); }
+  updateRule(id: number, rule: Partial<IotxRuleInput>) { return this.request<Ok>(`/rules/${id}`, { method: "PATCH", body: rule }); }
+  deleteRule(id: number) { return this.request<Ok>(`/rules/${id}`, { method: "DELETE" }); }
+  chayLuatNgay(id: number) { return this.request<Ok>(`/rules/${id}/run`, { method: "POST" }); }
+  dungLuat(id: number) { return this.request<Ok>(`/rules/${id}/stop`, { method: "POST" }); }
   lichSuChay(id: number) { return this.request<IotxLanChay[]>(`/rules/${id}/runs`); }
 
   noChonDuoc() { return this.request<IotxNoiChon[]>("/virtual/places"); }
   thietBiAo() { return this.request<IotxThietBiAo[]>("/virtual"); }
   taoThietBiAo(input: { kind: IotxKieuAo; name: string; place?: string; lat?: number; lon?: number }) {
-    return this.request<{ ok: true; id: string }>("/virtual", { method: "POST", body: input });
+    return this.request<Ok<{ id: string }>>("/virtual", { method: "POST", body: input });
   }
   doiTenThietBiAo(id: string, name: string) {
-    return this.request<{ ok: true }>(`/virtual/${encodeURIComponent(id)}`, { method: "PATCH", body: { name } });
+    return this.request<Ok>(`/virtual/${encodeURIComponent(id)}`, { method: "PATCH", body: { name } });
   }
   /** Đang bị luật dùng thì máy chủ từ chối kèm tên luật — hiện thẳng câu đó lên màn. */
   xoaThietBiAo(id: string) {
-    return this.request<{ ok: true }>(`/virtual/${encodeURIComponent(id)}`, { method: "DELETE" });
+    return this.request<Ok>(`/virtual/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
   datTrangThaiAo(id: string, on: boolean) {
-    return this.request<{ ok: true; on: boolean }>(`/virtual/${encodeURIComponent(id)}/state`, { method: "POST", body: { on } });
+    return this.request<Ok<{ on: boolean }>>(`/virtual/${encodeURIComponent(id)}/state`, { method: "POST", body: { on } });
   }
   /** Nút ảo bật 3 giây rồi tự tắt — mồi kích cho tự động hoá. */
   bamNutAo(id: string) {
-    return this.request<{ ok: true; count: number }>(`/virtual/${encodeURIComponent(id)}/press`, { method: "POST" });
+    return this.request<Ok<{ count: number }>>(`/virtual/${encodeURIComponent(id)}/press`, { method: "POST" });
   }
   /** Xem trước với số đo hiện tại — chỉ đọc, không gửi lệnh nào xuống thiết bị. */
   moPhongLuat(input: { conds: IotxRuleCondition[]; gates?: IotxRuleCondition[]; exclusions?: IotxRuleCondition[] }) {
@@ -279,7 +297,7 @@ export class IotxClient {
 
   async subscribe(
     onEvent: (event: IotxStreamEvent) => void,
-    options: { signal?: AbortSignal; deviceIds?: string[]; onReconnect?: () => void } = {},
+    options: { signal?: AbortSignal; onReconnect?: () => void } = {},
   ) {
     let attempt = 0;
     let daTungNoi = false;
@@ -289,9 +307,8 @@ export class IotxClient {
     while (!options.signal?.aborted) {
       const token = this.tokens.get()?.accessToken;
       if (!token) throw new IotxApiError(401, "missing_session");
-      const query = options.deviceIds?.length ? `?thiet_bi=${encodeURIComponent(options.deviceIds.join(","))}` : "";
       try {
-        const response = await fetch(`${this.baseUrl}/stream${query}`, {
+        const response = await fetch(`${this.baseUrl}/stream`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: options.signal,
         });

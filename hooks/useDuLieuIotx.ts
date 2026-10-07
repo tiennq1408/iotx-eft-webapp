@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultData, loadData, saveData } from "@/lib/storage";
 import {
   apGiaTri, browserTokenStore, docAnhChup, docProducts, ghiAnhChup, ghiProducts, iotxClient, isIotxMode, laHetPhien, mapIotxDevice, mapNotification,
-  mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
+  giuThietBiCu, mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
 } from "@/lib/iotx";
 import { SoLenhCho } from "@/lib/iotx/soLenhCho";
 import type { AppData, ChiaSeNhan, UiNotification } from "@/lib/types";
@@ -40,7 +40,7 @@ const THONG_BAO_MOCK: UiNotification[] = [
 const DU_LIEU_RONG: AppData = { devices: [], spaces: { houses: [], rooms: [], groups: [] } };
 
 export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
-  const { boChu, theme, lang, doiNgonNgu, khoiDong, theoPhienBan } = useBoChuVaTheme();
+  const { boChu, theme, lang, doiNgonNgu: datNgonNgu, khoiDong, theoPhienBan, langHienTai } = useBoChuVaTheme();
   const [hydrated, setHydrated] = useState(false);
   const [chiaSeNhanDuoc, setChiaSeNhanDuoc] = useState<ChiaSeNhan[]>([]);
   const [chiaSeDaCap, setChiaSeDaCap] = useState<ChiaSeNhan[]>([]);
@@ -58,18 +58,22 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
   const productsRef = useRef<Record<string, IotxProduct>>({});
   /** Nhãn phiên bản catalog đang giữ (`phienBan.products`) — đổi nghĩa là sadmin vừa lưu. */
   const nhanProductsRef = useRef<string | undefined>(undefined);
+  /** Ngôn ngữ của catalog đang giữ — nhãn capability là chữ đã dịch, đổi lang là tải lại. */
+  const langProductsRef = useRef<string | undefined>(undefined);
   const soLenhCho = useRef(new SoLenhCho());
 
   /** Catalog theo nhãn phiên bản: bản đã lưu cho đúng nhãn đó, không có thì tải và lưu lại. */
   const napCatalog = useCallback(async (nhan: string | undefined) => {
-    let products = docProducts(nhan);
+    const lang = langHienTai();
+    let products = docProducts(lang, nhan);
     if (!products) {
-      products = await iotxClient.products();
-      ghiProducts(nhan, products);
+      products = await iotxClient.products(lang);
+      ghiProducts(lang, nhan, products);
     }
     productsRef.current = products;
     nhanProductsRef.current = nhan;
-  }, []);
+    langProductsRef.current = lang;
+  }, [langHienTai]);
 
   /** Thiết bị từ máy chủ → thiết bị của app: bỏ máy ẩn, gắn catalog, giữ lệnh đang chờ. */
   const mapThietBi = useCallback((devices: IotxDevice[]) => devices
@@ -77,7 +81,7 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     .map(device => soLenhCho.current.apLen(mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product }))), []);
 
   const syncRemote = useCallback(async () => {
-    const bootstrap = await iotxClient.bootstrap();
+    const bootstrap = await iotxClient.bootstrap(langHienTai());
     theoPhienBan(bootstrap.phienBan);
     await napCatalog(bootstrap.phienBan?.products);
     const [remoteNotifications, remoteShares, remoteRules] = await Promise.all([
@@ -89,10 +93,11 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     setChiaSeDaCap((remoteShares.granted || []).map(mapShareDaCap));
     setLuat(remoteRules.rules || []);
     setLuatTuThietBi(remoteRules.tuThietBi || []);
-    setData(current => ({ ...mergeBootstrap(current, bootstrap), devices: mapThietBi(bootstrap.devices) }));
+    const devices = mapThietBi(bootstrap.devices);
+    setData(current => ({ ...mergeBootstrap(current, bootstrap), devices: giuThietBiCu(current.devices, devices) }));
     daDongBoDu.current = true;
     setLoiDongBo("");
-  }, [theoPhienBan, napCatalog, mapThietBi]);
+  }, [theoPhienBan, napCatalog, mapThietBi, langHienTai]);
 
   const taiLuat = useCallback(async () => {
     const ketQua = await iotxClient.rules();
@@ -122,21 +127,30 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
    * kéo lại `/products`. Nhờ ETag nên phần lớn các lần hỏi trả 304, rẻ như không.
    */
   const refreshDevices = useCallback(async () => {
-    const bootstrap = await iotxClient.bootstrap();
+    const bootstrap = await iotxClient.bootstrap(langHienTai());
     const nhan = bootstrap.phienBan?.products;
-    if (nhan !== nhanProductsRef.current) await napCatalog(nhan);
-    setData(current => ({ ...current, devices: mapThietBi(bootstrap.devices) }));
-  }, [napCatalog, mapThietBi]);
+    if (nhan !== nhanProductsRef.current || langHienTai() !== langProductsRef.current) await napCatalog(nhan);
+    // Tính ngoài updater: `mapThietBi` nhả sổ lệnh chờ, không được chạy hai lần trong StrictMode.
+    const devices = mapThietBi(bootstrap.devices);
+    setData(current => {
+      const giu = giuThietBiCu(current.devices, devices);
+      return giu === current.devices ? current : { ...current, devices: giu };
+    });
+  }, [napCatalog, mapThietBi, langHienTai]);
 
   /**
    * Nhịp đồng bộ dùng chung cho SSE nối lại, quay lại tab và hỏi định kỳ. Lần đồng bộ đầy
    * đủ lúc mở app mà hỏng (mất mạng) thì hồ sơ, thông báo, luật vẫn trống — nhịp sau phải
    * làm lại cả lần đó, chứ chỉ lấy thiết bị thì những phần kia trống tới lúc tải lại trang.
    */
-  const dongBoNhip = useCallback(
-    () => (daDongBoDu.current ? refreshDevices() : syncRemote()),
-    [refreshDevices, syncRemote],
-  );
+  const dangDongBo = useRef<Promise<void> | null>(null);
+  const dongBoNhip = useCallback(() => {
+    // Một luồng thôi: hỏi định kỳ, quay lại tab và SSE nối lại có thể rơi cùng lúc, nhất là
+    // khi lần đồng bộ đầy đủ (5 request) còn chưa xong.
+    dangDongBo.current ??= (daDongBoDu.current ? refreshDevices() : syncRemote())
+      .finally(() => { dangDongBo.current = null; });
+    return dangDongBo.current;
+  }, [refreshDevices, syncRemote]);
 
   // `logout` báo qua `onHetPhien` — phần dọn state nằm ở người nghe bên dưới.
   const hetPhien = useCallback(() => iotxClient.logout(), []);
@@ -174,7 +188,7 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setData(isIotxMode ? (docAnhChup() ?? DU_LIEU_RONG) : loadData());
+    setData(isIotxMode ? (docAnhChup(langHienTai()) ?? DU_LIEU_RONG) : loadData());
     khoiDong();
     const hasSession = isIotxMode ? Boolean(browserTokenStore.get()) : sessionStorage.getItem("livotec-session") === "1";
     setSignedIn(hasSession);
@@ -187,16 +201,31 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
       });
     }
     setHydrated(true);
-  }, [syncRemote, khoiDong, hetPhien]);
+  }, [syncRemote, khoiDong, hetPhien, langHienTai]);
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!isIotxMode) saveData(data);
+    if (!isIotxMode) { saveData(data); return; }
     // Chỉ chụp khi còn phiên: request về muộn sau khi đăng xuất không được ghi lại dữ liệu cũ.
-    else if (signedIn) ghiAnhChup(data);
+    if (!signedIn) return;
+    // Ảnh chụp chỉ để xem lúc mất mạng — ghi khi dữ liệu đã yên một nhịp, không phải ở mỗi
+    // sự kiện SSE. Đăng xuất thì cleanup huỷ lần ghi đang chờ.
+    const hen = setTimeout(() => ghiAnhChup(data), 1500);
+    return () => clearTimeout(hen);
   }, [data, hydrated, signedIn]);
 
   useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien: nhanSuKien, onHetPhien: hetPhien });
+
+  /**
+   * Đổi ngôn ngữ: bảng chữ đổi ngay (trong `datNgonNgu`), còn tên thiết bị, nhãn capability
+   * và thông báo đều do máy chủ dịch theo `?lang` — phải đồng bộ lại đầy đủ mới đổi theo.
+   */
+  const doiNgonNgu = useCallback((ma: string) => {
+    datNgonNgu(ma);
+    if (!isIotxMode || !signedIn) return;
+    daDongBoDu.current = false;
+    void dongBoNhip().catch(() => undefined);
+  }, [datNgonNgu, dongBoNhip, signedIn]);
 
   return {
     hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang, loiDongBo, setLoiDongBo,

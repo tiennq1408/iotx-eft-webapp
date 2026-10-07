@@ -23,6 +23,7 @@ export default function RuleCard({ rule, onBatTat, onXoa, onChay, onDung }: {
   const [mo, setMo] = useState(false);
   const [lanChay, setLanChay] = useState<IotxLanChay[] | null>(null);
   const [loi, setLoi] = useState("");
+  const [hoiXoa, setHoiXoa] = useState(false);
 
   const tomTat = [
     rule.conds?.length ? t("rule_conds", { n: rule.conds.length }) : null,
@@ -50,11 +51,13 @@ export default function RuleCard({ rule, onBatTat, onXoa, onChay, onDung }: {
       <div className="auto-card-top">
         <span className="an">{rule.name}{rule.shadow && <span className="tag-shadow">{t("shadow_tag")}</span>}</span>
         <span className="auto-card-actions">
-          <button className="switch-hit" aria-label={rule.enabled ? t("off") : t("on")} aria-pressed={Boolean(rule.enabled)} onClick={onBatTat}>
+          <button className="switch-hit" role="switch" aria-label={rule.name} aria-checked={Boolean(rule.enabled)} onClick={onBatTat}>
             <span className={`switch${rule.enabled ? " on" : ""}`} />
           </button>
           <button className="auto-icon-btn" aria-label={t("auto_run")} onClick={onChay}><Icon name="play" /></button>
-          <button className="auto-icon-btn danger" aria-label={t("auto_delete")} onClick={onXoa}><Icon name="trash" /></button>
+          {hoiXoa
+            ? <button className="go-that" onClick={onXoa}>{t("confirm_delete")}</button>
+            : <button className="auto-icon-btn danger" aria-label={t("auto_delete")} onClick={() => setHoiXoa(true)}><Icon name="trash" /></button>}
         </span>
       </div>
       <p className="auto-line"><span className="lb">{t("if_label")}</span>{tomTat || "—"}</p>

@@ -41,21 +41,27 @@ const KHUON: Record<string, Khuon> = {
   sensor: { heroUu: [], docUu: [], phuUu: [], chiDoc: true },
 };
 
+/**
+ * Khuôn CHUNG cho sản phẩm không khai (hoặc khai sai) archetype. Không ưu tiên khóa nào:
+ * nguồn → nhóm phụ, số đọc → băng số đọc, điều khiển → khối chính và nhóm phụ, phần còn
+ * lại gập vào "xem thêm". Luật dự án: không bao giờ để màn trống — bản tham chiếu web.dev
+ * bỏ trống trường hợp này, app này cố ý KHÁC ở đúng điểm đó.
+ */
+const KHUON_CHUNG: Khuon = { heroUu: [], docUu: [], phuUu: [] };
+
 const coKhuon = (ma: unknown): ma is string => typeof ma === "string" && Object.prototype.hasOwnProperty.call(KHUON, ma);
 
 /* ------------------------------------------------------------------ */
 /* Kiểu vẽ cho phép theo từng `kind`                                   */
 /* ------------------------------------------------------------------ */
 
-const CO_MOI = [1, 2, 3];
-
-/** `co` là cỡ ô (1–3), không phải số cột lưới; mỗi kiểu vẽ chỉ nhận vài cỡ. */
-const CONTROL: Record<IotxCapability["kind"], { mac: string; variant: Record<string, { co: number[] }> }> = {
-  onoff: { mac: "switch01", variant: { switch01: { co: CO_MOI }, power01: { co: CO_MOI } } },
-  level: { mac: "slider01", variant: { slider01: { co: CO_MOI }, dial01: { co: [2, 3] }, step01: { co: [1, 2] } } },
-  enum: { mac: "chips01", variant: { chips01: { co: CO_MOI } } },
-  sensor: { mac: "readout01", variant: { readout01: { co: CO_MOI }, gauge01: { co: [2, 3] }, state01: { co: CO_MOI }, alarm01: { co: CO_MOI } } },
-  list: { mac: "filterlist01", variant: { filterlist01: { co: [2, 3] } } },
+/** Kiểu vẽ mà mỗi `kind` chấp nhận; dùng chung với lưới `ui.boCuc` (xem `boCuc.ts`). */
+export const VARIANT_THEO_KIND: Record<IotxCapability["kind"], readonly string[]> = {
+  onoff: ["switch01", "power01"],
+  level: ["slider01", "dial01", "step01"],
+  enum: ["chips01"],
+  sensor: ["readout01", "gauge01", "state01", "alarm01"],
+  list: ["filterlist01"],
 };
 
 function variantMac(kind: IotxCapability["kind"], key: string, nhom: TenNhom, cap?: IotxCapability): string | null {
@@ -65,21 +71,14 @@ function variantMac(kind: IotxCapability["kind"], key: string, nhom: TenNhom, ca
     if (nhom === "alarm") return "alarm01";
     return cap?.values?.length ? "state01" : "readout01";
   }
-  return CONTROL[kind]?.mac ?? null;
+  return VARIANT_THEO_KIND[kind]?.[0] ?? null;
 }
 
 function variantCua(kind: IotxCapability["kind"], key: string, nhom: TenNhom, khai?: string, cap?: IotxCapability): string | null {
-  const bang = CONTROL[kind];
+  const bang = VARIANT_THEO_KIND[kind];
   if (!bang) return null;
   // Kiểu lạ rơi về mặc định của `kind` thay vì làm vỡ màn.
-  return khai && bang.variant[khai] ? khai : variantMac(kind, key, nhom, cap);
-}
-
-function coCua(kind: IotxCapability["kind"], variant: string | null, khai?: number): number {
-  const cho = (variant && CONTROL[kind]?.variant[variant]?.co) || CO_MOI;
-  const muon = Number(khai) || 2;
-  if (cho.includes(muon)) return muon;
-  return cho.reduce((a, b) => (Math.abs(b - muon) < Math.abs(a - muon) ? b : a), cho[0]);
+  return khai && bang.includes(khai) ? khai : variantMac(kind, key, nhom, cap);
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,11 +97,11 @@ export const mauSkin = (ma: unknown) => (typeof ma === "string" && SKIN[ma]) || 
 /* Gán nhóm mặc định khi `slots` không nói                             */
 /* ------------------------------------------------------------------ */
 
-const laDieuKhien = (c?: IotxCapability) => Boolean(c) && c!.kind !== "sensor";
-const laNguon = (c?: IotxCapability) => Boolean(c) && c!.kind === "onoff" && c!.key === "power";
-/** `ac_power_status`, `fan_power`, `nguon`… — tên có chứa "power"/"nguon" thành từ riêng. */
-const laTenNguon = (c?: IotxCapability) =>
-  Boolean(c) && c!.kind === "onoff" && /(^|_)(power|nguon)(_|$)/i.test(c!.key);
+const laDieuKhien = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind !== "sensor";
+const laNguon = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind === "onoff" && c.key === "power";
+/** `power`, `ac_power_status`, `fan_power`, `nguon`… — "power"/"nguon" đứng thành từ riêng. */
+export const LA_TEN_NGUON = /(^|_)(power|nguon)(_|$)/i;
+const laTenNguon = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind === "onoff" && LA_TEN_NGUON.test(c.key);
 
 export function khuonCua(product?: IotxProduct | null): string | undefined {
   const a = product?.ui?.archetype;
@@ -115,10 +114,8 @@ function uuTienCua(product?: IotxProduct | null): string[] {
   return Array.isArray(u) ? u.filter((x): x is string => typeof x === "string") : [];
 }
 
-function ganMacDinh(caps: IotxCapability[], maKhuon?: string, uuTien: string[] = []): Record<string, TenNhom> {
+function ganMacDinh(caps: IotxCapability[], khuon: Khuon, uuTien: string[] = []): Record<string, TenNhom> {
   const ra: Record<string, TenNhom> = {};
-  const khuon = maKhuon ? KHUON[maKhuon] : undefined;
-  if (!khuon) { caps.forEach(c => { ra[c.key] = "more"; }); return ra; }
 
   const conLai = new Set(caps.map(c => c.key));
   const lay = (key: string) => (conLai.has(key) ? caps.find(c => c.key === key) : undefined);
@@ -173,9 +170,10 @@ function ganMacDinh(caps: IotxCapability[], maKhuon?: string, uuTien: string[] =
 /* Kết quả dựng màn                                                    */
 /* ------------------------------------------------------------------ */
 
-export type O = { cap: IotxCapability; nhom: TenNhom; variant: string | null; co: number };
+export type O = { cap: IotxCapability; nhom: TenNhom; variant: string | null };
 
 export type KetQua = {
+  /** Mã khuôn đã dùng; `"chung"` khi sản phẩm không khai archetype nhận ra được. */
   khuon: string;
   skin: string | null;
   veBao: O[];
@@ -189,19 +187,20 @@ export type KetQua = {
 };
 
 /**
- * Sản phẩm không có khuôn nhận ra được thì trả `null` — bản tham chiếu không vẽ màn nào cả
- * trong trường hợp đó, và app này làm y hệt để hai bên không lệch nhau.
+ * Chỉ trả `null` khi sản phẩm không có capability nào để vẽ. Không nhận ra khuôn thì dùng
+ * `KHUON_CHUNG` — người dùng vẫn có màn điều khiển đầy đủ, chỉ thiếu thứ tự ưu tiên của hãng.
  */
 export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapability[]): KetQua | null {
+  if (caps.length === 0) return null;
   const maKhuon = khuonCua(product);
-  if (!coKhuon(maKhuon)) return null;
+  const khuon = coKhuon(maKhuon) ? KHUON[maKhuon] : KHUON_CHUNG;
 
   const slots = product?.ui?.slots ?? {};
   const uuTien = uuTienCua(product);
-  const macDinh = ganMacDinh(caps, maKhuon, uuTien);
+  const macDinh = ganMacDinh(caps, khuon, uuTien);
 
   const kq = {
-    khuon: maKhuon,
+    khuon: coKhuon(maKhuon) ? maKhuon : "chung",
     skin: mauSkin(product?.ui?.skin) ? String(product?.ui?.skin) : null,
     bao: [] as IotxCapability[],
     status: [] as IotxCapability[],
@@ -245,23 +244,20 @@ export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapa
     kq.more.sort((a, b) => hang(a) - hang(b));
   }
 
-  const ve = (cap: IotxCapability | null, nhom: TenNhom): O | null => {
-    if (!cap) return null;
-    const slot = slots[cap.key] ?? {};
-    const variant = variantCua(cap.kind, cap.key, nhom, slot.variant, cap);
-    return { cap, nhom, variant, co: coCua(cap.kind, variant, slot.co) };
-  };
+  const ve = (cap: IotxCapability, nhom: TenNhom): O => ({
+    cap, nhom, variant: variantCua(cap.kind, cap.key, nhom, slots[cap.key]?.variant, cap),
+  });
 
   return {
     khuon: kq.khuon,
     skin: kq.skin,
     canhBao: kq.canhBao,
-    veBao: kq.bao.map(c => ve(c, "alarm")!),
-    veStatus: kq.status.map(c => ve(c, "status")!),
-    veHero: ve(kq.hero, "hero"),
-    veNguon: ve(kq.nguon, "secondary"),
-    veSecondary: kq.secondary.map(c => ve(c, "secondary")!),
-    veMore: kq.more.map(c => ve(c, "more")!),
+    veBao: kq.bao.map(c => ve(c, "alarm")),
+    veStatus: kq.status.map(c => ve(c, "status")),
+    veHero: kq.hero ? ve(kq.hero, "hero") : null,
+    veNguon: kq.nguon ? ve(kq.nguon, "secondary") : null,
+    veSecondary: kq.secondary.map(c => ve(c, "secondary")),
+    veMore: kq.more.map(c => ve(c, "more")),
   };
 }
 
@@ -290,7 +286,20 @@ export function capNguonCua(product?: IotxProduct | null): IotxCapability | unde
   const slots = product?.ui?.slots ?? {};
   const theoSlot = caps.find(c => c.kind === "onoff" && slots[c.key]?.variant === "power01");
   if (theoSlot) return theoSlot;
-  const theoTen = caps.find(c => c.kind === "onoff" && /(^|_)(power|nguon)(_|$)|^power$/i.test(c.key));
+  const theoTen = caps.find(laTenNguon);
   if (theoTen) return theoTen;
   return caps.find(c => c.kind === "onoff");
+}
+
+/**
+ * `phanGiai` cho cả sản phẩm, nhớ theo đối tượng sản phẩm. Catalog giữ nguyên tham chiếu
+ * tới lần tải catalog sau, nên mỗi thẻ ngoài danh sách không phải dựng lại bố cục ở mỗi
+ * nhịp đồng bộ hay mỗi sự kiện SSE.
+ */
+const BO_NHO_PHAN_GIAI = new WeakMap<IotxProduct, KetQua | null>();
+
+export function phanGiaiSanPham(product: IotxProduct | null | undefined): KetQua | null {
+  if (!product) return null;
+  if (!BO_NHO_PHAN_GIAI.has(product)) BO_NHO_PHAN_GIAI.set(product, phanGiai(product, product.capabilities ?? []));
+  return BO_NHO_PHAN_GIAI.get(product) ?? null;
 }

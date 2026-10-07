@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
  * Bộ icon một nét của prototype. Giữ nguyên hình để giao diện khớp bản thiết kế, nhưng
  * dựng bằng JSX thay vì nối chuỗi HTML nên không có `dangerouslySetInnerHTML` nào.
  */
-const D: Record<string, string[]> = {
+const D = {
   home: ["M3 11l9-7 9 7", "M5 10v10h14V10"],
   grid: [],
   heart: ["M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"],
@@ -69,16 +69,14 @@ const D: Record<string, string[]> = {
   tds: ["M7 18.5a4.2 4.2 0 004.2-4.2c0-2.6-4.2-7.3-4.2-7.3s-4.2 4.7-4.2 7.3A4.2 4.2 0 007 18.5z", "M16.6 12.6a3 3 0 002.9-4.2c-.6-1.7-2.9-4.5-2.9-4.5s-2.3 2.8-2.9 4.5a3 3 0 002.9 4.2z"],
   battery: ["M3.5 8.5h13.6a1 1 0 011 1v5a1 1 0 01-1 1H3.5a1 1 0 01-1-1v-5a1 1 0 011-1z", "M21 11v2"],
   duct: ["M5 20.5V9.5a4.5 4.5 0 014.5-4.5h5A4.5 4.5 0 0119 9.5v11", "M9.5 20.5V14h5v6.5"],
-};
+} as const satisfies Record<string, readonly string[]>;
 
 /** Vòng / hình cơ bản đi kèm một số icon (không vẽ được bằng path đơn). */
-const SHAPES: Record<string, ReactNode> = {
+const SHAPES: Partial<Record<keyof typeof D, ReactNode>> = {
   lock: <rect x="5" y="10" width="14" height="10" rx="2.5" />,
   lockOpen: <rect x="5" y="10" width="14" height="10" rx="2.5" />,
   fanIcn: <circle cx="12" cy="12" r="1.6" />,
   gauge: <circle cx="12" cy="18.4" r="1" />,
-  filterIcn: <></>,
-  battery: <></>,
   grid: <>
     <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
     <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
@@ -97,17 +95,23 @@ const SHAPES: Record<string, ReactNode> = {
   compass: <circle cx="12" cy="12" r="9" />,
   acUnit: <rect x="3" y="8" width="18" height="7" rx="2" />,
   noBug: <circle cx="12" cy="12" r="8.5" />,
-  settings: <></>,
   search: <circle cx="11" cy="11" r="6" />,
 };
 
-export type TenIcon = keyof typeof D | string;
+/**
+ * Tên trong bộ thì gõ sai là lỗi biên dịch. Vẫn nhận chuỗi bất kỳ vì tên icon của thông báo
+ * và băng quảng cáo đến từ máy chủ lúc chạy; tên lạ rơi về ô lưới.
+ */
+export type TenIcon = keyof typeof D | (string & {});
 
-export default function Icon({ name, className }: { name: TenIcon; className?: string }) {
-  const paths = D[name] ?? D.grid;
-  const shape = SHAPES[name] ?? (D[name] ? null : SHAPES.grid);
+const coTen = (name: string): name is keyof typeof D => Object.prototype.hasOwnProperty.call(D, name);
+
+export default function Icon({ name, className, filled = false }: { name: TenIcon; className?: string; filled?: boolean }) {
+  const ten = coTen(name) ? name : "grid";
+  const paths: readonly string[] = D[ten];
+  const shape = SHAPES[ten] ?? null;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
       {shape}
       {paths.map((d, i) => <path key={i} d={d} />)}
     </svg>

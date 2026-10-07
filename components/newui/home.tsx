@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Icon from "./Icon";
 import { useChu, type HamChu } from "./chu";
 import { IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
-import { capNguonCua, phanGiai } from "@/lib/newui/khuon";
+import { capNguonCua, phanGiaiSanPham } from "@/lib/newui/khuon";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 import { laBat, rong } from "@/lib/iotx/giaTri";
 import { donVi } from "@/lib/newui/giaTriCap";
@@ -17,15 +17,17 @@ import type { Device } from "@/lib/types";
 /* Banner                                                             */
 /* ------------------------------------------------------------------ */
 
+/** `alt`/`title`/`sub` là KHÓA chữ; dịch lúc vẽ. */
 type BannerMuc = { src?: string; alt?: string; grad?: string; icon?: string; title?: string; sub?: string };
 
 const BANNERS: BannerMuc[] = [
-  { src: IMG.bannerAircon, alt: "Công nghệ i-Boost — Điều hòa I30J" },
-  { src: IMG.bannerCooktop, alt: "Bếp Điện Từ Đôi LIO-888VT" },
-  { grad: "linear-gradient(135deg,#1e6f8f,#123a4d)", icon: "drop", title: "Máy Lọc Nước 886i", sub: "Công nghệ I-Vision thông minh" },
+  { src: IMG.bannerAircon, alt: "banner_aircon" },
+  { src: IMG.bannerCooktop, alt: "banner_cooktop" },
+  { grad: "linear-gradient(135deg,#1e6f8f,#123a4d)", icon: "drop", title: "banner_water_title", sub: "banner_water_sub" },
 ];
 
 export function BannerCarousel() {
+  const { t } = useChu();
   const [chiSo, setChiSo] = useState(0);
   useEffect(() => {
     const dong = window.setInterval(() => setChiSo(truoc => (truoc + 1) % BANNERS.length), 3000);
@@ -36,15 +38,15 @@ export function BannerCarousel() {
       {BANNERS.map((muc, i) => muc.src
         ? (
           <div key={i} className={`banner-slide${i === chiSo ? " active" : ""}`} aria-hidden={i !== chiSo}>
-            <Image unoptimized src={muc.src} alt={muc.alt || ""} width={400} height={120} />
+            <Image unoptimized src={muc.src} alt={muc.alt ? t(muc.alt) : ""} width={400} height={120} />
           </div>
         )
         : (
           <div key={i} className={`banner-slide grad${i === chiSo ? " active" : ""}`} style={{ background: muc.grad }} aria-hidden={i !== chiSo}>
             <span className="bicn"><Icon name={muc.icon || "drop"} /></span>
             <span>
-              <span className="btitle">{muc.title}</span>
-              <span className="bsub">{muc.sub}</span>
+              <span className="btitle">{muc.title && t(muc.title)}</span>
+              <span className="bsub">{muc.sub && t(muc.sub)}</span>
             </span>
           </div>
         ))}
@@ -109,7 +111,7 @@ function dongTrangThai(device: Device, t: HamChu): string {
   if (!device.on) return [...dau, batTat].join(" · ");
 
   // Dùng chính bộ dựng của màn chi tiết, nên thẻ và màn luôn ưu tiên giống nhau.
-  const kq = phanGiai(device.product, device.product?.capabilities ?? []);
+  const kq = phanGiaiSanPham(device.product);
   const oTheoThuTu = kq
     ? [kq.veHero, kq.veNguon, ...kq.veStatus, ...kq.veSecondary, ...kq.veMore].filter(Boolean)
     : [];
@@ -147,11 +149,19 @@ function dongTrangThai(device: Device, t: HamChu): string {
 /* Thẻ thiết bị                                                        */
 /* ------------------------------------------------------------------ */
 
-export function DeviceCard({ device, onOpen, onToggle, onFav }: {
+export type HanhDongThietBi = {
+  onMo: (id: string) => void;
+  onNguon: (id: string) => void;
+  onGhim: (id: string) => void;
+};
+
+/**
+ * `memo`: nhịp đồng bộ giữ nguyên đối tượng thiết bị không đổi (`giuThietBiCu`) và hành động
+ * là một bộ ổn định, nên chỉ thẻ nào thật sự đổi mới vẽ lại.
+ */
+export const DeviceCard = memo(function DeviceCard({ device, hanhDong }: {
   device: Device;
-  onOpen: () => void;
-  onToggle: () => void;
-  onFav: () => void;
+  hanhDong: HanhDongThietBi;
 }) {
   const { t } = useChu();
   // Ảnh chỉ đến từ catalog (`product.ui.image`); không gửi thì thẻ vẽ vòng tròn trống chứ
@@ -166,13 +176,11 @@ export function DeviceCard({ device, onOpen, onToggle, onFav }: {
     <div className="device-card">
       {/* Một nút phủ kín thẻ làm vùng chạm mở chi tiết (rộng hơn 44px mọi phía); ngôi sao
           và công tắc nằm trên nó nên không bị nuốt mất và cũng không lồng nút trong nút. */}
-      <button className="card-hit" aria-label={device.name} onClick={onOpen} />
+      <button className="card-hit" aria-label={device.name} onClick={() => hanhDong.onMo(device.id)} />
       <div className="dcard-top">
         <p className="dname">{device.name}</p>
-        <button className="star-btn" aria-label={device.fav ? "Bỏ ghim" : "Ghim"} aria-pressed={Boolean(device.fav)} onClick={onFav}>
-          <svg className={`star-icn${device.fav ? " fav" : ""}`} viewBox="0 0 24 24" fill={device.fav ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path d="M12 2l3.1 6.6 7.2.8-5.4 5 1.5 7.2-6.4-3.6-6.4 3.6 1.5-7.2-5.4-5 7.2-.8z" />
-          </svg>
+        <button className="star-btn" aria-label={device.fav ? t("unpin") : t("pin")} aria-pressed={Boolean(device.fav)} onClick={() => hanhDong.onGhim(device.id)}>
+          <Icon name="star" className={`star-icn${device.fav ? " fav" : ""}`} filled={Boolean(device.fav)} />
         </button>
       </div>
       <div className="dstatus-row">
@@ -192,11 +200,11 @@ export function DeviceCard({ device, onOpen, onToggle, onFav }: {
       <div className="dcard-bottom">
         <span className="dline">{dongTrangThai(device, t)}</span>
         {capNguon && (
-          <button className="switch-hit" aria-label={device.on ? t("off") : t("on")} aria-pressed={device.on} disabled={!choBam} onClick={onToggle}>
+          <button className="switch-hit" role="switch" aria-label={nhanCap(capNguon, t)} aria-checked={device.on} disabled={!choBam} onClick={() => hanhDong.onNguon(device.id)}>
             <span className={`switch${device.on ? " on" : ""}`} />
           </button>
         )}
       </div>
     </div>
   );
-}
+});

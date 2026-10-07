@@ -40,6 +40,9 @@ export type AnhDaiDien = { kieu: "anh"; src: string } | { kieu: "chu"; chu: stri
 
 const LA_DUONG_DAN = /^(https?:|data:image|\/)/i;
 
+/** Chuỗi là địa chỉ ảnh (http, data: hay đường dẫn tuyệt đối), không phải emoji/chữ. */
+export const laDuongDan = (v: string) => LA_DUONG_DAN.test(v);
+
 export function anhDaiDienSanPham(
   product?: { icon?: string; ui?: { image?: string | null } | null } | null,
 ): AnhDaiDien {

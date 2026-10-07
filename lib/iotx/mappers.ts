@@ -31,6 +31,35 @@ export function apGiaTri(device: Device, patch: Record<string, unknown>): Device
   return { ...device, lastValues, ...suyDanXuat(lastValues, device.product, device.speed) };
 }
 
+/** Hai bản của cùng một thiết bị giống hệt nhau về mọi thứ app vẽ ra. */
+function giongNhau(a: Device, b: Device): boolean {
+  return a.name === b.name && a.model === b.model && a.code === b.code && a.house === b.house
+    && a.room === b.room && a.group === b.group && a.online === b.online && a.on === b.on
+    && a.speed === b.speed && a.fav === b.fav && a.shared === b.shared && a.virtual === b.virtual
+    && a.product === b.product
+    && JSON.stringify(a.perms) === JSON.stringify(b.perms)
+    && JSON.stringify(a.lastValues) === JSON.stringify(b.lastValues);
+}
+
+/**
+ * Danh sách mới, nhưng thiết bị nào không đổi thì giữ ĐÚNG đối tượng cũ. Nhịp đồng bộ chạy
+ * mỗi 2,5–10 giây và phần lớn lần không có gì đổi; giữ tham chiếu thì thẻ `memo` không vẽ lại.
+ */
+export function giuThietBiCu(cu: Device[], moi: Device[]): Device[] {
+  const theoId = new Map(cu.map(device => [device.id, device]));
+  let doi = cu.length !== moi.length;
+  const ketQua = moi.map((device, i) => {
+    const truoc = theoId.get(device.id);
+    if (truoc && giongNhau(truoc, device)) {
+      if (cu[i] !== truoc) doi = true;
+      return truoc;
+    }
+    doi = true;
+    return device;
+  });
+  return doi ? ketQua : cu;
+}
+
 export function mapIotxDevice(device: IotxDevice): Device {
   return {
     id: device.id,
@@ -59,12 +88,9 @@ function mapCategories(categories: IotxCategory[]): SpaceState {
   };
 }
 
+/** Phần của `/bootstrap` không phải thiết bị; thiết bị do hook dựng riêng (catalog, lệnh chờ). */
 export function mergeBootstrap(current: AppData, bootstrap: IotxBootstrap): AppData {
-  return {
-    ...current,
-    devices: bootstrap.devices.filter(device => !device.hidden).map(mapIotxDevice),
-    spaces: mapCategories(bootstrap.categories),
-  };
+  return { ...current, spaces: mapCategories(bootstrap.categories) };
 }
 
 /** Nhánh "receivedFromOthers" dùng camelCase và ownerEmail là NGƯỜI CHIA SẺ cho tôi. */

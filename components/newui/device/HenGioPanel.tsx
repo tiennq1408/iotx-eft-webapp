@@ -11,8 +11,9 @@ import {
   TRAN, capChoPhepCua, chuanHoaThan, doiChay, doiKieu, giaTriMacDinh, kiemChuongTrinh, thanRong,
 } from "@/lib/newui/henGio";
 import { dinhDangLuc } from "@/lib/newui/thoiGian";
+import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 
-const NGAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+import { KHOA_NGAY } from "@/components/automation/IfThenEditor";
 
 /** Chương trình đang soạn: `id` null là tạo mới. */
 type BanSoan = { id: number | null; than: IotxThanChuongTrinh };
@@ -264,10 +265,10 @@ function TrinhSoanChuongTrinh({ soan, setThan, capChoPhep, loi, dangLam, onHuy, 
 
         {than.chay === "lap" && (
           <div className="weekday-row" style={{ marginTop: 10 }}>
-            {NGAY.map((ten, i) => (
-              <button key={ten} className={than.ngay?.includes(i) ? "active" : ""}
+            {KHOA_NGAY.map((khoa, i) => (
+              <button key={khoa} className={than.ngay?.includes(i) ? "active" : ""}
                 onClick={() => setThan({ ...than, ngay: than.ngay?.includes(i) ? than.ngay.filter(n => n !== i) : [...(than.ngay ?? []), i].sort() })}>
-                {ten}
+                {t(khoa)}
               </button>
             ))}
           </div>
@@ -298,7 +299,7 @@ function TrinhSoanChuongTrinh({ soan, setThan, capChoPhep, loi, dangLam, onHuy, 
                     const capMoi = capChoPhep.find(c => c.key === e.target.value);
                     suaHanhDong(i, k, { cap: e.target.value, val: giaTriMacDinh(capMoi) });
                   }}>
-                    {capChoPhep.map(c => <option key={c.key} value={c.key}>{c.label || c.key}</option>)}
+                    {capChoPhep.map(c => <option key={c.key} value={c.key}>{nhanCap(c, t)}</option>)}
                   </select>
                   {cap?.kind === "onoff" && (
                     <select aria-label={t("hg_value")} value={String(hd.val)} onChange={e => suaHanhDong(i, k, { val: e.target.value === "true" })}>
@@ -307,7 +308,7 @@ function TrinhSoanChuongTrinh({ soan, setThan, capChoPhep, loi, dangLam, onHuy, 
                   )}
                   {cap?.kind === "enum" && (
                     <select aria-label={t("hg_value")} value={String(hd.val)} onChange={e => suaHanhDong(i, k, { val: e.target.value })}>
-                      {(cap.values ?? []).map(v => <option key={v} value={v}>{cap.labels?.[v] ?? v}</option>)}
+                      {(cap.values ?? []).map(v => <option key={v} value={v}>{nhanGiaTriCap(cap, v, t)}</option>)}
                     </select>
                   )}
                   {(cap?.kind === "level" || !cap) && (

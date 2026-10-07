@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
-import { diaChiIcon } from "@/lib/newui/assets";
-import { coSo, doSo, laBat } from "@/lib/iotx/giaTri";
+import { diaChiIcon, laDuongDan } from "@/lib/newui/assets";
+import { phimKichHoat } from "@/lib/newui/phim";
+import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
 import {
   CAN_CHU, CAN_DOC, CAN_NGANG, cotChip, cotChipTuDong, danhSachLoi, dayNgang,
@@ -27,7 +29,7 @@ import type { Device } from "@/lib/types";
  */
 
 function Ico({ ico }: { ico: string }) {
-  if (/^(https?:|data:image|\/)/i.test(ico)) {
+  if (laDuongDan(ico)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img className="bc-icoimg" src={ico} alt="" loading="lazy"
@@ -39,9 +41,14 @@ function Ico({ ico }: { ico: string }) {
   return <>{ico}</>;
 }
 
-function lopNhan(o: OdaDung) {
+const CHU_BAT_TAT = new Set(["true", "false", "on", "off", "1", "0"]);
+const laChuBatTat = (v: unknown) => typeof v === "boolean" || CHU_BAT_TAT.has(String(v).trim().toLowerCase());
+
+/** Lớp CSS cho nhãn theo `o.nhan` (cỡ, đậm, nghiêng); không có gì thì `undefined` để không in `class=""`. */
+function lopNhan(o: OdaDung): string | undefined {
   const n = o.nhan ?? {};
-  return (n.co && n.co !== "vua" ? ` nh-${n.co}` : "") + (n.dam ? " nh-dam" : "") + (n.nghieng ? " nh-nghieng" : "");
+  const lop = [n.co && n.co !== "vua" ? `nh-${n.co}` : "", n.dam ? "nh-dam" : "", n.nghieng ? "nh-nghieng" : ""].filter(Boolean);
+  return lop.length ? lop.join(" ") : undefined;
 }
 
 /* Vòng xoay — dựng đúng như bản tham chiếu web.dev: hai CUNG TRÒN trên viewBox 120, tâm
@@ -84,6 +91,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
   const cap = o.cap;
   const v = device.lastValues?.[cap.key];
   const ten = nhanCap(cap, t);
+  const lopN = lopNhan(o);
   // Cùng luật với khuôn chi tiết: thiếu quyền hoặc catalog không khai lệnh thì khóa.
   const khoa = chan || !cap.rpc;
 
@@ -94,13 +102,13 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
         <div className="bc-srow" style={{ justifyContent: "center", gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
             aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
-          {o.w >= 2 && <b className={lopNhan(o).trim() || undefined} style={{ fontWeight: 600 }}>{ten}</b>}
+          {o.w >= 2 && <b className={lopN} style={{ fontWeight: 600 }}>{ten}</b>}
         </div>
       );
     }
     return (
       <div className="bc-srow">
-        <span className={lopNhan(o).trim() || undefined}>{ten}</span>
+        <span className={lopN}>{ten}</span>
         <button className="switch-hit" role="switch" aria-checked={bat}
           aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
           <span className={`switch${bat ? " on" : ""}`} />
@@ -125,7 +133,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
     if (o.variant === "step01") {
       return (
         <div className="bc-srow">
-          <span className={lopNhan(o).trim() || undefined} style={{ fontSize: 15 }}>{ten}</span>
+          <span className={lopN} style={{ fontSize: 15 }}>{ten}</span>
           <div className="bc-stp">
             <button disabled={khoa} onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
             <span>{chuSoCap(cap, v)}</span>
@@ -159,7 +167,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
               className={`bc-chip${chon ? " on" : ""}`}
               style={{ gridColumn: cotChip(ds.length, Math.max(1, cot), i) }}
               onClick={() => gui(cap, gt)}
-              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); gui(cap, gt); } }}>
+              onKeyDown={e => phimKichHoat(e, () => gui(cap, gt))}>
               {ico && <i aria-hidden="true"><Ico ico={ico} /></i>}
               <span>{chu}</span>
             </span>
@@ -174,7 +182,11 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
 
   // sensor
   if (o.variant === "state01") {
-    const chu = cap.labels?.[String(v)] ?? (laBat(v) ? t("on") : t("off"));
+    // Chưa có giá trị thì "—", không phải "Tắt". Giá trị bật/tắt chưa có nhãn thì nói Bật/Tắt;
+    // còn lại (chế độ, mã trạng thái…) đi qua cùng bộ dịch nhãn với khuôn chi tiết.
+    const chu = rong(v) ? "—"
+      : cap.labels?.[String(v)] === undefined && laChuBatTat(v) ? (laBat(v) ? t("on") : t("off"))
+        : nhanGiaTriCap(cap, String(v), t);
     return <span className="bc-big" style={{ fontSize: 15 }}>{chu}</span>;
   }
   return <span className="bc-big">{chuSoCap(cap, v)}</span>;
@@ -188,7 +200,9 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
   onVatTu: GuiVatTu;
 }) {
   const { t } = useChu();
-  const kq = phanGiaiBoCuc(bc, device.product?.capabilities ?? []);
+  const caps = device.product?.capabilities;
+  // Lưới chỉ đổi khi catalog đổi; mỗi nhịp đồng bộ chỉ đổi giá trị, không đổi bố cục.
+  const kq = useMemo(() => phanGiaiBoCuc(bc, caps ?? []), [bc, caps]);
   const loi = kq.capBao ? danhSachLoi(kq.capBao, device.lastValues?.[kq.capBao.key]) : [];
 
   return (
@@ -215,7 +229,7 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
               gridRow: `${kq.map[o.row]} / ${kq.map[o.row + o.h - 1] + 1}`,
             }}>
               {!tuCoNhan(o.variant) && (
-                <div className={`bc-pl${lopNhan(o)}`}
+                <div className={["bc-pl", lopNhan(o)].filter(Boolean).join(" ")}
                   style={{ textAlign: (CAN_CHU[o.nhan?.can ?? ""] || CAN_CHU[o.canN || "giua"] || "center") as "left" | "center" | "right" }}>
                   {nhanCap(o.cap, t)}
                 </div>

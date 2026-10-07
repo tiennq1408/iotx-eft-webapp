@@ -6,13 +6,12 @@ import type { Device } from "@/lib/types";
 import type { IotxCapability, IotxMoPhong, IotxRuleAction, IotxRuleCondition, IotxRuleInput } from "@/lib/iotx/contracts";
 import { iotxClient, moTaLoi } from "@/lib/iotx";
 import { useChu, type HamChu } from "@/components/newui/chu";
-import { nhanCap } from "@/lib/newui/nhanCap";
+import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 
 /** Trần cứng của hợp đồng. Chặn ngay trên client để người dùng biết sớm, server vẫn kiểm lại. */
 const TRAN = { conds: 10, gates: 5, exclusions: 5, actions: 20 };
 
-const KHOA_NGAY = ["dow.sun", "dow.mon", "dow.tue", "dow.wed", "dow.thu", "dow.fri", "dow.sat"];
-const MAC_DINH_NGAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+export const KHOA_NGAY = ["dow.sun", "dow.mon", "dow.tue", "dow.wed", "dow.thu", "dow.fri", "dow.sat"];
 
 type NhomDieuKien = "conds" | "gates" | "exclusions";
 type Dong = IotxRuleCondition & { _thoiGian?: boolean };
@@ -32,6 +31,20 @@ function doiGiaTri(capability: IotxCapability | undefined, raw: string): unknown
   return raw;
 }
 
+/**
+ * Giá trị gieo sẵn khi chọn capability — ĐÚNG cái ô nhập đang hiện. Trước đây state để
+ * chuỗi rỗng trong khi ô chọn hiện "Bật"/giá trị đầu, nên luật lưu đi khác cái người dùng thấy.
+ */
+function giaTriMacDinh(capability: IotxCapability | undefined): string {
+  if (!capability) return "";
+  if (capability.kind === "onoff") return "true";
+  if (capability.kind === "enum") return capability.values?.[0] ?? "";
+  return String(capability.min ?? 0);
+}
+
+const dongRong = (): Dong => ({ deviceId: "", key: "", op: "gt", value: "" });
+const hanhDongRong = (): IotxRuleAction => ({ deviceId: "", method: "", params: {} });
+
 function toanTuChoPhep(capability?: IotxCapability) {
   // So sánh lớn/nhỏ chỉ có nghĩa với số; bật/tắt và danh sách chỉ bằng hoặc khác.
   if (!capability || capability.kind === "onoff" || capability.kind === "enum") return ["eq", "neq"];
@@ -45,10 +58,10 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
 }) {
   const { t } = useChu();
   const [name, setName] = useState("");
-  const [conds, setConds] = useState<Dong[]>([{ deviceId: "", key: "", op: "gt", value: "" }]);
+  const [conds, setConds] = useState<Dong[]>([dongRong()]);
   const [gates, setGates] = useState<Dong[]>([]);
   const [exclusions, setExclusions] = useState<Dong[]>([]);
-  const [actions, setActions] = useState<IotxRuleAction[]>([{ deviceId: "", method: "", params: {} }]);
+  const [actions, setActions] = useState<IotxRuleAction[]>([hanhDongRong()]);
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [holdSec, setHoldSec] = useState(0);
@@ -64,9 +77,9 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
     const capability = capabilitiesDieuKien(theoId.get(deviceId || "")).find(c => c.key === key);
     return capability ? nhanCap(capability, t) : (key || "");
   };
-  const nhomState: Record<NhomDieuKien, [Dong[], React.Dispatch<React.SetStateAction<Dong[]>>]> = {
+  const nhomState = useMemo<Record<NhomDieuKien, [Dong[], React.Dispatch<React.SetStateAction<Dong[]>>]>>(() => ({
     conds: [conds, setConds], gates: [gates, setGates], exclusions: [exclusions, setExclusions],
-  };
+  }), [conds, gates, exclusions]);
 
   function suaDong(nhom: NhomDieuKien, i: number, patch: Partial<Dong>) {
     const [, set] = nhomState[nhom];
@@ -79,7 +92,7 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
   }
   function themDong(nhom: NhomDieuKien, thoiGian = false) {
     nhomState[nhom][1](cu => cu.length >= TRAN[nhom] ? cu
-      : [...cu, thoiGian ? { type: "time", from: "22:00", to: "06:00", days: [], _thoiGian: true } : { deviceId: "", key: "", op: "gt", value: "", conn: "and" }]);
+      : [...cu, thoiGian ? { type: "time", from: "22:00", to: "06:00", days: [], _thoiGian: true } : { ...dongRong(), conn: "and" }]);
     setMoPhong(null);
   }
 
@@ -96,9 +109,12 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
     });
   }
 
+  // Dòng thiết bị phải đủ máy, chỉ số và giá trị — ở CẢ ba nhóm, kể cả "chỉ khi"/"trừ khi":
+  // một dòng trống ở nhóm phụ vẫn được gửi đi và máy chủ từ chối cả luật.
+  const dongDu = (c: Dong) => c.type === "time" || Boolean(c.deviceId && c.key && String(c.value ?? "") !== "");
   const hopLe = name.trim().length > 0
     && conds.length > 0
-    && conds.every(c => c.type === "time" || (c.deviceId && c.key))
+    && [...conds, ...gates, ...exclusions].every(dongDu)
     && actions.every(a => a.notify !== undefined || (a.deviceId && a.method));
 
   async function xemTruoc() {
@@ -113,7 +129,7 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
 
   async function luu() {
     setLoi(""); setDangLam(true);
-    const than: IotxRuleInput = {
+    const than: Omit<IotxRuleInput, "shadow"> = {
       name: name.trim(), kind: "cond",
       conds: chuyenDoiDieuKien(conds),
       gates: chuyenDoiDieuKien(gates),
@@ -122,7 +138,6 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
       startsAt: startsAt ? new Date(startsAt).toISOString() : null,
       endsAt: endsAt ? new Date(endsAt).toISOString() : null,
       holdSec, yieldSec,
-      shadow: true, // hợp đồng: luật mới luôn bắt đầu ở chế độ chạy thử
     };
     try { await iotxClient.createRule(than); await onSaved(); onClose(); }
     catch (error) { setLoi(moTaLoi(error)); }
@@ -147,11 +162,11 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
           <label><span>{t("routine.timeWindow")}</span><input type="time" value={dong.from || ""} onChange={e => suaDong(nhom, i, { from: e.target.value })} /></label>
           <label><span>{t("common.to")}</span><input type="time" value={dong.to || ""} onChange={e => suaDong(nhom, i, { to: e.target.value })} /></label>
         </div>
-        <div className="weekday-row">{MAC_DINH_NGAY.map((mac, thu) => {
+        <div className="weekday-row">{KHOA_NGAY.map((khoa, thu) => {
           const dangChon = (dong.days || []).includes(thu);
           return <button key={thu} className={dangChon ? "active" : ""} onClick={() => suaDong(nhom, i, {
             days: dangChon ? (dong.days || []).filter(x => x !== thu) : [...(dong.days || []), thu],
-          })}>{t(KHOA_NGAY[thu])}</button>;
+          })}>{t(khoa)}</button>;
         })}</div>
         <p className="hint">{t("routine.noDays")}</p>
       </> : <div className="rule-grid four">
@@ -159,11 +174,19 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
           <option value="" disabled>{t("routine.pickDevice")}</option>
           {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <select aria-label={t("routine.pickCap")} value={dong.key || ""} onChange={e => suaDong(nhom, i, { key: e.target.value, value: "" })}>
+        <select aria-label={t("routine.pickCap")} value={dong.key || ""} onChange={e => {
+          const capMoi = dsCap.find(c => c.key === e.target.value);
+          const choPhep = toanTuChoPhep(capMoi);
+          suaDong(nhom, i, {
+            key: e.target.value,
+            value: giaTriMacDinh(capMoi),
+            op: choPhep.includes(dong.op ?? "") ? dong.op : choPhep[0] as IotxRuleCondition["op"],
+          });
+        }}>
           <option value="" disabled>{t("routine.pickCap")}</option>
           {dsCap.map(c => <option key={c.key} value={c.key}>{nhanCap(c, t)}</option>)}
         </select>
-        <select aria-label="toán tử" value={dong.op || "eq"} onChange={e => suaDong(nhom, i, { op: e.target.value as IotxRuleCondition["op"] })}>
+        <select aria-label={t("routine.op")} value={dong.op || "eq"} onChange={e => suaDong(nhom, i, { op: e.target.value as IotxRuleCondition["op"] })}>
           {toanTuChoPhep(capability).map(op => <option key={op} value={op}>{t(`op.${op}`)}</option>)}
         </select>
         {veGiaTri(capability, String(dong.value ?? ""), giaTri => suaDong(nhom, i, { value: giaTri }), t)}
@@ -209,8 +232,8 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
           return <div className="rule-row" key={i}>
             <div className="rule-row-head">
               <span>{t("routine.actionN", { n: i + 1 })}</span>
-              <select aria-label="kiểu hành động" value={laThongBao ? "notify" : "device"} onChange={e => setActions(cu => cu.map((a, vt) => vt === i
-                ? (e.target.value === "notify" ? { notify: t("routine.notifyDefault") } : { deviceId: "", method: "", params: {} })
+              <select aria-label={t("routine.actionKind")} value={laThongBao ? "notify" : "device"} onChange={e => setActions(cu => cu.map((a, vt) => vt === i
+                ? (e.target.value === "notify" ? { notify: t("routine.notifyDefault") } : hanhDongRong())
                 : a))}>
                 <option value="device">{t("common.device")}</option>
                 <option value="notify">{t("routine.sendNotify")}</option>
@@ -226,7 +249,7 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
                   </select>
                   <select aria-label={t("routine.pickCap")} value={hanhDong.method || ""} onChange={e => {
                     const cap = dsCap.find(c => c.rpc === e.target.value);
-                    sua({ method: e.target.value, params: cap ? { [cap.key]: doiGiaTri(cap, cap.kind === "enum" ? (cap.values?.[0] ?? "") : cap.kind === "onoff" ? "true" : String(cap.min ?? 0)) } : {} });
+                    sua({ method: e.target.value, params: cap ? { [cap.key]: doiGiaTri(cap, giaTriMacDinh(cap)) } : {} });
                   }}>
                     <option value="" disabled>{t("routine.pickCap")}</option>
                     {dsCap.map(c => <option key={c.key} value={c.rpc}>{nhanCap(c, t)}</option>)}
@@ -240,7 +263,7 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
           </div>;
         })}
         <div className="rule-add">
-          <button className="secondary" disabled={actions.length >= TRAN.actions} onClick={() => setActions(cu => [...cu, { deviceId: "", method: "", params: {} }])}>
+          <button className="secondary" disabled={actions.length >= TRAN.actions} onClick={() => setActions(cu => [...cu, hanhDongRong()])}>
             <Plus /> {t("common.add")} ({actions.length}/{TRAN.actions})</button>
         </div>
       </section>
@@ -248,8 +271,8 @@ export default function IfThenEditor({ devices, onClose, onSaved }: {
       <section className="rule-section">
         <h3>{t("routine.validityFull")}</h3>
         <div className="rule-grid two">
-          <input type="datetime-local" aria-label="bắt đầu" value={startsAt} onChange={e => setStartsAt(e.target.value)} />
-          <input type="datetime-local" aria-label="kết thúc" value={endsAt} onChange={e => setEndsAt(e.target.value)} />
+          <input type="datetime-local" aria-label={t("routine.startsAt")} value={startsAt} onChange={e => setStartsAt(e.target.value)} />
+          <input type="datetime-local" aria-label={t("routine.endsAt")} value={endsAt} onChange={e => setEndsAt(e.target.value)} />
         </div>
         <p className="hint">{t("routine.expiryHint")}</p>
         <label className="field"><span>{t("routine.hold")}</span>
@@ -297,7 +320,7 @@ function veGiaTri(capability: IotxCapability | undefined, giaTri: string, onChan
   if (capability.kind === "onoff") return <select aria-label={t("routine.value")} value={giaTri || "true"} onChange={e => onChange(e.target.value)}>
     <option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option></select>;
   if (capability.kind === "enum") return <select aria-label={t("routine.value")} value={giaTri || capability.values?.[0] || ""} onChange={e => onChange(e.target.value)}>
-    {(capability.values || []).map(v => <option key={v} value={v}>{capability.labels?.[v] || v}</option>)}</select>;
+    {(capability.values || []).map(v => <option key={v} value={v}>{nhanGiaTriCap(capability, v, t)}</option>)}</select>;
   return <input aria-label={t("routine.value")} type="number" min={capability.min} max={capability.max} step={capability.step ?? 1}
     value={giaTri} onChange={e => onChange(e.target.value)} />;
 }

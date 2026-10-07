@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import Icon from "./Icon";
 import RuleCard from "./RuleCard";
 import { useChu } from "./chu";
-import { BannerCarousel, DeviceCard } from "./home";
+import { BannerCarousel, DeviceCard, type HanhDongThietBi } from "./home";
+
+export type { HanhDongThietBi };
 import { IMG } from "@/lib/newui/assets";
 import type { IotxRule, IotxRules } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
@@ -14,12 +16,6 @@ import type { Device } from "@/lib/types";
  * Năm màn chính dưới thanh điều hướng. Mỗi màn chỉ nhận đúng thứ nó dùng; `LivotecApp`
  * giữ state và chọn màn.
  */
-
-export type HanhDongThietBi = {
-  onMo: (id: string) => void;
-  onNguon: (id: string) => void;
-  onGhim: (id: string) => void;
-};
 
 export type HanhDongLuat = {
   batTat: (rule: IotxRule) => void;
@@ -36,13 +32,7 @@ function LuoiThietBi({ danhSach, gonGang, hanhDong }: { danhSach: Device[]; gonG
   return (
     <div className={`device-grid${gonGang ? " compact" : ""}`}>
       {danhSach.map(device => (
-        <DeviceCard
-          key={device.id}
-          device={device}
-          onOpen={() => hanhDong.onMo(device.id)}
-          onToggle={() => hanhDong.onNguon(device.id)}
-          onFav={() => hanhDong.onGhim(device.id)}
-        />
+        <DeviceCard key={device.id} device={device} hanhDong={hanhDong} />
       ))}
     </div>
   );
@@ -84,20 +74,25 @@ export function ManThietBi({ devices, hangLoc, gonGang, hanhDong, onThem }: {
   );
 }
 
-export function ManTuDong({ luat, luatTuThietBi, hanhDong, onTaoNeuThi, onTaoTheoGio }: {
+export function ManTuDong({ luat, luatTuThietBi, tranLuat, hanhDong, onTaoNeuThi, onTaoTheoGio }: {
   luat: IotxRule[];
   luatTuThietBi: IotxRules["tuThietBi"];
+  /** Trần luật của hãng (`theme.quotas.rules`) — đầy thì khoá nút tạo, không để máy chủ từ chối sau. */
+  tranLuat: number;
   hanhDong: HanhDongLuat;
   onTaoNeuThi: () => void;
   onTaoTheoGio: () => void;
 }) {
   const { t } = useChu();
+  // Hẹn giờ theo thiết bị không tính vào hạn mức luật, nên nút "Theo thời gian" không khoá.
+  const dayLuat = luat.length >= tranLuat;
   return (
     <div className="app-scroll">
       <div className="auto-btn-row">
-        <button className="auto-btn primary" onClick={onTaoNeuThi}><Icon name="plus" /> {t("auto_if")}</button>
+        <button className="auto-btn primary" disabled={dayLuat} onClick={onTaoNeuThi}><Icon name="plus" /> {t("auto_if")}</button>
         <button className="auto-btn secondary" onClick={onTaoTheoGio}><Icon name="clock" /> {t("auto_time")}</button>
       </div>
+      {dayLuat && <p className="hint" role="status">{t("auto_quota_full", { n: tranLuat })}</p>}
       {luat.length === 0 && luatTuThietBi.length === 0 && (
         <div className="empty-card">
           {t("auto_empty").split("<br>").map((dong, i) => <span key={i} className="empty-line">{dong}</span>)}

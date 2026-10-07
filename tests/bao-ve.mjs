@@ -44,16 +44,17 @@ ok('proxy vẫn cho /v1/products đi qua', (await fetch(`${GOC}/v1/products`)).s
   const kho = () => p.evaluate(() => ({
     token: localStorage.getItem('livotec-iotx-session') !== null,
     anhChup: localStorage.getItem('livotec-iotx-anh-chup') !== null,
-    etagBootstrap: Object.keys(JSON.parse(localStorage.getItem('livotec-iotx-cache') || '{}').etag || {}).some(k => k.startsWith('bootstrap:')),
-    etagProducts: Object.keys(JSON.parse(localStorage.getItem('livotec-iotx-cache') || '{}').etag || {}).some(k => k.startsWith('products:')),
+    etagBootstrap: Object.keys(JSON.parse(localStorage.getItem('livotec-iotx-cache-v2') || '{}').etag || {}).some(k => k.startsWith('bootstrap:')),
+    etagProducts: Object.keys(JSON.parse(localStorage.getItem('livotec-iotx-cache-v2') || '{}').etag || {}).some(k => k.startsWith('products:')),
     mockV5: localStorage.getItem('livotec-home-v5') !== null,
   }));
+  await cho(2500);   // ảnh chụp được ghi khi dữ liệu đã yên một nhịp (1,5 giây)
   // Máy chủ giả không gửi ETag, nên gieo sẵn hai mục như máy chủ thật để lại: một của cửa
   // cần đăng nhập, một của catalog công khai.
   await p.evaluate(() => {
-    const cache = JSON.parse(localStorage.getItem('livotec-iotx-cache') || '{}');
+    const cache = JSON.parse(localStorage.getItem('livotec-iotx-cache-v2') || '{}');
     cache.etag = { ...cache.etag, 'bootstrap:vi': { etag: 'W/"1"', data: { me: { email: 'p@p' } } }, 'products:livotec:vi': { etag: 'W/"2"', data: {} } };
-    localStorage.setItem('livotec-iotx-cache', JSON.stringify(cache));
+    localStorage.setItem('livotec-iotx-cache-v2', JSON.stringify(cache));
   });
   const truoc = await kho();
   ok('Đang đăng nhập: có ảnh chụp thiết bị', truoc.anhChup);
@@ -75,6 +76,7 @@ ok('proxy vẫn cho /v1/products đi qua', (await fetch(`${GOC}/v1/products`)).s
   const { ctx, p } = await dangNhap();
   await p.locator('.device-card').first().waitFor({ timeout: 5000 });
   const soThat = await p.locator('.device-card').count();
+  await cho(2500);   // chờ ảnh chụp được ghi
   await p.route('**/v1/bootstrap**', route => route.fulfill({ status: 503, json: { message: 'upstream_unavailable' } }));
 
   await p.reload({ waitUntil: 'domcontentloaded' });

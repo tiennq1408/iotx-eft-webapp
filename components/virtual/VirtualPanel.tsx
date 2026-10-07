@@ -18,6 +18,7 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
   const [noiChon, setNoiChon] = useState("");
   const [dangSuaId, setDangSuaId] = useState<string | null>(null);
   const [tenSua, setTenSua] = useState("");
+  const [hoiXoaId, setHoiXoaId] = useState<string | null>(null);
   const { loi, setLoi, dangLam, chay } = useTacVu();
 
   const tai = useCallback(async () => {
@@ -74,7 +75,7 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
     </header>
     <div className="panel-body">
       <p className="hint">{t("virtual.hint")}</p>
-      {!isIotxMode && <p className="hint">Màn này cần nối máy chủ IoTX. Ứng dụng đang chạy ở chế độ mock nên chưa tạo được thiết bị ảo.</p>}
+      {!isIotxMode && <p className="hint">{t("virtual.mockNote")}</p>}
 
       <section className="soft-card">
         <h3>{t("common.create")}</h3>
@@ -105,7 +106,11 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
           <div className="ao-chu">
             {dangSuaId === muc.id
               ? <input autoFocus value={tenSua} maxLength={40} onChange={e => setTenSua(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") { void lam(() => iotxClient.doiTenThietBiAo(muc.id, tenSua.trim())).then(() => setDangSuaId(null)); } }} />
+                  onKeyDown={e => {
+                    if (e.key !== "Enter" || !tenSua.trim()) return;
+                    // Lưu hỏng thì giữ ô sửa mở, chữ người dùng gõ không mất.
+                    void lam(() => iotxClient.doiTenThietBiAo(muc.id, tenSua.trim())).then(ok => { if (ok) setDangSuaId(null); });
+                  }} />
               : <button className="ao-ten" onClick={() => { setDangSuaId(muc.id); setTenSua(muc.name); }}>{muc.name}</button>}
             <small>{moTaKieu[muc.kind].nhan} · {tomTatTrangThai(muc)}</small>
           </div>
@@ -113,8 +118,9 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
             disabled={dangLam} onClick={() => { void lam(() => iotxClient.datTrangThaiAo(muc.id, !muc.state?.on)); }}><i /></button>}
           {muc.kind === "button" && <button className="secondary nut-bam" disabled={dangLam}
             onClick={() => { void lam(() => iotxClient.bamNutAo(muc.id)); }}>{t("virtual.press")}</button>}
-          <button aria-label={t("common.delete")} disabled={dangLam}
-            onClick={() => { void lam(() => iotxClient.xoaThietBiAo(muc.id)); }}><Trash2 /></button>
+          {hoiXoaId === muc.id
+            ? <button className="go-that" disabled={dangLam} onClick={() => { setHoiXoaId(null); void lam(() => iotxClient.xoaThietBiAo(muc.id)); }}>{t("confirm_delete")}</button>
+            : <button aria-label={t("common.delete")} disabled={dangLam} onClick={() => setHoiXoaId(muc.id)}><Trash2 /></button>}
         </article>)}
       </div>
     </div>

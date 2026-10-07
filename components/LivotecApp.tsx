@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
 import type { Device } from "@/lib/types";
 import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
@@ -18,6 +18,7 @@ import {
 } from "@/components/newui/ManChinh";
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/newui/boLoc";
 import { capNguonCua } from "@/lib/newui/khuon";
+import { CHU, laMaNgonNgu } from "@/lib/newui/strings";
 import {
   DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal,
   type MucMenu,
@@ -36,7 +37,9 @@ type Panel =
   | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" }
   | { loai: "loc"; boLoc: LoaiLoc }
   | { loai: "placeholder"; tieuDe: string }
-  | { loai: "device" | "hengio"; id: string };
+  | { loai: "device"; id: string }
+  /** `tuChiTiet`: mở từ màn chi tiết thì đóng là quay về đó; mở từ menu/bộ chọn thì đóng hẳn. */
+  | { loai: "hengio"; id: string; tuChiTiet?: boolean };
 
 /** Hộp chọn của từng bộ lọc: khóa chữ tiêu đề và hàng "tất cả". */
 const HOP_LOC: Record<LoaiLoc, { khoaTieuDe: string; khoaTatCa: string }> = {
@@ -62,6 +65,8 @@ export default function LivotecApp() {
   const [gonGang, setGonGang] = useState(false);
 
   const dongPanel = () => setPanel(null);
+  // Thành phần này đứng NGOÀI `ChuProvider` nó dựng, nên tra bảng chữ trực tiếp theo ngôn ngữ.
+  const chu = CHU[laMaNgonNgu(lang) ? lang : "vi"];
 
   /* ----------------------------- dữ liệu dẫn xuất ----------------------------- */
 
@@ -203,7 +208,7 @@ export default function LivotecApp() {
         if (lenh.kieu === "thay") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, phanTram: 100, conLai: m.tuoiTho } : m);
         if (lenh.kieu === "tuoi") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, tuoiTho: lenh.tuoiTho } : m);
         if (lenh.kieu === "bo") moi = cu.filter(m => String(m.id) !== lenh.id);
-        if (lenh.kieu === "them") moi = [...cu, { id: `vt${Date.now()}`, ten: lenh.ten || lenh.serial || "Vật tư mới", tuoiTho: 365, phanTram: 100, xacThuc: Boolean(lenh.serial) }];
+        if (lenh.kieu === "them") moi = [...cu, { id: `vt${Date.now()}`, ten: lenh.ten || lenh.serial || chu.supplies_new, tuoiTho: 365, phanTram: 100, xacThuc: Boolean(lenh.serial) }];
         return { ...device, lastValues: { ...device.lastValues, [capability.key]: moi } };
       });
       return;
@@ -262,11 +267,24 @@ export default function LivotecApp() {
     setMan("devices");
   }
 
-  const hanhDongThietBi: HanhDongThietBi = {
-    onMo: id => setPanel({ loai: "device", id }),
-    onNguon: id => { void doiNguon(id); },
-    onGhim: id => { void doiGhim(id); },
-  };
+  /**
+   * Bộ hành động trên thẻ thiết bị phải GIỮ NGUYÊN tham chiếu qua các lần vẽ, nếu không thẻ
+   * `memo` vẽ lại hết ở mỗi nhịp đồng bộ. Hàm thật đọc `data` mới nhất, nên đi qua ref được
+   * cập nhật sau mỗi lần vẽ; bộ đưa xuống thẻ chỉ chuyển tiếp vào đó.
+   */
+  const hanhDongMoiNhat = useRef<HanhDongThietBi | null>(null);
+  useEffect(() => {
+    hanhDongMoiNhat.current = {
+      onMo: id => setPanel({ loai: "device", id }),
+      onNguon: id => { void doiNguon(id); },
+      onGhim: id => { void doiGhim(id); },
+    };
+  });
+  const hanhDongThietBi = useMemo<HanhDongThietBi>(() => ({
+    onMo: id => hanhDongMoiNhat.current?.onMo(id),
+    onNguon: id => hanhDongMoiNhat.current?.onNguon(id),
+    onGhim: id => hanhDongMoiNhat.current?.onGhim(id),
+  }), []);
   const hanhDongLuat: HanhDongLuat = {
     batTat: rule => { void batTatLuat(rule); },
     xoa: rule => { void xoaLuat(rule); },
@@ -286,6 +304,7 @@ export default function LivotecApp() {
           <ManTuDong
             luat={luat}
             luatTuThietBi={luatTuThietBi}
+            tranLuat={theme?.quotas?.rules ?? profile?.theme?.quotas?.rules ?? 20}
             hanhDong={hanhDongLuat}
             onTaoNeuThi={() => setPanel({ loai: "if-editor" })}
             onTaoTheoGio={() => setPanel({ loai: "chonThietBi" })}
@@ -303,7 +322,7 @@ export default function LivotecApp() {
   /* ----------------------------- render ----------------------------- */
 
   if (!hydrated) {
-    return <div className="splash"><div className="brand-mark"><Home /></div><span>Đang khởi động Livotec Home…</span></div>;
+    return <div className="splash"><div className="brand-mark"><Home /></div><span>{chu.splash_loading}</span></div>;
   }
 
   return (
@@ -329,7 +348,7 @@ export default function LivotecApp() {
             {(thongBaoLoi || loiDongBo) && (
               <div className="toast-loi" role="status">
                 <span>{thongBaoLoi || loiDongBo}</span>
-                <button aria-label="Đóng thông báo" onClick={() => { setThongBaoLoi(""); setLoiDongBo(""); }}>×</button>
+                <button aria-label={chu.toast_close} onClick={() => { setThongBaoLoi(""); setLoiDongBo(""); }}>×</button>
               </div>
             )}
 
@@ -377,7 +396,7 @@ export default function LivotecApp() {
                 onCommand={(capability, value) => guiLenh(thietBiDangMo.id, capability, value)}
                 onAn={() => { void anThietBi(thietBiDangMo.id); }}
                 onVatTu={(capability, lenh) => guiVatTu(thietBiDangMo.id, capability, lenh)}
-                onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id })}
+                onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id, tuChiTiet: true })}
               />
             )}
 
@@ -391,9 +410,14 @@ export default function LivotecApp() {
                 onChon={id => setPanel({ loai: "hengio", id })}
               />
             )}
-            {/* Đóng màn hẹn giờ thì QUAY VỀ màn chi tiết, không văng ra danh sách: người dùng
-                mở nó TỪ màn chi tiết, nên nút trở lại phải trả họ về đúng chỗ vừa rời. */}
-            {panel?.loai === "hengio" && thietBiDangMo && <HenGioPanel device={thietBiDangMo} onClose={() => setPanel({ loai: "device", id: thietBiDangMo.id })} />}
+            {/* Nút trở lại trả người dùng về đúng chỗ vừa rời: màn chi tiết nếu mở từ đó, còn mở
+                từ menu "Hẹn giờ" hay nút "Theo thời gian" thì đóng hẳn. */}
+            {panel?.loai === "hengio" && thietBiDangMo && (
+              <HenGioPanel
+                device={thietBiDangMo}
+                onClose={() => setPanel(panel.tuChiTiet ? { loai: "device", id: thietBiDangMo.id } : null)}
+              />
+            )}
             {panel?.loai === "virtual" && <VirtualPanel onClose={dongPanel} onThayDoi={syncRemote} />}
             {panel?.loai === "if-editor" && <IfThenEditor devices={data.devices} onSaved={taiLuat} onClose={dongPanel} />}
           </div></div>

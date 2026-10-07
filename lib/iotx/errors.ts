@@ -1,4 +1,9 @@
-import { IotxApiError } from "./client";
+export class IotxApiError extends Error {
+  constructor(public status: number, message: string, public payload?: unknown) {
+    super(message);
+    this.name = "IotxApiError";
+  }
+}
 
 const CAU_CHUNG = "Không tìm thấy, hoặc bạn không có quyền với mục này.";
 const CAU_MANG = "Không kết nối được máy chủ. Kiểm tra đường truyền rồi thử lại.";

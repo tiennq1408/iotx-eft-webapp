@@ -174,7 +174,6 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .auto-icon-btn svg{width:100%;height:100%;}
 .auto-icon-btn.danger{color:var(--danger);}
 .tag-shadow{margin-left:6px;padding:2px 7px;border-radius:20px;background:var(--teal-soft);color:var(--teal-dark);font-size:9.5px;font-weight:800;}
-.quota-line{font-size:11px;color:var(--faint);margin:0 0 10px;}
 
 /* ---------- dịch vụ ---------- */
 .service-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -264,9 +263,6 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .login-title-band{color:#fff;font-size:19px;font-weight:800;text-align:center;line-height:1.3;padding:6px 20px;margin:2px 0 6px;width:100%;text-shadow:0 2px 10px rgba(0,0,0,0.35);}
 .login-sub{color:#fff;font-size:13px;text-align:center;margin:0 0 auto;padding-bottom:16px;text-shadow:0 1px 6px rgba(0,0,0,0.35);}
 .login-form{width:100%;margin-top:auto;display:flex;flex-direction:column;}
-.login-seg{display:flex;gap:6px;padding:4px;border-radius:999px;background:rgba(10,30,26,0.30);margin-bottom:12px;}
-.login-seg button{flex:1;min-height:44px;border:0;border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:700;}
-.login-seg button.active{background:#fff;color:var(--teal-dark);}
 .login-field{
   width:100%;background:rgba(10,30,26,0.26);border:1.5px solid rgba(255,255,255,0.75);
   border-radius:999px;padding:14px 18px;min-height:48px;font-size:14px;color:#fff;margin-bottom:12px;
@@ -305,7 +301,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* ---------- toast lỗi ---------- */
 .toast-loi{position:absolute;left:12px;right:12px;bottom:84px;z-index:90;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#2B1A19;color:#fff;font-size:12.5px;line-height:1.45;box-shadow:0 12px 28px -10px rgba(0,0,0,.5);}
 .toast-loi span{flex:1;}
-.toast-loi button{width:32px;height:32px;border:0;background:transparent;color:#fff;font-size:18px;flex-shrink:0;}
+.toast-loi button{width:44px;height:44px;margin:-6px -8px -6px 0;border:0;background:transparent;color:#fff;font-size:18px;flex-shrink:0;}
 
 /* Chỉ về một cột ở máy rất hẹp. Điện thoại 360px vẫn giữ lưới hai cột như bản thiết kế. */
 @media (max-width:330px){
@@ -479,6 +475,10 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .kieu-ao button.active>span{background:var(--teal-dark);color:#fff;}
 .ao-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-md);background:#fff;}
 .ao-chu{flex:1;min-width:0;display:grid;gap:3px;}
+/* Nút biểu tượng trên hàng (sửa, xoá): vùng chạm 44px, cùng cỡ với .space-row. */
+.ao-row>button:not(.nut-bam):not(.switch):not(.go-that){width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--faint);padding:12px;flex-shrink:0;}
+.ao-row>button:not(.nut-bam):not(.switch):not(.go-that) svg{width:100%;height:100%;}
+.space-icon svg{width:18px;height:18px;}
 .ao-chu strong{font-size:13px;}
 .ao-chu small{color:var(--muted);font-size:10.5px;overflow-wrap:anywhere;}
 .ao-chu input{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;}
