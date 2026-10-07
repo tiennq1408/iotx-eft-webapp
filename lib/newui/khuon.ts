@@ -64,8 +64,8 @@ export const VARIANT_THEO_KIND: Record<IotxCapability["kind"], readonly string[]
   list: ["filterlist01"],
 };
 
-function variantMac(kind: IotxCapability["kind"], key: string, nhom: TenNhom, cap?: IotxCapability): string | null {
-  if (kind === "onoff") return key === "power" ? "power01" : "switch01";
+function variantMac(kind: IotxCapability["kind"], laNguon: boolean, nhom: TenNhom, cap?: IotxCapability): string | null {
+  if (kind === "onoff") return laNguon ? "power01" : "switch01";
   if (kind === "level") return nhom === "hero" ? "dial01" : "slider01";
   if (kind === "sensor") {
     if (nhom === "alarm") return "alarm01";
@@ -74,11 +74,11 @@ function variantMac(kind: IotxCapability["kind"], key: string, nhom: TenNhom, ca
   return VARIANT_THEO_KIND[kind]?.[0] ?? null;
 }
 
-function variantCua(kind: IotxCapability["kind"], key: string, nhom: TenNhom, khai?: string, cap?: IotxCapability): string | null {
+function variantCua(kind: IotxCapability["kind"], laNguon: boolean, nhom: TenNhom, khai?: string, cap?: IotxCapability): string | null {
   const bang = VARIANT_THEO_KIND[kind];
   if (!bang) return null;
   // Kiểu lạ rơi về mặc định của `kind` thay vì làm vỡ màn.
-  return khai && bang.includes(khai) ? khai : variantMac(kind, key, nhom, cap);
+  return khai && bang.includes(khai) ? khai : variantMac(kind, laNguon, nhom, cap);
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,10 +98,24 @@ export const mauSkin = (ma: unknown) => (typeof ma === "string" && SKIN[ma]) || 
 /* ------------------------------------------------------------------ */
 
 const laDieuKhien = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind !== "sensor";
-const laNguon = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind === "onoff" && c.key === "power";
 /** `power`, `ac_power_status`, `fan_power`, `nguon`… — "power"/"nguon" đứng thành từ riêng. */
-export const LA_TEN_NGUON = /(^|_)(power|nguon)(_|$)/i;
+const LA_TEN_NGUON = /(^|_)(power|nguon)(_|$)/i;
 const laTenNguon = (c?: IotxCapability): c is IotxCapability => c !== undefined && c.kind === "onoff" && LA_TEN_NGUON.test(c.key);
+
+/**
+ * Capability đóng vai nút nguồn — MỘT luật cho cả app (thẻ, khuôn chi tiết, lưới, suy `on`).
+ *
+ * KHÔNG dò theo tên khóa `power`: catalog thật đặt là `ac_power_status`, `fan_power`… Thứ
+ * nói cho ta biết đâu là nguồn là `slots[key].variant === "power01"`. Chỉ khi catalog không
+ * khai gì mới suy theo tên, và cuối cùng mới lấy công tắc đầu tiên. Trước đây khuôn chi tiết
+ * và lưới chỉ nhận đúng khóa `power`, nên `ac_power_status` được thẻ coi là nguồn mà trên
+ * màn chi tiết lại vẽ thành công tắc thường.
+ */
+export function capNguonTrong(caps: IotxCapability[], slots: Record<string, { variant?: string } | undefined> = {}): IotxCapability | undefined {
+  return caps.find(c => c.kind === "onoff" && slots[c.key]?.variant === "power01")
+    ?? caps.find(laTenNguon)
+    ?? caps.find(c => c.kind === "onoff");
+}
 
 export function khuonCua(product?: IotxProduct | null): string | undefined {
   const a = product?.ui?.archetype;
@@ -114,7 +128,7 @@ function uuTienCua(product?: IotxProduct | null): string[] {
   return Array.isArray(u) ? u.filter((x): x is string => typeof x === "string") : [];
 }
 
-function ganMacDinh(caps: IotxCapability[], khuon: Khuon, uuTien: string[] = []): Record<string, TenNhom> {
+function ganMacDinh(caps: IotxCapability[], khuon: Khuon, uuTien: string[], capNguon: IotxCapability | undefined): Record<string, TenNhom> {
   const ra: Record<string, TenNhom> = {};
 
   const conLai = new Set(caps.map(c => c.key));
@@ -130,10 +144,10 @@ function ganMacDinh(caps: IotxCapability[], khuon: Khuon, uuTien: string[] = [])
     if (c) { dat(c, "alarm"); nBao += 1; }
   }
 
-  // Nút nguồn dò theo tên như `capNguonCua`, KHÔNG lấy bừa công tắc đầu tiên: catalog
+  // Nút nguồn theo đúng một luật `capNguonTrong` — KHÔNG lấy bừa công tắc đầu tiên: catalog
   // `ac` xếp `ac_IoT_status` trước `ac_power_status`, nên lấy bừa là app đưa "IoT Status"
   // lên làm nút bật/tắt máy.
-  dat(caps.find(laNguon) || caps.find(laTenNguon) || caps.find(c => c.kind === "onoff"), "secondary");
+  dat(capNguon, "secondary");
 
   let hero: IotxCapability | undefined;
   for (const key of khuon.heroUu) if (!hero) hero = lay(key);
@@ -197,7 +211,8 @@ export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapa
 
   const slots = product?.ui?.slots ?? {};
   const uuTien = uuTienCua(product);
-  const macDinh = ganMacDinh(caps, khuon, uuTien);
+  const capNguon = capNguonTrong(caps, slots);
+  const macDinh = ganMacDinh(caps, khuon, uuTien, capNguon);
 
   const kq = {
     khuon: coKhuon(maKhuon) ? maKhuon : "chung",
@@ -220,7 +235,7 @@ export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapa
       if (kq.bao.length >= SUC_CHUA.alarm) { guiXuong(cap, `Băng báo động tối đa ${SUC_CHUA.alarm}`); continue; }
       kq.bao.push(cap); continue;
     }
-    if (laNguon(cap) && nhom !== "more") { kq.nguon = cap; continue; }
+    if (cap === capNguon && nhom !== "more") { kq.nguon = cap; continue; }
     if (nhom === "status") {
       if (cap.kind !== "sensor") { guiXuong(cap, "Nhóm số đọc chỉ nhận SỐ ĐỌC — cái này bấm được"); continue; }
       if (kq.status.length >= SUC_CHUA.status) { guiXuong(cap, `Nhóm số đọc đã đủ ${SUC_CHUA.status} — phần thừa GẬP`); continue; }
@@ -245,7 +260,7 @@ export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapa
   }
 
   const ve = (cap: IotxCapability, nhom: TenNhom): O => ({
-    cap, nhom, variant: variantCua(cap.kind, cap.key, nhom, slots[cap.key]?.variant, cap),
+    cap, nhom, variant: variantCua(cap.kind, cap === capNguon, nhom, slots[cap.key]?.variant, cap),
   });
 
   return {
@@ -274,21 +289,9 @@ export function baoDangKeu(cap: IotxCapability, giaTri: unknown): boolean {
   return true;
 }
 
-/**
- * Capability đóng vai nút nguồn của sản phẩm.
- *
- * KHÔNG dò theo tên khóa `power`: catalog thật đặt là `ac_power_status`, `fan_power`… Thứ
- * nói cho ta biết đâu là nguồn là `slots[key].variant === "power01"`. Chỉ khi catalog không
- * khai gì mới suy theo tên, và cuối cùng mới lấy công tắc đầu tiên.
- */
+/** Nút nguồn của một sản phẩm — xem `capNguonTrong`. */
 export function capNguonCua(product?: IotxProduct | null): IotxCapability | undefined {
-  const caps = product?.capabilities ?? [];
-  const slots = product?.ui?.slots ?? {};
-  const theoSlot = caps.find(c => c.kind === "onoff" && slots[c.key]?.variant === "power01");
-  if (theoSlot) return theoSlot;
-  const theoTen = caps.find(laTenNguon);
-  if (theoTen) return theoTen;
-  return caps.find(c => c.kind === "onoff");
+  return capNguonTrong(product?.capabilities ?? [], product?.ui?.slots ?? {});
 }
 
 /**

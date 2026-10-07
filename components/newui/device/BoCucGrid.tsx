@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
+import { capNguonCua } from "@/lib/newui/khuon";
 import { diaChiIcon, laDuongDan } from "@/lib/newui/assets";
 import { phimKichHoat } from "@/lib/newui/phim";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
@@ -200,9 +201,9 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
   onVatTu: GuiVatTu;
 }) {
   const { t } = useChu();
-  const caps = device.product?.capabilities;
+  const product = device.product;
   // Lưới chỉ đổi khi catalog đổi; mỗi nhịp đồng bộ chỉ đổi giá trị, không đổi bố cục.
-  const kq = useMemo(() => phanGiaiBoCuc(bc, caps ?? []), [bc, caps]);
+  const kq = useMemo(() => phanGiaiBoCuc(bc, product?.capabilities ?? [], capNguonCua(product)?.key), [bc, product]);
   const loi = kq.capBao ? danhSachLoi(kq.capBao, device.lastValues?.[kq.capBao.key]) : [];
 
   return (

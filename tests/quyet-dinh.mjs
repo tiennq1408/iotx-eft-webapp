@@ -6,6 +6,11 @@
  */
 import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+import { THU_MUC } from './chung.mjs';
+
+const SAN_PHAM = JSON.parse(fs.readFileSync(path.join(THU_MUC, 'du-lieu', 'products.json'), 'utf8'));
 
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const b = await chromium.launch({ executablePath: CHROMIUM });
@@ -83,6 +88,23 @@ const suaThan = (ctx, mau, sua) => ctx.route(mau, async route => {
   await p.locator('.lang-flag').nth(1).click();   // English
   ok('Đổi sang EN: hỏi lại /bootstrap?lang=en', await doi(async () => hoi.includes('bootstrap?en')));
   ok('Đổi sang EN: hỏi lại /products?lang=en', await doi(async () => hoi.includes('products?en')));
+  await ctx.close();
+}
+
+/* 4. Một luật nút nguồn: `ac` (không khai `ui`) có `ac_power_status` → nút nguồn trên màn chi tiết,
+   hai công tắc còn lại (IoT status, eco) vẫn là công tắc thường. */
+{
+  const { ctx, p } = await dangNhap();
+  await p.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await cho(600);
+  await p.locator('.device-card').filter({ hasText: '22022026A1' }).first().locator('.card-hit').click();
+  await p.locator('.devpage').waitFor({ timeout: 5000 }); await cho(400);
+  const nutNguon = p.locator('.devbody .card.ctl-pwr .ctl-pwrbtn');
+  ok('ac: có đúng một nút nguồn trên màn chi tiết', await nutNguon.count() === 1);
+  // Nhãn của nút phải là nhãn catalog của ĐÚNG ac_power_status ("Bật/Tắt điều hòa"), không
+  // phải của ac_IoT_status đứng trước nó trong danh sách.
+  const nhanNguon = SAN_PHAM.ac.capabilities.find(c => c.key === 'ac_power_status').label;
+  ok(`ac: nút nguồn là ac_power_status (nhãn "${await nutNguon.getAttribute('aria-label')}")`, (await nutNguon.getAttribute('aria-label')) === nhanNguon);
+  ok('ac: không có công tắc nào khác bị coi là nguồn', await p.locator('.devbody .card.ctl-pwr').count() === 1);
   await ctx.close();
 }
 

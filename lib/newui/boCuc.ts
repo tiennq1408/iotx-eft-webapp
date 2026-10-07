@@ -1,5 +1,5 @@
 import type { IotxCapability, IotxProduct } from "@/lib/iotx/contracts";
-import { VARIANT_THEO_KIND } from "./khuon";
+import { VARIANT_THEO_KIND, capNguonTrong } from "./khuon";
 
 /**
  * Bố cục lưới kiểu bảng tính (`product.ui.boCuc`) — bản dựng lại từ bộ vẽ của
@@ -57,10 +57,10 @@ export function boCucCua(product?: IotxProduct | null): BoCuc | null {
 }
 
 /** Kiểu vẽ của một ô: tôn trọng khai báo nếu hợp lệ, không thì mặc định theo `kind`. */
-function variantO(cap: IotxCapability, khai?: string): string {
+function variantO(cap: IotxCapability, laNguon: boolean, khai?: string): string {
   const choPhep = VARIANT_THEO_KIND[cap.kind] ?? [];
   if (khai && choPhep.includes(khai)) return khai;
-  if (cap.kind === "onoff") return cap.key === "power" ? "power01" : "switch01";
+  if (cap.kind === "onoff") return laNguon ? "power01" : "switch01";
   if (cap.kind === "level") return "slider01";
   if (cap.kind === "enum") return "chips01";
   if (cap.kind === "sensor") return cap.values?.length ? "state01" : "readout01";
@@ -118,14 +118,18 @@ function hangHienThi(o: OBoCuc[], donHang = true): { map: Record<number, number>
 
 export type OdaDung = OBoCuc & { cap: IotxCapability; variant: string };
 
-/** Lọc bỏ ô trỏ tới capability không có trong sản phẩm, và chốt kiểu vẽ cho từng ô. */
-export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[]) {
+/**
+ * Lọc bỏ ô trỏ tới capability không có trong sản phẩm, và chốt kiểu vẽ cho từng ô.
+ * `khoaNguon`: nút nguồn theo luật chung của sản phẩm (`capNguonCua`); không truyền thì suy
+ * từ chính danh sách capability.
+ */
+export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[], khoaNguon: string | undefined = capNguonTrong(caps)?.key) {
   const theoKhoa = new Map(caps.map(c => [c.key, c]));
   const o: OdaDung[] = [];
   for (const muc of bc.o ?? []) {
     const cap = theoKhoa.get(muc.key);
     if (!cap) continue;
-    o.push({ ...muc, cap, variant: variantO(cap, muc.variant) });
+    o.push({ ...muc, cap, variant: variantO(cap, cap.key === khoaNguon, muc.variant) });
   }
   const caoHang = CAO_HANG.includes(Number(bc.caoHang)) ? Number(bc.caoHang) : CAO_HANG_MAC;
   const { map, soHang } = hangHienThi(o, bc.donHang !== false);
