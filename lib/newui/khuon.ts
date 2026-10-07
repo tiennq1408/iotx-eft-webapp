@@ -1,4 +1,5 @@
 import type { IotxCapability, IotxProduct } from "@/lib/iotx/contracts";
+import { rong } from "@/lib/iotx/giaTri";
 
 /**
  * Bộ dựng màn chi tiết thiết bị — chép đúng mô hình của bản tham chiếu trên
@@ -269,7 +270,7 @@ export function phanGiai(product: IotxProduct | null | undefined, caps: IotxCapa
  * dưới dạng dòng trạng thái, đúng như bản tham chiếu.
  */
 export function baoDangKeu(cap: IotxCapability, giaTri: unknown): boolean {
-  if (giaTri === undefined || giaTri === null || giaTri === "") return false;
+  if (rong(giaTri)) return false;
   if (typeof giaTri === "number") return giaTri !== 0;
   if (typeof giaTri === "boolean") return giaTri;
   const s = String(giaTri).trim().toLowerCase();

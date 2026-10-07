@@ -1,5 +1,5 @@
 import { iotxConfig } from "./config";
-import { docEtag, ghiEtag } from "./cache";
+import { docEtag, ghiEtag, xoaCacheNguoiDung } from "./cache";
 import type {
   IotxBootstrap, IotxCategory, IotxDevice, IotxNotification, IotxProduct,
   IotxKieuAo, IotxLanChay, IotxMoPhong, IotxNoiChon, IotxProfile, IotxRuleCondition, IotxRuleInput,
@@ -66,6 +66,45 @@ export class IotxClient {
     private readonly tokens: TokenStore = browserTokenStore,
   ) {}
 
+  /** Lần làm mới đang bay — mọi request cùng gặp 401 đợi chung nó, không mỗi cái tự refresh. */
+  private dangLamMoi: Promise<boolean> | null = null;
+  private readonly nguoiNgheHetPhien = new Set<() => void>();
+
+  /**
+   * Báo khi phiên kết thúc — người dùng đăng xuất, hoặc phiên chết hẳn (refresh cũng hỏng).
+   * Token bị xoá ở tầng này, nên nếu không có kênh báo thì giao diện vẫn tưởng còn đăng nhập
+   * và cứ thế hỏi máy chủ không kèm token.
+   */
+  onHetPhien(nghe: () => void) {
+    this.nguoiNgheHetPhien.add(nghe);
+    return () => { this.nguoiNgheHetPhien.delete(nghe); };
+  }
+
+  private hetPhien() {
+    this.tokens.clear();
+    xoaCacheNguoiDung();
+    for (const nghe of this.nguoiNgheHetPhien) nghe();
+  }
+
+  /**
+   * Làm mới token sau một 401 — đúng một lần dù bao nhiêu request cùng hỏng.
+   *
+   * `daDung` là access token mà request vừa hỏng đã gửi. Nếu kho đã có token KHÁC thì một
+   * request khác vừa làm mới xong: chỉ cần gửi lại. Gọi refresh lần nữa bằng refresh token
+   * đã bị xoay vòng thì máy chủ từ chối, và lần hỏng đó sẽ xoá mất token vừa có.
+   */
+  private async lamMoiSau401(daDung: string | undefined): Promise<boolean> {
+    const hienTai = this.tokens.get();
+    if (hienTai?.accessToken && hienTai.accessToken !== daDung) return true;
+    if (!this.dangLamMoi) {
+      const refreshToken = hienTai?.refreshToken;
+      this.dangLamMoi = (refreshToken ? this.refresh(refreshToken).then(() => true, () => false) : Promise.resolve(false))
+        .then(ok => { if (!ok) this.hetPhien(); return ok; })
+        .finally(() => { this.dangLamMoi = null; });
+    }
+    return this.dangLamMoi;
+  }
+
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const { auth = true, body, retryAuth = true, etagKey, headers: suppliedHeaders, ...init } = options;
     const headers = new Headers(suppliedHeaders);
@@ -81,10 +120,8 @@ export class IotxClient {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
-    if (response.status === 401 && auth && retryAuth && tokenSet?.refreshToken) {
-      const refreshed = await this.refresh(tokenSet.refreshToken).catch(() => null);
-      if (refreshed) return this.request<T>(path, { ...options, retryAuth: false });
-      this.tokens.clear();
+    if (response.status === 401 && auth && retryAuth && tokenSet) {
+      if (await this.lamMoiSau401(tokenSet.accessToken)) return this.request<T>(path, { ...options, retryAuth: false });
     }
 
     // 304 không có thân; dùng lại bản đang giữ. Mất cache mà vẫn nhận 304 thì phải hỏi lại
@@ -133,7 +170,7 @@ export class IotxClient {
     return result;
   }
 
-  logout() { this.tokens.clear(); }
+  logout() { this.hetPhien(); }
   me() { return this.request<IotxProfile>("/me"); }
   bootstrap(lang = iotxConfig.lang) { return this.request<IotxBootstrap>(`/bootstrap?lang=${encodeURIComponent(lang)}`, { etagKey: `bootstrap:${lang}` }); }
   products(lang = iotxConfig.lang) { return this.request<Record<string, IotxProduct>>(`/products?lang=${encodeURIComponent(lang)}&tenant=${encodeURIComponent(iotxConfig.tenant)}`, { auth: false, etagKey: `products:${iotxConfig.tenant}:${lang}` }); }
@@ -246,6 +283,9 @@ export class IotxClient {
   ) {
     let attempt = 0;
     let daTungNoi = false;
+    // Mỗi lần nối chỉ được làm mới token một lần. Token mới mà vẫn bị từ chối (lệch đồng hồ,
+    // phiên bị thu hồi) thì refresh tiếp chỉ thành vòng lặp không nghỉ đập vào máy chủ.
+    let daLamMoiLanNay = false;
     while (!options.signal?.aborted) {
       const token = this.tokens.get()?.accessToken;
       if (!token) throw new IotxApiError(401, "missing_session");
@@ -259,18 +299,18 @@ export class IotxClient {
         if (response.status === 401) {
           // Access token sống 300 giây. Luồng SSE đứng yên thì không có request nào làm mới
           // hộ, nên nếu không tự refresh ở đây, realtime chết hẳn sau 5 phút app không thao tác.
-          const refreshToken = this.tokens.get()?.refreshToken;
-          const daLamMoi = refreshToken ? await this.refresh(refreshToken).catch(() => null) : null;
-          if (!daLamMoi) {
-            this.tokens.clear();
+          if (daLamMoiLanNay || !await this.lamMoiSau401(token)) {
+            this.hetPhien();
             throw new IotxApiError(401, "session_expired");
           }
+          daLamMoiLanNay = true;
           continue;
         }
 
         if (!response.ok || !response.body) throw new IotxApiError(response.status, `stream_${response.status}`);
 
         attempt = 0;
+        daLamMoiLanNay = false;
         // Server không hỗ trợ Last-Event-ID nên không phát lại sự kiện đã lỡ: nối lại xong
         // mới báo cho caller đi lấy lastValues, chứ không báo lúc vừa đứt.
         if (daTungNoi) options.onReconnect?.();

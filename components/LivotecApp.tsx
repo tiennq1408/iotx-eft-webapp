@@ -1,80 +1,97 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Home } from "lucide-react";
-import type { AppData } from "@/lib/storage";
 import type { Device } from "@/lib/types";
-import { iotxClient, iotxConfig, isIotxMode, moTaLoi, suyDanXuat } from "@/lib/iotx";
-import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule, IotxRules } from "@/lib/iotx/contracts";
+import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
+import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule } from "@/lib/iotx/contracts";
 import IfThenEditor from "@/components/automation/IfThenEditor";
 import VirtualPanel from "@/components/virtual/VirtualPanel";
-import { AddDevice, Members, Spaces } from "@/components/manage/panels";
-import Icon from "@/components/newui/Icon";
-import RuleCard from "@/components/newui/RuleCard";
-import { ChuProvider, useChu } from "@/components/newui/chu";
+import { AddDevice } from "@/components/manage/AddDevice";
+import { Members } from "@/components/manage/Members";
+import { Spaces } from "@/components/manage/Spaces";
+import { ChuProvider } from "@/components/newui/chu";
 import { BottomNav, TopBar, type ManChinh } from "@/components/newui/shell";
-import { BannerCarousel, DeviceCard, FilterRow } from "@/components/newui/home";
-import { nhomCuaThietBi } from "@/lib/newui/uiType";
+import { FilterRow } from "@/components/newui/home";
+import {
+  ManDichVu, ManKhamPha, ManThietBi, ManTrangChu, ManTuDong, type HanhDongLuat, type HanhDongThietBi,
+} from "@/components/newui/ManChinh";
+import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/newui/boLoc";
 import { capNguonCua } from "@/lib/newui/khuon";
 import {
-  DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal, ToastModal,
+  DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal,
   type MucMenu,
 } from "@/components/newui/modals";
 import DeviceDetail from "@/components/newui/device/DeviceDetail";
 import HenGioPanel from "@/components/newui/device/HenGioPanel";
 import LoginScreen from "@/components/newui/LoginScreen";
-import { IMG } from "@/lib/newui/assets";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
 
+/**
+ * Tấm đang mở. Thứ chỉ có nghĩa với một loại tấm nằm ngay trong nó — id thiết bị của màn
+ * chi tiết/hẹn giờ, tiêu đề của tấm "sắp ra mắt" — nên không có state nào phải dọn tay.
+ */
 type Panel =
-  | null | "drawer" | "profile" | "notif" | "housePicker" | "roomPicker" | "groupPicker" | "placeholder" | "toast"
-  | "device" | "spaces" | "members" | "add" | "hengio" | "chonThietBi" | "virtual" | "if-editor";
+  | null
+  | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" }
+  | { loai: "loc"; boLoc: LoaiLoc }
+  | { loai: "placeholder"; tieuDe: string }
+  | { loai: "device" | "hengio"; id: string };
+
+/** Hộp chọn của từng bộ lọc: khóa chữ tiêu đề và hàng "tất cả". */
+const HOP_LOC: Record<LoaiLoc, { khoaTieuDe: string; khoaTatCa: string }> = {
+  nha: { khoaTieuDe: "pick_house", khoaTatCa: "all_houses" },
+  phong: { khoaTieuDe: "pick_room", khoaTatCa: "all_rooms" },
+  nhom: { khoaTieuDe: "pick_group", khoaTatCa: "all_groups" },
+};
 
 export default function LivotecApp() {
   // Khai trước lời gọi hook: nhịp hỏi lại trạng thái nhanh hơn khi màn chi tiết đang mở.
   const [panel, setPanel] = useState<Panel>(null);
 
   const {
-    hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang,
+    hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang, loiDongBo, setLoiDongBo,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
-    luat, setLuat, luatTuThietBi, setLuatTuThietBi,
+    luat, setLuat, luatTuThietBi, taiLuat,
     doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
-  } = useDuLieuIotx({ xemKy: panel === "device" });
+  } = useDuLieuIotx({ xemKy: panel?.loai === "device" });
 
   const [thongBaoLoi, setThongBaoLoi] = useState("");
   const [man, setMan] = useState<ManChinh>("home");
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const [nha, setNha] = useState("all");
-  const [phong, setPhong] = useState("all");
-  const [nhom, setNhom] = useState("all");
+  const [boLoc, setBoLoc] = useState<BoLoc>(BO_LOC_DAU);
   const [gonGang, setGonGang] = useState(false);
-  const [cauPhu, setCauPhu] = useState("");
+
+  const dongPanel = () => setPanel(null);
 
   /* ----------------------------- dữ liệu dẫn xuất ----------------------------- */
 
-  const thietBiDangMo = data.devices.find(device => device.id === deviceId) || null;
-  /**
-   * Ba bộ lọc cộng dồn. Nhóm lấy từ `product.category` của catalog chứ không suy ra từ loại
-   * giao diện, nên hãng đổi cách xếp nhóm là danh sách đổi theo mà không phải sửa mã.
-   */
-  const thietBiTheoPhong = useMemo(
-    () => data.devices.filter(device =>
-      (nha === "all" || device.house === nha) &&
-      (phong === "all" || device.room === phong) &&
-      (nhom === "all" || nhomCuaThietBi(device) === nhom)),
-    [data.devices, nha, phong, nhom],
-  );
-
-  /** Danh sách nhóm dựng từ chính thiết bị đang có, hợp với danh sách khai trong spaces. */
-  const cacNhom = useMemo(() => {
-    const bo = new Set<string>(data.spaces.groups ?? []);
-    data.devices.forEach(device => bo.add(nhomCuaThietBi(device)));
-    return [...bo].filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [data.devices, data.spaces.groups]);
+  const idDangMo = panel?.loai === "device" || panel?.loai === "hengio" ? panel.id : null;
+  const thietBiDangMo = data.devices.find(device => device.id === idDangMo) || null;
+  const thietBiDaLoc = useMemo(() => locThietBi(data.devices, boLoc), [data.devices, boLoc]);
+  const cacNhom = useMemo(() => cacNhomCua(data.devices, data.spaces.groups), [data.devices, data.spaces.groups]);
+  const danhSachLoc: Record<LoaiLoc, string[]> = { nha: data.spaces.houses, phong: data.spaces.rooms, nhom: cacNhom };
   const chuaDoc = notifications.filter(item => item.unread).length;
 
   /* ----------------------------- hành động ----------------------------- */
+
+  function suaThietBi(id: string, sua: (device: Device) => Device) {
+    setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? sua(device) : device) }));
+  }
+
+  /**
+   * Cập nhật lạc quan: đổi giao diện trước cho nút phản hồi tức thì, rồi mới gọi máy chủ.
+   * Chế độ mock không có máy chủ nên dừng sau bước đổi giao diện. Hỏng thì hoàn tác về
+   * đúng ảnh chụp trước khi bấm và báo lỗi.
+   */
+  async function lacQuan(apDung: () => void, goiMayChu: () => Promise<unknown>, hoanTac: () => void) {
+    apDung();
+    if (!isIotxMode) return;
+    try { await goiMayChu(); }
+    catch (error) {
+      hoanTac();
+      setThongBaoLoi(moTaLoi(error));
+    }
+  }
 
   async function doiNguon(id: string) {
     const truoc = data.devices.find(device => device.id === id);
@@ -85,25 +102,28 @@ export default function LivotecApp() {
     // Sản phẩm không khai nguồn điện thì không có lệnh nào để gửi; đoán "setPower" chỉ để
     // máy chủ từ chối. Thẻ thiết bị cũng không vẽ công tắc trong trường hợp này.
     if (isIotxMode && !capNguon?.rpc) return;
-    setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? { ...device, on: !device.on, lastValues: { ...device.lastValues, [capNguon?.key || "power"]: !device.on } } : device) }));
-    if (!isIotxMode) return;
-    try { await iotxClient.rpc(id, capNguon!.rpc!, { [capNguon!.key]: !truoc.on }); }
-    catch (error) {
-      setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? truoc : device) }));
-      setThongBaoLoi(moTaLoi(error));
-    }
+    await lacQuan(
+      () => suaThietBi(id, device => ({ ...device, on: !device.on, lastValues: { ...device.lastValues, [capNguon?.key || "power"]: !device.on } })),
+      async () => {
+        // Ghi sổ như `guiLenh`: không thì nhịp hỏi lại về trước phản hồi của mạch sẽ lật
+        // công tắc trên thẻ về trạng thái cũ, rồi một giây sau lại bật — đúng bệnh nháy.
+        const { key, rpc } = capNguon!;
+        ghiNhanLenh(id, key, !truoc.on);
+        try { await iotxClient.rpc(id, rpc!, { [key]: !truoc.on }); }
+        catch (error) { boGhiNhanLenh(id, key); throw error; }
+      },
+      () => suaThietBi(id, () => truoc),
+    );
   }
 
   async function doiGhim(id: string) {
     const truoc = data.devices.find(device => device.id === id);
     if (!truoc) return;
-    setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? { ...device, fav: !device.fav } : device) }));
-    if (!isIotxMode) return;
-    try { await iotxClient.updateDevice(id, { fav: !truoc.fav }); }
-    catch (error) {
-      setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? truoc : device) }));
-      setThongBaoLoi(moTaLoi(error));
-    }
+    await lacQuan(
+      () => suaThietBi(id, device => ({ ...device, fav: !device.fav })),
+      () => iotxClient.updateDevice(id, { fav: !truoc.fav }),
+      () => suaThietBi(id, () => truoc),
+    );
   }
 
   /**
@@ -113,31 +133,21 @@ export default function LivotecApp() {
   async function guiLenh(id: string, capability: IotxCapability, value: unknown) {
     if (!capability.rpc) return;
     const truoc = data.devices.find(device => device.id === id);
-    setData(current => ({
-      ...current,
-      devices: current.devices.map(device => {
-        if (device.id !== id) return device;
-        // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
-        const lastValues = { ...device.lastValues, [capability.key]: value };
-        return { ...device, lastValues, ...suyDanXuat(lastValues, device.product, device.speed) };
-      }),
-    }));
+    // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
+    suaThietBi(id, device => apGiaTri(device, { [capability.key]: value }));
     if (!isIotxMode) return;
     // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
     ghiNhanLenh(id, capability.key, value);
     try { await iotxClient.rpc(id, capability.rpc, { [capability.key]: value }); }
     catch (error) {
       boGhiNhanLenh(id, capability.key);
-      if (truoc) setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? truoc : device) }));
+      if (truoc) suaThietBi(id, () => truoc);
       throw error;
     }
   }
 
-  const taiLuat = useCallback(async () => {
-    const ketQua = await iotxClient.rules();
-    setLuat(ketQua.rules || []);
-    setLuatTuThietBi(ketQua.tuThietBi || []);
-  }, [setLuat, setLuatTuThietBi]);
+  /** Tải lại danh sách luật sau một thao tác; hỏng thì thôi, lần đồng bộ sau sẽ bù. */
+  const taiLuatNgam = () => { void taiLuat().catch(() => undefined); };
 
   async function batTatLuat(rule: IotxRule) {
     const moi = !rule.enabled;
@@ -154,24 +164,24 @@ export default function LivotecApp() {
   async function xoaLuat(rule: IotxRule) {
     setLuat(cu => cu.filter(r => r.id !== rule.id));
     try { await iotxClient.deleteRule(rule.id); }
-    catch (error) { setThongBaoLoi(moTaLoi(error)); void taiLuat().catch(() => undefined); }
+    catch (error) { setThongBaoLoi(moTaLoi(error)); taiLuatNgam(); }
   }
 
   async function chayLuat(rule: IotxRule) {
-    try { await iotxClient.chayLuatNgay(rule.id); void taiLuat().catch(() => undefined); }
+    try { await iotxClient.chayLuatNgay(rule.id); taiLuatNgam(); }
     catch (error) { setThongBaoLoi(moTaLoi(error)); }
   }
 
   /** Dừng chương trình nhiều giai đoạn đang chạy (`POST /rules/{id}/stop`). */
   async function dungLuat(rule: IotxRule) {
-    try { await iotxClient.dungLuat(rule.id); void taiLuat().catch(() => undefined); }
+    try { await iotxClient.dungLuat(rule.id); taiLuatNgam(); }
     catch (error) { setThongBaoLoi(moTaLoi(error)); }
   }
 
   function moThongBao() {
     setNotifications(items => items.map(item => ({ ...item, unread: false })));
     if (isIotxMode) void iotxClient.readNotifications().catch(() => undefined);
-    setPanel("notif");
+    setPanel({ loai: "notif" });
   }
 
   async function xoaThongBao(id: string) {
@@ -181,30 +191,26 @@ export default function LivotecApp() {
 
   /**
    * Lệnh trên một mục của capability kiểu `list`. Máy chủ giữ danh sách (gộp mạch + máy
-   * chủ) nên sau khi gửi phải lấy lại thiết bị chứ không tự sửa tại chỗ.
+   * chủ) nên sau khi gửi phải lấy lại thiết bị chứ không tự sửa tại chỗ. Lỗi ném ra để màn
+   * chi tiết hiện cạnh khối vật tư và giữ ô đang sửa mở.
    */
   async function guiVatTu(id: string, capability: IotxCapability, lenh: IotxLenhVatTu) {
     if (!isIotxMode) {
       // Mock không có máy chủ: tự dựng lại danh sách để thao tác vẫn thấy được kết quả.
-      setData(current => ({
-        ...current,
-        devices: current.devices.map(device => {
-          if (device.id !== id) return device;
-          const cu = Array.isArray(device.lastValues?.[capability.key]) ? [...(device.lastValues![capability.key] as IotxMucVatTu[])] : [];
-          let moi = cu;
-          if (lenh.kieu === "thay") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, phanTram: 100, conLai: m.tuoiTho } : m);
-          if (lenh.kieu === "tuoi") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, tuoiTho: lenh.tuoiTho } : m);
-          if (lenh.kieu === "bo") moi = cu.filter(m => String(m.id) !== lenh.id);
-          if (lenh.kieu === "them") moi = [...cu, { id: `vt${Date.now()}`, ten: lenh.ten || lenh.serial || "Vật tư mới", tuoiTho: 365, phanTram: 100, xacThuc: Boolean(lenh.serial) }];
-          return { ...device, lastValues: { ...device.lastValues, [capability.key]: moi } };
-        }),
-      }));
+      suaThietBi(id, device => {
+        const cu = Array.isArray(device.lastValues?.[capability.key]) ? [...(device.lastValues![capability.key] as IotxMucVatTu[])] : [];
+        let moi = cu;
+        if (lenh.kieu === "thay") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, phanTram: 100, conLai: m.tuoiTho } : m);
+        if (lenh.kieu === "tuoi") moi = cu.map(m => String(m.id) === lenh.id ? { ...m, tuoiTho: lenh.tuoiTho } : m);
+        if (lenh.kieu === "bo") moi = cu.filter(m => String(m.id) !== lenh.id);
+        if (lenh.kieu === "them") moi = [...cu, { id: `vt${Date.now()}`, ten: lenh.ten || lenh.serial || "Vật tư mới", tuoiTho: 365, phanTram: 100, xacThuc: Boolean(lenh.serial) }];
+        return { ...device, lastValues: { ...device.lastValues, [capability.key]: moi } };
+      });
       return;
     }
-    try {
-      await iotxClient.lenhMucVatTu(id, capability.key, lenh);
-      await refreshDevices();
-    } catch (error) { setThongBaoLoi(moTaLoi(error)); }
+    await iotxClient.lenhMucVatTu(id, capability.key, lenh);
+    // Lệnh đã tới máy chủ; lấy lại danh sách hỏng thì nhịp đồng bộ sau sẽ bù.
+    await refreshDevices().catch(() => undefined);
   }
 
   /**
@@ -213,15 +219,14 @@ export default function LivotecApp() {
    */
   async function anThietBi(id: string) {
     const truoc = data.devices;
-    setData(current => ({ ...current, devices: current.devices.filter(device => device.id !== id) }));
-    setPanel(null);
-    setDeviceId(null);
-    if (!isIotxMode) return;
-    try { await iotxClient.updateDevice(id, { hidden: true }); }
-    catch (error) {
-      setData(current => ({ ...current, devices: truoc }));
-      setThongBaoLoi(moTaLoi(error));
-    }
+    await lacQuan(
+      () => {
+        setData(current => ({ ...current, devices: current.devices.filter(device => device.id !== id) }));
+        dongPanel();
+      },
+      () => iotxClient.updateDevice(id, { hidden: true }),
+      () => setData(current => ({ ...current, devices: truoc })),
+    );
   }
 
   async function xoaHetThongBao() {
@@ -244,10 +249,55 @@ export default function LivotecApp() {
   }
 
   function chonMenu(muc: MucMenu) {
-    if (muc === "devices") { setMan("devices"); setPanel(null); return; }
+    if (muc === "devices") { setMan("devices"); dongPanel(); return; }
     // Hẹn giờ là chuyện của TỪNG thiết bị (`/devices/{id}/hen-gio`), nên phải chọn máy trước.
-    if (muc === "timers") { setPanel("chonThietBi"); return; }
-    setPanel(muc);
+    if (muc === "timers") { setPanel({ loai: "chonThietBi" }); return; }
+    setPanel({ loai: muc });
+  }
+
+  /** Chọn một mục lọc thì sang màn Thiết bị — trang chủ luôn hiện đủ thiết bị. */
+  function chonLoc(loai: LoaiLoc, ten: string) {
+    setBoLoc(cu => ({ ...cu, [loai]: ten }));
+    dongPanel();
+    setMan("devices");
+  }
+
+  const hanhDongThietBi: HanhDongThietBi = {
+    onMo: id => setPanel({ loai: "device", id }),
+    onNguon: id => { void doiNguon(id); },
+    onGhim: id => { void doiGhim(id); },
+  };
+  const hanhDongLuat: HanhDongLuat = {
+    batTat: rule => { void batTatLuat(rule); },
+    xoa: rule => { void xoaLuat(rule); },
+    chay: rule => { void chayLuat(rule); },
+    dung: rule => { void dungLuat(rule); },
+  };
+  const hangLoc = (
+    <FilterRow boLoc={boLoc} gonGang={gonGang} onChon={loai => setPanel({ loai: "loc", boLoc: loai })} onGonGang={() => setGonGang(!gonGang)} />
+  );
+
+  function manChinh() {
+    switch (man) {
+      case "devices":
+        return <ManThietBi devices={thietBiDaLoc} hangLoc={hangLoc} gonGang={gonGang} hanhDong={hanhDongThietBi} onThem={() => setPanel({ loai: "add" })} />;
+      case "automation":
+        return (
+          <ManTuDong
+            luat={luat}
+            luatTuThietBi={luatTuThietBi}
+            hanhDong={hanhDongLuat}
+            onTaoNeuThi={() => setPanel({ loai: "if-editor" })}
+            onTaoTheoGio={() => setPanel({ loai: "chonThietBi" })}
+          />
+        );
+      case "services":
+        return <ManDichVu onPlaceholder={tieuDe => setPanel({ loai: "placeholder", tieuDe })} />;
+      case "discover":
+        return <ManKhamPha logoUrl={theme?.logoUrl ?? null} />;
+      default:
+        return <ManTrangChu devices={data.devices} hangLoc={hangLoc} gonGang={gonGang} hanhDong={hanhDongThietBi} />;
+    }
   }
 
   /* ----------------------------- render ----------------------------- */
@@ -267,321 +317,87 @@ export default function LivotecApp() {
             <TopBar
               ten={tenHienThi(profile)}
               chuaDoc={chuaDoc}
-              onProfile={() => setPanel("profile")}
+              onProfile={() => setPanel({ loai: "profile" })}
               onNotif={moThongBao}
-              onMenu={() => setPanel("drawer")}
+              onMenu={() => setPanel({ loai: "drawer" })}
             />
 
-            <ManHinh
-              man={man}
-              data={data}
-              thietBiTheoPhong={thietBiTheoPhong}
-              nha={nha}
-              phong={phong}
-              nhom={nhom}
-              lang={lang}
-              gonGang={gonGang}
-              luat={luat}
-              luatTuThietBi={luatTuThietBi}
-              tranLuat={theme?.quotas?.rules ?? profile?.theme?.quotas?.rules ?? 20}
-              onLang={doiNgonNgu}
-              onChonNha={() => setPanel("housePicker")}
-              onChonPhong={() => setPanel("roomPicker")}
-              onChonNhom={() => setPanel("groupPicker")}
-              onGonGang={() => setGonGang(!gonGang)}
-              onToast={cau => { setCauPhu(cau); setPanel("toast"); }}
-              onMoThietBi={id => { setDeviceId(id); setPanel("device"); }}
-              onNguon={id => { void doiNguon(id); }}
-              onGhim={id => { void doiGhim(id); }}
-              onThemThietBi={() => setPanel("add")}
-              onTaoNeuThi={() => setPanel("if-editor")}
-              onTaoTheoGio={() => setPanel("chonThietBi")}
-              onBatTatLuat={rule => { void batTatLuat(rule); }}
-              onXoaLuat={rule => { void xoaLuat(rule); }}
-              onChayLuat={rule => { void chayLuat(rule); }}
-              onDungLuat={rule => { void dungLuat(rule); }}
-              onPlaceholder={tieuDe => { setCauPhu(tieuDe); setPanel("placeholder"); }}
-              logoUrl={theme?.logoUrl ?? null}
-            />
+            {manChinh()}
 
-            <BottomNav active={man} onChon={next => { setMan(next); setPanel(null); }} />
+            <BottomNav active={man} onChon={next => { setMan(next); dongPanel(); }} />
 
-            {thongBaoLoi && (
+            {(thongBaoLoi || loiDongBo) && (
               <div className="toast-loi" role="status">
-                <span>{thongBaoLoi}</span>
-                <button aria-label="Đóng thông báo" onClick={() => setThongBaoLoi("")}>×</button>
+                <span>{thongBaoLoi || loiDongBo}</span>
+                <button aria-label="Đóng thông báo" onClick={() => { setThongBaoLoi(""); setLoiDongBo(""); }}>×</button>
               </div>
             )}
 
-            {panel === "drawer" && (
+            {panel?.loai === "drawer" && (
               <MenuDrawer
                 lang={lang}
                 phienBan={`v1.0 · ${iotxConfig.tenant}`}
                 onLang={doiNgonNgu}
-                onClose={() => setPanel(null)}
+                onClose={dongPanel}
                 onChon={chonMenu}
               />
             )}
-            {panel === "profile" && (
+            {panel?.loai === "profile" && (
               <ProfileModal
                 ten={tenHienThi(profile)}
                 email={profile?.email || ""}
                 vaiTro={profile?.tenantName || ""}
-                onClose={() => setPanel(null)}
+                onClose={dongPanel}
                 onLogout={dangXuat}
               />
             )}
-            {panel === "notif" && (
+            {panel?.loai === "notif" && (
               <NotifModal
                 items={notifications}
-                onClose={() => setPanel(null)}
+                onClose={dongPanel}
                 onXoa={id => { void xoaThongBao(id); }}
                 onXoaHet={() => { void xoaHetThongBao(); }}
               />
             )}
-            {panel === "housePicker" && (
+            {panel?.loai === "loc" && (
               <LocPickerModal
-                khoaTieuDe="pick_house" khoaTatCa="all_houses"
-                dangChon={nha} danhSach={data.spaces.houses}
-                onClose={() => setPanel(null)}
-                onChon={ten => { setNha(ten); setPanel(null); setMan("devices"); }}
+                {...HOP_LOC[panel.boLoc]}
+                dangChon={boLoc[panel.boLoc]}
+                danhSach={danhSachLoc[panel.boLoc]}
+                onClose={dongPanel}
+                onChon={ten => chonLoc(panel.boLoc, ten)}
               />
             )}
-            {panel === "roomPicker" && (
-              <LocPickerModal
-                khoaTieuDe="pick_room" khoaTatCa="all_rooms"
-                dangChon={phong} danhSach={data.spaces.rooms}
-                onClose={() => setPanel(null)}
-                onChon={ten => { setPhong(ten); setPanel(null); setMan("devices"); }}
-              />
-            )}
-            {panel === "groupPicker" && (
-              <LocPickerModal
-                khoaTieuDe="pick_group" khoaTatCa="all_groups"
-                dangChon={nhom} danhSach={cacNhom}
-                onClose={() => setPanel(null)}
-                onChon={ten => { setNhom(ten); setPanel(null); setMan("devices"); }}
-              />
-            )}
-            {panel === "placeholder" && <PlaceholderModal title={cauPhu} onClose={() => setPanel(null)} />}
-            {panel === "toast" && <ToastModal cau={cauPhu} onClose={() => setPanel(null)} />}
+            {panel?.loai === "placeholder" && <PlaceholderModal title={panel.tieuDe} onClose={dongPanel} />}
 
-            {panel === "device" && thietBiDangMo && (
+            {panel?.loai === "device" && thietBiDangMo && (
               <DeviceDetail
                 device={thietBiDangMo}
-                lang={lang}
-                onLang={doiNgonNgu}
-                onClose={() => { setPanel(null); setDeviceId(null); }}
+                onClose={dongPanel}
                 onCommand={(capability, value) => guiLenh(thietBiDangMo.id, capability, value)}
                 onAn={() => { void anThietBi(thietBiDangMo.id); }}
                 onVatTu={(capability, lenh) => guiVatTu(thietBiDangMo.id, capability, lenh)}
-                onHenGio={() => setPanel("hengio")}
+                onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id })}
               />
             )}
 
-            {panel === "spaces" && <Spaces data={data} setData={setData} onClose={() => setPanel(null)} />}
-            {panel === "members" && <Members data={data} daCap={chiaSeDaCap} nhanDuoc={chiaSeNhanDuoc} onReload={taiChiaSe} onClose={() => setPanel(null)} />}
-            {panel === "add" && <AddDevice data={data} setData={setData} onSynced={syncRemote} onClose={() => setPanel(null)} />}
-            {panel === "chonThietBi" && (
+            {panel?.loai === "spaces" && <Spaces data={data} setData={setData} onClose={dongPanel} />}
+            {panel?.loai === "members" && <Members data={data} daCap={chiaSeDaCap} nhanDuoc={chiaSeNhanDuoc} onReload={taiChiaSe} onClose={dongPanel} />}
+            {panel?.loai === "add" && <AddDevice data={data} setData={setData} onSynced={syncRemote} onClose={dongPanel} />}
+            {panel?.loai === "chonThietBi" && (
               <DevicePickerModal
                 danhSach={data.devices.map(device => ({ id: device.id, name: device.name, room: device.room }))}
-                onClose={() => setPanel(null)}
-                onChon={id => { setDeviceId(id); setPanel("hengio"); }}
+                onClose={dongPanel}
+                onChon={id => setPanel({ loai: "hengio", id })}
               />
             )}
             {/* Đóng màn hẹn giờ thì QUAY VỀ màn chi tiết, không văng ra danh sách: người dùng
                 mở nó TỪ màn chi tiết, nên nút trở lại phải trả họ về đúng chỗ vừa rời. */}
-            {panel === "hengio" && thietBiDangMo && <HenGioPanel device={thietBiDangMo} onClose={() => setPanel("device")} />}
-            {panel === "virtual" && <VirtualPanel onClose={() => setPanel(null)} onThayDoi={syncRemote} />}
-            {panel === "if-editor" && <IfThenEditor devices={data.devices} onSaved={taiLuat} onClose={() => setPanel(null)} />}
+            {panel?.loai === "hengio" && thietBiDangMo && <HenGioPanel device={thietBiDangMo} onClose={() => setPanel({ loai: "device", id: thietBiDangMo.id })} />}
+            {panel?.loai === "virtual" && <VirtualPanel onClose={dongPanel} onThayDoi={syncRemote} />}
+            {panel?.loai === "if-editor" && <IfThenEditor devices={data.devices} onSaved={taiLuat} onClose={dongPanel} />}
           </div></div>
         )}
     </ChuProvider>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Năm màn chính                                                      */
-/* ------------------------------------------------------------------ */
-
-function ManHinh(props: {
-  man: ManChinh;
-  data: AppData;
-  thietBiTheoPhong: Device[];
-  nha: string;
-  phong: string;
-  nhom: string;
-  lang: string;
-  gonGang: boolean;
-  luat: IotxRule[];
-  luatTuThietBi: IotxRules["tuThietBi"];
-  /** Trần luật của hãng — `theme.quotas.rules`, không cắm cứng 20. */
-  tranLuat: number;
-  onLang: (ma: string) => void;
-  onChonNha: () => void;
-  onChonPhong: () => void;
-  onChonNhom: () => void;
-  onGonGang: () => void;
-  onToast: (cau: string) => void;
-  onMoThietBi: (id: string) => void;
-  onNguon: (id: string) => void;
-  onGhim: (id: string) => void;
-  onThemThietBi: () => void;
-  onTaoNeuThi: () => void;
-  onTaoTheoGio: () => void;
-  onBatTatLuat: (rule: IotxRule) => void;
-  onXoaLuat: (rule: IotxRule) => void;
-  onChayLuat: (rule: IotxRule) => void;
-  onDungLuat: (rule: IotxRule) => void;
-  onPlaceholder: (tieuDe: string) => void;
-  logoUrl: string | null;
-}) {
-  const { t } = useChu();
-  const { man, data } = props;
-
-  const hangLoc = (
-    <FilterRow
-      nha={props.nha}
-      phong={props.phong}
-      nhom={props.nhom}
-      gonGang={props.gonGang}
-      onChonNha={props.onChonNha}
-      onChonPhong={props.onChonPhong}
-      onChonNhom={props.onChonNhom}
-      onGonGang={props.onGonGang}
-    />
-  );
-
-  const luoi = (danhSach: Device[]) => danhSach.length === 0
-    ? <div className="empty-state"><Icon name="search" /><strong>{t("no_device")}</strong><span>{t("no_device_hint")}</span></div>
-    : (
-      <div className={`device-grid${props.gonGang ? " compact" : ""}`}>
-        {danhSach.map(device => (
-          <DeviceCard
-            key={device.id}
-            device={device}
-            onOpen={() => props.onMoThietBi(device.id)}
-            onToggle={() => props.onNguon(device.id)}
-            onFav={() => props.onGhim(device.id)}
-          />
-        ))}
-      </div>
-    );
-
-  if (man === "devices") {
-    return (
-      <div className="app-scroll">
-        <button className="add-device-btn" onClick={props.onThemThietBi}><Icon name="plus" /> {t("add_device")}</button>
-        {hangLoc}
-        {luoi(props.thietBiTheoPhong)}
-      </div>
-    );
-  }
-
-  if (man === "automation") {
-    return (
-      <div className="app-scroll">
-        <div className="auto-btn-row">
-          <button className="auto-btn primary" onClick={props.onTaoNeuThi}><Icon name="plus" /> {t("auto_if")}</button>
-          <button className="auto-btn secondary" onClick={props.onTaoTheoGio}><Icon name="clock" /> {t("auto_time")}</button>
-        </div>
-        {props.luat.length === 0 && props.luatTuThietBi.length === 0 && (
-          <div className="empty-card">
-            {t("auto_empty").split("<br>").map((dong, i) => <span key={i} className="empty-line">{dong}</span>)}
-          </div>
-        )}
-        {props.luat.map(rule => (
-          <RuleCard
-            key={rule.id}
-            rule={rule}
-            onBatTat={() => props.onBatTatLuat(rule)}
-            onChay={() => props.onChayLuat(rule)}
-            onXoa={() => props.onXoaLuat(rule)}
-            onDung={() => props.onDungLuat(rule)}
-          />
-        ))}
-        {props.luatTuThietBi.length > 0 && (
-          <>
-            <div className="section-title"><h2>{t("auto_from_device")}</h2><span>{props.luatTuThietBi.length}</span></div>
-            {props.luatTuThietBi.map(muc => (
-              <div className="auto-card" key={`${muc.deviceId}-${muc.tenCT}`}>
-                <div className="auto-card-top"><span className="an">{muc.tenCT}</span></div>
-                <p className="auto-line">{muc.tenThietBi}</p>
-              </div>
-            ))}
-            <p className="hint">{t("auto_from_device_hint")}</p>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  if (man === "services") {
-    const items = [
-      { icon: "wrench", nhan: "svc_maintenance" },
-      { icon: "shield", nhan: "svc_warranty" },
-      { icon: "checkCircle", nhan: "svc_activate" },
-      { icon: "cart", nhan: "svc_shop" },
-    ];
-    // Lưới thứ hai của bản thiết kế: các hội nhóm người dùng, viền và chữ theo màu hãng.
-    const hoi = ["club_kitchen", "club_aircon", "club_water", "club_fan"];
-    return (
-      <div className="app-scroll">
-        <div className="service-grid">
-          {items.map(muc => (
-            <button className="service-card" key={muc.nhan} onClick={() => props.onPlaceholder(t(muc.nhan))}>
-              <span className="sicn"><Icon name={muc.icon} /></span>
-              <span className="slabel">{t(muc.nhan)}</span>
-            </button>
-          ))}
-        </div>
-        <div className="service-grid club-grid">
-          {hoi.map(nhan => (
-            <button className="service-card club-card" key={nhan} onClick={() => props.onPlaceholder(t(nhan))}>
-              <span className="sicn club-icn"><Icon name="heart" /></span>
-              <span className="slabel club-label">{t(nhan)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (man === "discover") {
-    return (
-      <div className="app-scroll">
-        <a className="discover-hero" href="https://livotec.com/" target="_blank" rel="noreferrer noopener">
-          {/* Hãng có logo riêng thì dùng logo đó; chưa khai thì vẽ giọt nước trắng của
-              bản thiết kế, đặt thẳng trên nền chứ không bọc trong ô sáng. */}
-          {props.logoUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img className="dh-logo" src={props.logoUrl} alt="" width={60} height={60} />
-            : <span className="dh-swirl-icon" aria-hidden="true">
-                <svg viewBox="0 0 100 100" fill="none">
-                  <path d="M50 8 A42 42 0 0 1 92 50" stroke="#fff" strokeWidth={9} strokeLinecap="round" />
-                  <path d="M50 92 A42 42 0 0 1 8 50" stroke="#fff" strokeWidth={9} strokeLinecap="round" />
-                  <path d="M50 30 C 38 46, 34 56, 42 66 C 48 73, 58 71, 61 63 C 64 55, 58 48, 50 30 Z" fill="#fff" />
-                </svg>
-              </span>}
-          <span className="dh-title">{t("dh_title")}</span>
-          <span className="dh-sub">{t("dh_sub")}</span>
-          <span className="dh-btn">{t("dh_btn")} <Icon name="externalLink" /></span>
-        </a>
-        {/* Bản thiết kế xếp hai ảnh khuyến mãi chồng nhau, KHÔNG phải băng chạy: đây là
-            trang để đọc, ảnh tự đổi làm người dùng mất chỗ đang xem. */}
-        <div className="discover-promo-stack">
-          <Image unoptimized className="discover-promo-img" src={IMG.promoAircon} alt={t("promo_aircon")} width={360} height={150} />
-          <Image unoptimized className="discover-promo-img" src={IMG.promoWaterHeater} alt={t("promo_wh")} width={360} height={150} />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="app-scroll">
-      <BannerCarousel />
-      {hangLoc}
-      {luoi(data.devices)}
-    </div>
   );
 }

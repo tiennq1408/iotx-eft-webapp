@@ -1,4 +1,5 @@
 import type { IotxBootstrap, IotxProduct, IotxTheme } from "./contracts";
+import type { AppData } from "@/lib/types";
 import type { BoChu } from "./i18n";
 
 type PhienBan = IotxBootstrap["phienBan"];
@@ -85,4 +86,44 @@ export function docEtag(khoa: string): { etag: string; data: unknown } | null {
 export function ghiEtag(khoa: string, etag: string, data: unknown) {
   const cache = doc();
   ghi({ ...cache, etag: { ...cache.etag, [khoa]: { etag, data } } });
+}
+
+/* ------------------------------------------------------------------ */
+/* Dữ liệu của riêng người dùng                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ảnh chụp danh sách thiết bị của tài khoản đang đăng nhập, để mở app lúc mất mạng vẫn có
+ * gì đó mà xem. Khóa riêng, KHÔNG dùng chung với dữ liệu mock (`lib/storage.ts`): trộn hai
+ * nguồn thì người dùng thật thấy thiết bị mock nháy lên trước khi `/bootstrap` về.
+ */
+const KHOA_ANH_CHUP = "livotec-iotx-anh-chup";
+
+export function docAnhChup(): AppData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const goc = JSON.parse(localStorage.getItem(KHOA_ANH_CHUP) || "null") as Partial<AppData> | null;
+    if (!goc || !Array.isArray(goc.devices) || !goc.spaces) return null;
+    return { devices: goc.devices, spaces: goc.spaces };
+  } catch { return null; }
+}
+
+export function ghiAnhChup(data: AppData) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(KHOA_ANH_CHUP, JSON.stringify(data)); }
+  catch { /* hết chỗ: bỏ qua, chỉ mất khả năng xem lúc ngoại tuyến */ }
+}
+
+/**
+ * Xoá mọi thứ thuộc về tài khoản vừa rời đi: ảnh chụp thiết bị và các bản ETag của cửa cần
+ * đăng nhập (`/bootstrap` mang email, mã khách hàng, toàn bộ thiết bị). Theme, bảng chữ và
+ * catalog là dữ liệu công khai của hãng nên giữ lại cho lần đăng nhập sau.
+ */
+export function xoaCacheNguoiDung() {
+  if (typeof window === "undefined") return;
+  try { localStorage.removeItem(KHOA_ANH_CHUP); } catch { /* bị chặn: không có gì để xoá */ }
+  const cache = doc();
+  if (!cache.etag) return;
+  const conLai = Object.fromEntries(Object.entries(cache.etag).filter(([khoa]) => !khoa.startsWith("bootstrap:")));
+  ghi({ ...cache, etag: conLai });
 }

@@ -1,4 +1,4 @@
-import { GOC } from './chung.mjs';
+import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
@@ -10,7 +10,7 @@ import { chromium } from 'playwright';
  *   403 sản phẩm tắt hẹn giờ · 404 máy được chia sẻ · 409 sửa `motlan` đang chạy.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: CHROMIUM });
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 140)));
 

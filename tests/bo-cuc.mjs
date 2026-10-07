@@ -1,4 +1,4 @@
-import { GOC, NHAT_KY, anh } from './chung.mjs';
+import { GOC, NHAT_KY, anh, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
@@ -14,7 +14,7 @@ import fs from 'node:fs';
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 try { fs.unlinkSync(NHAT_KY); } catch { /* chưa có */ }
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: CHROMIUM });
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 160)));
 

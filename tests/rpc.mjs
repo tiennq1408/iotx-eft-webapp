@@ -1,10 +1,10 @@
-import { GOC, GOC_GIA, NHAT_KY } from './chung.mjs';
+import { GOC, GOC_GIA, NHAT_KY, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 const R=[]; const ok=(t,c)=>R.push(`${c?'PASS':'FAIL'}  ${t}`);
 const doc=()=>{try{return fs.readFileSync(NHAT_KY,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);}catch{return[];}};
 try{fs.unlinkSync(NHAT_KY);}catch{}
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:CHROMIUM});
 const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();
 const loi=[]; p.on('pageerror',e=>loi.push(String(e).slice(0,120)));
 await p.goto(GOC,{waitUntil:'networkidle'});

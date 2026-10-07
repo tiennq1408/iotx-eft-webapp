@@ -5,8 +5,10 @@ import Icon from "../Icon";
 import { useChu } from "../chu";
 import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
+import { rong } from "@/lib/iotx/giaTri";
 
-export type GuiVatTu = (cap: IotxCapability, lenh: IotxLenhVatTu) => Promise<void>;
+/** Gửi một lệnh vật tư; trả `true` khi máy chủ nhận. Hỏng thì nơi gọi đã tự báo lỗi. */
+export type GuiVatTu = (cap: IotxCapability, lenh: IotxLenhVatTu) => Promise<boolean>;
 
 /** Hợp đồng để mở cho từng mục nên đọc phòng thủ, không đòi đúng một tên trường. */
 function danhSachMuc(device: Device, cap: IotxCapability): IotxMucVatTu[] {
@@ -23,7 +25,7 @@ function docSo(muc: IotxMucVatTu, ungVien: string[]): number | undefined {
   const ban = muc as Record<string, unknown>;
   for (const ten of ungVien) {
     const giaTri = ban[ten];
-    if (giaTri === undefined || giaTri === null || giaTri === "") continue;
+    if (rong(giaTri)) continue;
     const so = typeof giaTri === "number" ? giaTri : Number(giaTri);
     if (Number.isFinite(so)) return so;
   }
@@ -64,9 +66,10 @@ export function VatTuBlock({ device, cap, khoa, gui }: {
 
   const muc = danhSachMuc(device, cap);
 
-  async function lam(lenh: IotxLenhVatTu) {
+  /** Ô sửa/hỏi lại chỉ đóng khi lệnh thành công — hỏng thì giữ nguyên để người dùng thử lại. */
+  async function lam(lenh: IotxLenhVatTu, xong?: () => void) {
     setDangLam(true);
-    try { await gui(cap, lenh); }
+    try { if (await gui(cap, lenh)) xong?.(); }
     finally { setDangLam(false); }
   }
 
@@ -92,13 +95,13 @@ export function VatTuBlock({ device, cap, khoa, gui }: {
               <button className="seg-btn" disabled={khoa || dangLam} onClick={() => { void lam({ kieu: "thay", id: String(item.id ?? "") }); }}>{t("supplies_replace")}</button>
               <button className="seg-btn" disabled={khoa || dangLam} onClick={() => { setSuaTuoiId(suaTuoiId === id ? null : id); setTuoiMoi(String(item.tuoiTho ?? 365)); }}>{t("supplies_life_edit")}</button>
               {hoiBoId === id
-                ? <button className="seg-btn danger-btn" disabled={khoa || dangLam} onClick={() => { void lam({ kieu: "bo", id: String(item.id ?? "") }).then(() => setHoiBoId(null)); }}>{t("supplies_drop_confirm")}</button>
+                ? <button className="seg-btn danger-btn" disabled={khoa || dangLam} onClick={() => { void lam({ kieu: "bo", id: String(item.id ?? "") }, () => setHoiBoId(null)); }}>{t("supplies_drop_confirm")}</button>
                 : <button className="seg-btn" disabled={khoa || dangLam} onClick={() => setHoiBoId(id)}>{t("supplies_drop")}</button>}
             </div>
             {suaTuoiId === id && (
               <div className="vat-tu-sua">
                 <input type="number" min={1} inputMode="numeric" aria-label={t("supplies_life_edit")} value={tuoiMoi} onChange={e => setTuoiMoi(e.target.value)} />
-                <button className="seg-btn sel" disabled={khoa || dangLam || !(Number(tuoiMoi) > 0)} onClick={() => { void lam({ kieu: "tuoi", id: String(item.id ?? ""), tuoiTho: Number(tuoiMoi) }).then(() => setSuaTuoiId(null)); }}>{t("save")}</button>
+                <button className="seg-btn sel" disabled={khoa || dangLam || !(Number(tuoiMoi) > 0)} onClick={() => { void lam({ kieu: "tuoi", id: String(item.id ?? ""), tuoiTho: Number(tuoiMoi) }, () => setSuaTuoiId(null)); }}>{t("save")}</button>
               </div>
             )}
           </div>
@@ -113,7 +116,7 @@ export function VatTuBlock({ device, cap, khoa, gui }: {
           <div className="vat-tu-nut">
             <button className="seg-btn" onClick={() => setMoThem(false)}>{t("cancel")}</button>
             <button className="seg-btn sel" disabled={khoa || dangLam || (!tenMoi.trim() && !serialMoi.trim())}
-              onClick={() => { void lam({ kieu: "them", ...(serialMoi.trim() ? { serial: serialMoi.trim() } : {}), ...(tenMoi.trim() ? { ten: tenMoi.trim() } : {}) }).then(() => { setMoThem(false); setTenMoi(""); setSerialMoi(""); }); }}>
+              onClick={() => { void lam({ kieu: "them", ...(serialMoi.trim() ? { serial: serialMoi.trim() } : {}), ...(tenMoi.trim() ? { ten: tenMoi.trim() } : {}) }, () => { setMoThem(false); setTenMoi(""); setSerialMoi(""); }); }}>
               {t("supplies_add")}
             </button>
           </div>

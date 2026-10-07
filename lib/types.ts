@@ -22,3 +22,21 @@ export type Device = {
 };
 
 export type SpaceState = { houses: string[]; rooms: string[]; groups: string[] };
+
+export type AppData = {
+  devices: Device[];
+  spaces: SpaceState;
+};
+
+export type UiNotification = { id: string; icon: string; title: string; text: string; time: string; unread: boolean };
+
+export type ChiaSeNhan = {
+  id: string;
+  email: string;
+  house: string;
+  scope: string;
+  scopeRef: string;
+  perms?: IotxPermission;
+  /** Chỉ có ở chia sẻ mình cấp: người nhận chưa đăng ký nên lời mời còn treo. */
+  choDangKy?: boolean;
+};

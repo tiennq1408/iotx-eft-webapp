@@ -21,6 +21,11 @@ export function doSo(v: unknown, macDinh: number): number {
   return Number.isFinite(n) ? n : macDinh;
 }
 
+/** Máy chưa báo giá trị này: `undefined`, `null` hoặc chuỗi rỗng. */
+export function rong(v: unknown): boolean {
+  return v === undefined || v === null || v === "";
+}
+
 /** Có đọc được thành số không — rỗng và `null` là "chưa biết", không phải 0. */
 export function coSo(v: unknown): boolean {
   return v !== undefined && v !== null && v !== "" && Number.isFinite(doSo(v, NaN));

@@ -1,8 +1,8 @@
-import { GOC } from './chung.mjs';
+import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 const R=[]; const errs=[];
 const ok=(n,c,d='')=>R.push(`${c?'PASS':'FAIL'}  ${n}${d?' — '+d:''}`);
-const br=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const br=await chromium.launch({executablePath:CHROMIUM});
 const p=await (await br.newContext({viewport:{width:390,height:844}})).newPage();
 p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
 p.on('pageerror',e=>errs.push('pageerror: '+e.message));

@@ -1,10 +1,10 @@
 import { MOCK_DEVICES, MOCK_SPACES } from "./newui/mockCatalog";
-import type { Device, SpaceState } from "./types";
+import type { AppData } from "./types";
 
-export type AppData = {
-  devices: Device[];
-  spaces: SpaceState;
-};
+/**
+ * Kho của chế độ MOCK: thiết bị mẫu và mọi thao tác trên chúng sống trong localStorage.
+ * Chế độ IoTX thật không dùng tệp này — ảnh chụp của nó nằm ở `lib/iotx/cache.ts`.
+ */
 
 export const defaultData: AppData = {
   devices: MOCK_DEVICES,

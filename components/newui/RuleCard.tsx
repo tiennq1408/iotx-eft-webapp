@@ -5,6 +5,7 @@ import Icon from "./Icon";
 import { useChu } from "./chu";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxLanChay, IotxRule } from "@/lib/iotx/contracts";
+import { dinhDangLuc } from "@/lib/newui/thoiGian";
 
 /**
  * Một luật trên màn Tự động. Ngoài bật/tắt, chạy tay và xoá, thẻ này còn mở được:
@@ -41,7 +42,7 @@ export default function RuleCard({ rule, onBatTat, onXoa, onChay, onDung }: {
   const gio = (at?: string) => {
     if (!at) return "—";
     const d = new Date(at);
-    return Number.isNaN(d.getTime()) ? at : new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }).format(d);
+    return Number.isNaN(d.getTime()) ? at : dinhDangLuc(d);
   };
 
   return (

@@ -6,8 +6,9 @@ import { Sheet } from "./shell";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
 import { NGON_NGU } from "@/lib/newui/strings";
+import type { UiNotification } from "@/lib/types";
+import { TAT_CA } from "@/lib/newui/boLoc";
 
-export type UiNotification = { id: string; icon: string; title: string; text: string; time: string; unread: boolean };
 export type MucMenu = "spaces" | "members" | "add" | "virtual" | "timers" | "devices";
 
 const CO: Record<string, string> = { vi: IMG.flagVi, en: IMG.flagEn, fil: IMG.flagFil };
@@ -97,7 +98,7 @@ export function NotifModal({ items, onClose, onXoa, onXoaHet }: {
             <div className="ntxt">{muc.title}{muc.text ? ` — ${muc.text}` : ""}</div>
             <div className="ntime">{muc.time}</div>
           </div>
-          <button className="ndel" aria-label={t("auto_delete")} onClick={() => onXoa(muc.id)}><Icon name="close" /></button>
+          <button className="ndel" aria-label={t("notif_delete")} onClick={() => onXoa(muc.id)}><Icon name="close" /></button>
         </div>
       ))}
       {items.length > 0 && <button className="btn-full secondary" onClick={onXoaHet}>{t("notif_clear")}</button>}
@@ -121,13 +122,13 @@ export function LocPickerModal({ khoaTieuDe, khoaTatCa, dangChon, danhSach, onCl
   onChon: (ten: string) => void;
 }) {
   const { t } = useChu();
-  const rows = ["all", ...danhSach];
+  const rows = [TAT_CA, ...danhSach];
   return (
     <Sheet title={t(khoaTieuDe)} onClose={onClose} centered>
       <p className="modal-title">{t(khoaTieuDe)}</p>
       {rows.map(ten => (
         <button key={ten} className={`radio-list-row${dangChon === ten ? " sel" : ""}`} aria-pressed={dangChon === ten} onClick={() => onChon(ten)}>
-          <span className="rc" />{ten === "all" ? t(khoaTatCa) : ten}
+          <span className="rc" />{ten === TAT_CA ? t(khoaTatCa) : ten}
         </button>
       ))}
     </Sheet>
@@ -171,20 +172,3 @@ export function PlaceholderModal({ title, onClose }: { title: string; onClose: (
     </Sheet>
   );
 }
-
-export function ToastModal({ cau, onClose }: { cau: string; onClose: () => void }) {
-  const { t } = useChu();
-  return (
-    <Sheet title={cau} onClose={onClose} centered>
-      <p className="placeholder-msg">{cau}</p>
-      <button className="btn-full" onClick={onClose}>{t("understood")}</button>
-    </Sheet>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-/**
- * Tấm mở đầu việc thêm thiết bị. Prototype chỉ giả lập "đang dò thiết bị"; ở đây nút dẫn
- * sang luồng ghép nối 5 bước thật (QR / serial mạch → Wi-Fi → đặt tên → gán phòng).
- */

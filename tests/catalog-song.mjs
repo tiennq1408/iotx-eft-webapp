@@ -1,4 +1,4 @@
-import { GOC, GOC_GIA } from './chung.mjs';
+import { GOC, GOC_GIA, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
@@ -12,7 +12,7 @@ import { chromium } from 'playwright';
  * Bài này đổi lưới NGAY LÚC màn chi tiết đang mở và đo xem nó có tự vẽ lại không.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: CHROMIUM });
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 140)));
 

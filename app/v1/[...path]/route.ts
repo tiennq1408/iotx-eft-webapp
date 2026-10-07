@@ -22,7 +22,17 @@ function upstream() {
 const BO_QUA_REQUEST = new Set(["host", "connection", "content-length", "transfer-encoding", "accept-encoding"]);
 const BO_QUA_RESPONSE = new Set(["content-encoding", "content-length", "transfer-encoding", "connection"]);
 
+/**
+ * Nhánh của IBS mà app người dùng cuối không bao giờ được gọi (AGENTS.md, IOTX-INTEGRATION.md).
+ * Proxy này mở ra internet cùng app, nên phải tự chặn: trả đúng 404 nhập nhằng của hợp đồng
+ * để không lộ nhánh nào tồn tại.
+ */
+const NHANH_CAM = new Set(["admin", "internal", "danh-muc", "vat-tu", "health", "live", "ready"]);
+
+const khongThay = () => Response.json({ message: "not_found" }, { status: 404 });
+
 async function chuyenTiep(request: NextRequest, path: string[]) {
+  if (path.length === 0 || NHANH_CAM.has(path[0].toLowerCase())) return khongThay();
   const duong = path.map(encodeURIComponent).join("/");
   const dich = `${upstream()}/v1/${duong}${request.nextUrl.search}`;
 
@@ -49,9 +59,10 @@ async function chuyenTiep(request: NextRequest, path: string[]) {
     // Next trả 500 và trông như lỗi máy chủ — client sẽ chẩn đoán sai hoàn toàn.
     // 502 nói đúng bản chất: cửa trung gian không tới được nơi cần tới.
     if (request.signal.aborted) return new Response(null, { status: 499 });
-    const chiTiet = loi instanceof Error ? loi.message : String(loi);
+    // Chi tiết lỗi chứa tên máy và cổng nội bộ — chỉ trả ra khi đang phát triển.
+    const chiTiet = process.env.NODE_ENV === "production" ? undefined : (loi instanceof Error ? loi.message : String(loi));
     return Response.json(
-      { message: "Không kết nối được máy chủ IoTX. Kiểm tra đường truyền rồi thử lại.", chiTiet },
+      { message: "Không kết nối được máy chủ IoTX. Kiểm tra đường truyền rồi thử lại.", ...(chiTiet ? { chiTiet } : {}) },
       { status: 502 },
     );
   }

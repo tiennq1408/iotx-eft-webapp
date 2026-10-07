@@ -1,4 +1,4 @@
-import { GOC } from './chung.mjs';
+import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 import { PNG } from 'pngjs';
 /**
@@ -56,7 +56,7 @@ const AUDIT = `(() => {
   return { small:[...new Set(small)], lowc };
 })()`;
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch({ executablePath: CHROMIUM });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 const out = {};
 /**

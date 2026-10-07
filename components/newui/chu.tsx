@@ -6,9 +6,8 @@ import { CHU, laMaNgonNgu, type MaNgonNgu } from "@/lib/newui/strings";
 
 export type HamChu = (khoa: string, thamSo?: Record<string, string | number>) => string;
 
-const NguCanh = createContext<{ t: HamChu; lang: string }>({
+const NguCanh = createContext<{ t: HamChu }>({
   t: khoa => CHU.vi[khoa] ?? khoa,
-  lang: "vi",
 });
 
 function thay(chuoi: string, thamSo?: Record<string, string | number>) {
@@ -29,7 +28,7 @@ export function ChuProvider({ lang, boChu, children }: { lang: string; boChu: Bo
   const giaTri = useMemo(() => {
     const ma: MaNgonNgu = laMaNgonNgu(lang) ? lang : "vi";
     const t: HamChu = (khoa, thamSo) => thay(boChu.strings[khoa] ?? CHU[ma][khoa] ?? CHU.vi[khoa] ?? khoa, thamSo);
-    return { t, lang: ma };
+    return { t };
   }, [lang, boChu]);
   return <NguCanh.Provider value={giaTri}>{children}</NguCanh.Provider>;
 }

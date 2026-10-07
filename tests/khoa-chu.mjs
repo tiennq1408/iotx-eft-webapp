@@ -1,7 +1,7 @@
-import { GOC } from './chung.mjs';
+import { GOC, CHROMIUM } from './chung.mjs';
 // Quét mọi màn xem có khóa kỹ thuật nào lọt ra giao diện sau khi cắt bảng chữ.
 import { chromium } from 'playwright';
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:CHROMIUM});
 const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();
 await p.goto(GOC,{waitUntil:'networkidle'});
 await p.addStyleTag({content:'nextjs-portal{display:none!important}'});

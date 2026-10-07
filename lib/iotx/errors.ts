@@ -23,6 +23,11 @@ export function moTaLoi(error: unknown): string {
   return CAU_MANG;
 }
 
+/** Phiên đã chết hẳn: client chỉ ném 401 ra ngoài sau khi đã thử làm mới token mà vẫn hỏng. */
+export function laHetPhien(error: unknown): boolean {
+  return error instanceof IotxApiError && error.status === 401;
+}
+
 /** Đúng hai mã mà màn đăng nhập phải nói chung một câu (xem moTaLoiDangNhap). */
 export function laLoiDangNhap(error: unknown): boolean {
   return error instanceof IotxApiError && (error.status === 401 || error.status === 404);

@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useChu, type HamChu } from "../chu";
-import { VatTuBlock, type GuiVatTu } from "./VatTu";
+import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
+import VeO, { type Ngu } from "./VeO";
 import { boCucCua } from "@/lib/newui/boCuc";
-import { baoDangKeu, mauSkin, phanGiai, type O } from "@/lib/newui/khuon";
+import { baoDangKeu, mauSkin, phanGiai } from "@/lib/newui/khuon";
 import { moTaLoi } from "@/lib/iotx/errors";
-import { iotxClient, isIotxMode } from "@/lib/iotx";
+import { isIotxMode } from "@/lib/iotx";
 import { anhDaiDienSanPham } from "@/lib/newui/assets";
-import { coSo, doSo, laBat } from "@/lib/iotx/giaTri";
-import { nhanCap as nhanCapChung, nhanGiaTriCap as nhanGiaTriChung } from "@/lib/newui/nhanCap";
+import { nhanCap } from "@/lib/newui/nhanCap";
+import { tenChuongTrinhDangDung } from "@/lib/newui/henGio";
+import { dinhDangLuc } from "@/lib/newui/thoiGian";
+import { useHenGio } from "@/hooks/useHenGio";
 import type { IotxCapability, IotxHenGioTongQuan, IotxLenhVatTu } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 
@@ -27,218 +30,13 @@ import type { Device } from "@/lib/types";
 
 export type PropsMan = {
   device: Device;
-  lang: string;
   onClose: () => void;
   onCommand: (capability: IotxCapability, value: unknown) => Promise<void>;
-  onLang: (ma: string) => void;
   onAn: () => void;
-  onVatTu: GuiVatTu;
+  /** Ném lỗi khi máy chủ từ chối — màn này hiện lỗi ngay cạnh khối vật tư. */
+  onVatTu: (capability: IotxCapability, lenh: IotxLenhVatTu) => Promise<void>;
   onHenGio: () => void;
 };
-
-/* ------------------------------------------------------------------ */
-/* Đọc giá trị                                                         */
-/* ------------------------------------------------------------------ */
-
-const so = doSo;
-const donVi = (c: IotxCapability) => (c.unit ? `${c.unitSpace ? " " : ""}${c.unit}` : "");
-
-// Nhãn capability dùng chung với thẻ ngoài danh sách, để hai nơi không bao giờ lệch chữ.
-const nhanCua = nhanCapChung;
-const nhanGiaTri = (cap: IotxCapability, v: string, t: HamChu) => nhanGiaTriChung(cap, v, t);
-
-/* ------------------------------------------------------------------ */
-/* Một ô điều khiển                                                    */
-/* ------------------------------------------------------------------ */
-
-type Ngu = {
-  device: Device;
-  t: HamChu;
-  chan: boolean;
-  gui: (cap: IotxCapability, v: unknown) => void;
-  /** Lệnh trên MỘT mục vật tư đi cửa riêng `POST /devices/{id}/muc/{cap}`, không qua RPC. */
-  vatTu: GuiVatTu;
-};
-
-/** Vòng cung 270°: chu vi × 0,75 — giống hệt SVG của bản tham chiếu. */
-const VANH = 2 * Math.PI * 42 * 0.75;
-
-function Dial({ nhan, giaTri, un, pct, nho }: { nhan: string; giaTri: string; un: string; pct: number; nho?: boolean }) {
-  const canh = nho ? 96 : 164;
-  return (
-    <>
-      <div className="small dim">{nhan}</div>
-      <div className="ctl-dial" style={{ width: canh, height: canh }}>
-        <svg viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" strokeWidth="7" strokeLinecap="round" strokeDasharray={`${VANH} 999`} />
-          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--brand)" strokeWidth="7" strokeLinecap="round" strokeDasharray={`${(VANH * Math.max(0, Math.min(1, pct))).toFixed(2)} 999`} />
-        </svg>
-        <div className="ctl-dial-mid">
-          <div className="ctl-dial-big">{giaTri}</div>
-          {un && <div className="ctl-dial-un">{un}</div>}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: boolean }) {
-  const { device, t, gui, chan, vatTu } = ngu;
-  const { cap, variant } = o;
-  const ten = nhanCua(cap, t);
-  const v = device.lastValues?.[cap.key];
-  const khoa = chan || !cap.rpc;
-
-  const min = cap.min ?? 0;
-  const max = cap.max ?? 100;
-  const buoc = cap.step && cap.step > 0 ? cap.step : 1;
-  const nay = so(v, min);
-  const pct = max > min ? (nay - min) / (max - min) : 0;
-  const kep = (x: number) => Math.min(max, Math.max(min, x));
-
-  switch (variant) {
-    case "dial01":
-      return (
-        <div className="card ctl-hero">
-          <Dial nhan={ten} giaTri={coSo(v) ? String(nay) : "—"} un={cap.unit ?? ""} pct={pct} />
-          <div className="ctl-steprow">
-            <button className="ctl-step" aria-label={`${ten} −`} disabled={khoa} onClick={() => gui(cap, kep(nay - buoc))}>−</button>
-            <button className="ctl-step" aria-label={`${ten} +`} disabled={khoa} onClick={() => gui(cap, kep(nay + buoc))}>+</button>
-          </div>
-        </div>
-      );
-
-    case "slider01":
-      return (
-        <div className="card">
-          {nhan && <div className="small dim">{ten}</div>}
-          <div className="capline">
-            <input
-              className="ctl-slider" type="range" aria-label={ten}
-              min={min} max={max} step={buoc} value={coSo(v) ? nay : min} disabled={khoa}
-              onChange={e => gui(cap, Number(e.target.value))}
-            />
-            <span className="small">{coSo(v) ? `${nay}${donVi(cap)}` : "—"}</span>
-          </div>
-        </div>
-      );
-
-    case "step01":
-      return (
-        <div className="card">
-          <div className="capline">
-            {nhan && <span className="small dim">{ten}</span>}
-            <span className="row">
-              <button className="ctl-step" aria-label={`${ten} −`} disabled={khoa} onClick={() => gui(cap, kep(nay - buoc))}>−</button>
-              <span className="small">{coSo(v) ? `${nay}${donVi(cap)}` : "—"}</span>
-              <button className="ctl-step" aria-label={`${ten} +`} disabled={khoa} onClick={() => gui(cap, kep(nay + buoc))}>+</button>
-            </span>
-          </div>
-        </div>
-      );
-
-    case "chips01": {
-      // Catalog chưa khai `values` thì không dựng được lựa chọn nào — ẩn hẳn, tuyệt đối
-      // không tự nghĩ ra mã lệnh để gửi.
-      const ds = cap.values ?? [];
-      if (!ds.length) return null;
-      const dang = String(v ?? "");
-      return (
-        <div className="card">
-          {nhan && <div className="small dim">{ten}</div>}
-          <div className="mchips">
-            {ds.map(x => (
-              <span
-                key={x}
-                className={dang === x ? "on" : ""}
-                role="button"
-                tabIndex={khoa ? -1 : 0}
-                aria-pressed={dang === x}
-                aria-disabled={khoa}
-                // Vẫn gọi `gui` khi đang bị chặn: chính nó nói lý do. Nuốt cú bấm ở đây thì
-                // người dùng bấm mà không thấy gì xảy ra, tưởng app hỏng.
-                onClick={() => gui(cap, x)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); gui(cap, x); } }}
-              >
-                {nhanGiaTri(cap, x, t)}
-              </span>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    case "switch01": {
-      const bat = laBat(v);
-      return (
-        <div className="card capline">
-          <span className="small">{ten}</span>
-          <button className="switch-hit" aria-label={ten} aria-pressed={bat} disabled={khoa} onClick={() => gui(cap, !bat)}>
-            <span className={`switch${bat ? " on" : ""}`} />
-          </button>
-        </div>
-      );
-    }
-
-    case "power01": {
-      const bat = laBat(v);
-      return (
-        <div className="card ctl-pwr">
-          <div className="capline">
-            <button className={`ctl-pwrbtn${bat ? " on" : ""}`} aria-label={ten} aria-pressed={bat} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
-            <span>{ten}</span>
-            <span className="dim small">{bat ? t("on") : t("off")}</span>
-          </div>
-        </div>
-      );
-    }
-
-    case "readout01":
-      return (
-        <div className="card ctl-doc">
-          <div className="ctl-doc-so">{v === undefined || v === null || v === "" ? "—" : `${v}`}<em>{cap.unit ?? ""}</em></div>
-          <div className="small dim">{ten}</div>
-        </div>
-      );
-
-    case "gauge01":
-      // Vòng cỡ nhỏ: `gauge01` hay nằm ở hàng số đọc, không phải khối chính — dùng lớp
-      // riêng để không có hai khối chính trên cùng một màn.
-      return (
-        <div className="card ctl-gauge">
-          <Dial nhan={ten} giaTri={coSo(v) ? String(nay) : "—"} un={cap.unit ?? ""} pct={pct} nho />
-        </div>
-      );
-
-    case "state01":
-      return (
-        <div className="card capline">
-          <span className="small dim">{ten}</span>
-          <span className="small">{v === undefined || v === null || v === "" ? "—" : nhanGiaTri(cap, String(v), t)}</span>
-        </div>
-      );
-
-    case "alarm01":
-      return (
-        <div className="card ctl-bao" role="status">
-          <b>{ten}</b>
-          <span className="small">{v === undefined ? "—" : nhanGiaTri(cap, String(v), t)}</span>
-        </div>
-      );
-
-    case "filterlist01":
-      // Capability kiểu `list` KHÔNG có `rpc` — lệnh của nó đi cửa `muc/{cap}` — nên chỉ
-      // khóa theo quyền (`chan`), đừng dùng `khoa` ở trên vì nó luôn true khi thiếu `rpc`.
-      return (
-        <div className="card ctl-vattu">
-          <VatTuBlock device={device} cap={cap} khoa={chan} gui={vatTu} />
-        </div>
-      );
-
-    default:
-      return null;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Màn                                                                 */
@@ -251,17 +49,10 @@ function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: boolean }) {
 function tomTatHenGio(tq: IotxHenGioTongQuan | null, t: HamChu): string {
   if (!tq) return t("hg_chua_dat");
   if (tq.dangChay && tq.dangDung !== null) {
-    const ten = tq.chuongTrinh.find(c => c.id === tq.dangDung)?.ten ?? "";
-    return t("hg_ghim_chay", { ten, n: tq.dangChay.buocXong });
+    return t("hg_ghim_chay", { ten: tenChuongTrinhDangDung(tq), n: tq.dangChay.buocXong });
   }
-  if (tq.hen) {
-    const luc = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
-      .format(new Date(tq.hen.luc));
-    return t(tq.hen.bat ? "hg_ghim_bat" : "hg_ghim_tat", { luc });
-  }
-  if (tq.dangDung !== null) {
-    return t("hg_ghim_dung", { ten: tq.chuongTrinh.find(c => c.id === tq.dangDung)?.ten ?? "" });
-  }
+  if (tq.hen) return t(tq.hen.bat ? "hg_ghim_bat" : "hg_ghim_tat", { luc: dinhDangLuc(tq.hen.luc) });
+  if (tq.dangDung !== null) return t("hg_ghim_dung", { ten: tenChuongTrinhDangDung(tq) });
   return t("hg_chua_dat");
 }
 
@@ -278,20 +69,8 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
    *   404            → máy được chia sẻ; hợp đồng chỉ cho CHỦ dùng hẹn giờ
    * Cả hai đều GIẤU hẳn thanh, thay vì mời người dùng bấm vào một màn chỉ báo lỗi.
    */
-  const [hg, setHg] = useState<IotxHenGioTongQuan | null>(null);
-  const [hienGhim, setHienGhim] = useState(!isIotxMode);
-
-  const taiHenGio = useCallback(async () => {
-    if (!isIotxMode) return;
-    try {
-      const tq = await iotxClient.xemHenGio(device.id);
-      setHg(tq);
-      setHienGhim(tq.batDuoc);
-    } catch { setHienGhim(false); }
-  }, [device.id]);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void taiHenGio(); }, [taiHenGio]);
+  const { tongQuan: hg, loi: loiHenGio } = useHenGio(device.id);
+  const hienGhim = !isIotxMode || (hg?.batDuoc === true && !loiHenGio);
   const [moThem, setMoThem] = useState(false);
 
   const kq = useMemo(
@@ -305,19 +84,26 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
   const choDieuKhien = device.perms?.control !== false;
   const choXoa = device.perms?.delete !== false;
 
+  /** Người được chia sẻ chỉ-xem: báo lý do ngay tại chỗ thay vì để máy chủ từ chối. */
+  function khongQuyen() {
+    if (choDieuKhien) return false;
+    setLoi(t("chan_khongQuyen"));
+    return true;
+  }
+
   function gui(cap: IotxCapability, giaTri: unknown) {
-    if (device.perms?.control === false) { setLoi(t("chan_khongQuyen")); return; }
-    if (!cap.rpc) { setLoi(t("chan_khong_lenh", { ten: nhanCua(cap, t) })); return; }
+    if (khongQuyen()) return;
+    if (!cap.rpc) { setLoi(t("chan_khong_lenh", { ten: nhanCap(cap, t) })); return; }
     setLoi("");
     onCommand(cap, giaTri).catch(e => setLoi(moTaLoi(e)));
   }
 
-  async function guiVatTu(cap: IotxCapability, lenh: IotxLenhVatTu) {
-    if (device.perms?.control === false) { setLoi(t("chan_khongQuyen")); return; }
+  const guiVatTu: GuiVatTu = async (cap, lenh) => {
+    if (khongQuyen()) return false;
     setLoi("");
-    try { await onVatTu(cap, lenh); }
-    catch (e) { setLoi(moTaLoi(e)); }
-  }
+    try { await onVatTu(cap, lenh); return true; }
+    catch (e) { setLoi(moTaLoi(e)); return false; }
+  };
 
   const ngu: Ngu = { device, t, chan: !choDieuKhien, gui, vatTu: guiVatTu };
   const anhDaiDien = anhDaiDienSanPham(device.product);
@@ -338,7 +124,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
 
   const than = bc ? (
     <div style={bien}>
-      <BoCucGrid bc={bc} device={device} onCommand={gui} onVatTu={guiVatTu} />
+      <BoCucGrid bc={bc} device={device} chan={!choDieuKhien} onCommand={gui} onVatTu={guiVatTu} />
     </div>
   ) : kq && (
     <div style={bien}>
@@ -354,7 +140,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
         ? <VeO o={kq.veHero} ngu={ngu} />
         : (
           <div className="card ctl-hero">
-            <div className="small dim">{nhanCua(kq.veHero.cap, t)}</div>
+            <div className="small dim">{nhanCap(kq.veHero.cap, t)}</div>
             <VeO o={kq.veHero} ngu={ngu} nhan={false} />
           </div>
         ))}

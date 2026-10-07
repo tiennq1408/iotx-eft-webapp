@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import Icon from "./Icon";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
-import { NGON_NGU } from "@/lib/newui/strings";
 
 /* ------------------------------------------------------------------ */
 /* Tấm trượt (modal sheet)                                             */
@@ -25,31 +24,6 @@ export function Sheet({ title, onClose, centered, children }: {
         <button className="modal-close" aria-label={t("close")} onClick={onClose}><span><Icon name="close" /></span></button>
         {children}
       </section>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Hàng cờ đổi ngôn ngữ                                                */
-/* ------------------------------------------------------------------ */
-
-const CO: Record<string, string> = { vi: IMG.flagVi, en: IMG.flagEn, fil: IMG.flagFil };
-
-export function FlagRow({ lang, onLang, className }: { lang: string; onLang: (ma: string) => void; className?: string }) {
-  return (
-    <div className={`flag-row${className ? ` ${className}` : ""}`}>
-      {NGON_NGU.map(muc => (
-        <button
-          key={muc.id}
-          className={`flag-btn${lang === muc.id ? " active" : ""}`}
-          aria-label={muc.ten}
-          aria-pressed={lang === muc.id}
-          onClick={() => onLang(muc.id)}
-        >
-          {/* Cờ là ảnh trang trí; tên ngôn ngữ đã nằm ở aria-label của nút. */}
-          <i><Image unoptimized src={CO[muc.id]} alt="" width={28} height={28} /></i>
-        </button>
-      ))}
     </div>
   );
 }

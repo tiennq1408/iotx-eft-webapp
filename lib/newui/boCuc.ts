@@ -13,10 +13,10 @@ import type { IotxCapability, IotxProduct } from "@/lib/iotx/contracts";
 
 /** Chiều cao một hàng; catalog chỉ được chọn một trong ba. */
 const CAO_HANG = [56, 64, 72];
-export const CAO_HANG_MAC = 64;
+const CAO_HANG_MAC = 64;
 
 /** Số cột cố định của lưới. */
-export const SO_COT = 4;
+const SO_COT = 4;
 
 /** Kiểu vẽ hợp lệ theo `kind` — khai sai thì rơi về mặc định của kind. */
 const VARIANT_THEO_KIND: Record<string, string[]> = {
@@ -65,7 +65,7 @@ export function boCucCua(product?: IotxProduct | null): BoCuc | null {
 }
 
 /** Kiểu vẽ của một ô: tôn trọng khai báo nếu hợp lệ, không thì mặc định theo `kind`. */
-export function variantO(cap: IotxCapability, khai?: string): string {
+function variantO(cap: IotxCapability, khai?: string): string {
   const choPhep = VARIANT_THEO_KIND[cap.kind] ?? [];
   if (khai && choPhep.includes(khai)) return khai;
   if (cap.kind === "onoff") return cap.key === "power" ? "power01" : "switch01";
@@ -109,7 +109,7 @@ export function cotChip(soGiaTri: number, soCot: number, i: number): string {
  * (hàng 1, 4, 6, 13…) để dành chỗ sửa về sau; app mà vẽ đúng số đó thì màn đầy khoảng
  * trống. Đặt `donHang: false` thì giữ nguyên mọi hàng.
  */
-export function hangHienThi(o: OBoCuc[], donHang = true): { map: Record<number, number>; soHang: number } {
+function hangHienThi(o: OBoCuc[], donHang = true): { map: Record<number, number>; soHang: number } {
   const coO = new Set<number>();
   let cuoi = 0;
   for (const muc of o) {
@@ -145,7 +145,7 @@ export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[]) {
  * Mã lỗi từ một giá trị thô: mảng, chuỗi ngăn cách, hay một giá trị đơn. "0"/"false"/rỗng
  * nghĩa là KHÔNG có lỗi — hợp đồng nói rõ, đừng hiện chúng thành một dòng lỗi tên "0".
  */
-export function maLoi(giaTri: unknown): string[] {
+function maLoi(giaTri: unknown): string[] {
   if (giaTri === null || giaTri === undefined || giaTri === false) return [];
   const nguon = Array.isArray(giaTri) ? giaTri : typeof giaTri === "string" ? giaTri.split(/[,;|\s]+/) : [giaTri];
   const ra: string[] = [];

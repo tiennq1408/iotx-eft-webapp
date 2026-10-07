@@ -1,8 +1,8 @@
-import type { AppData } from "@/lib/storage";
-import type { Device, SpaceState } from "@/lib/types";
+import type { AppData, ChiaSeNhan, Device, SpaceState, UiNotification } from "@/lib/types";
 import { capNguonCua } from "@/lib/newui/khuon";
+import { dinhDangLuc } from "@/lib/newui/thoiGian";
 import { laBat as asBoolean } from "./giaTri";
-import type { IotxBootstrap, IotxCategory, IotxDevice } from "./contracts";
+import type { IotxBootstrap, IotxCategory, IotxDevice, IotxNotification, IotxShare } from "./contracts";
 
 /**
  * Tính lại các trường dẫn xuất (`on`, `speed`) từ bộ giá trị cuối.
@@ -25,6 +25,12 @@ export function suyDanXuat(
   };
 }
 
+/** Ghi đè vài giá trị cuối của một thiết bị và suy lại `on`/`speed` theo đúng `suyDanXuat`. */
+export function apGiaTri(device: Device, patch: Record<string, unknown>): Device {
+  const lastValues = { ...device.lastValues, ...patch };
+  return { ...device, lastValues, ...suyDanXuat(lastValues, device.product, device.speed) };
+}
+
 export function mapIotxDevice(device: IotxDevice): Device {
   return {
     id: device.id,
@@ -45,7 +51,7 @@ export function mapIotxDevice(device: IotxDevice): Device {
   };
 }
 
-export function mapCategories(categories: IotxCategory[]): SpaceState {
+function mapCategories(categories: IotxCategory[]): SpaceState {
   return {
     houses: categories.filter(item => item.kind === "house").map(item => item.name),
     rooms: categories.filter(item => item.kind === "room").map(item => item.name),
@@ -58,5 +64,48 @@ export function mergeBootstrap(current: AppData, bootstrap: IotxBootstrap): AppD
     ...current,
     devices: bootstrap.devices.filter(device => !device.hidden).map(mapIotxDevice),
     spaces: mapCategories(bootstrap.categories),
+  };
+}
+
+/** Nhánh "receivedFromOthers" dùng camelCase và ownerEmail là NGƯỜI CHIA SẺ cho tôi. */
+export function mapShareNhanDuoc(item: IotxShare): ChiaSeNhan {
+  return {
+    id: String(item.id),
+    email: item.ownerEmail || item.email || item.member_email || "",
+    house: item.house || "",
+    scope: item.scope || "house",
+    scopeRef: item.scopeRef || item.scope_ref || "",
+    perms: item.perms,
+  };
+}
+
+/** Nhánh "granted" dùng snake_case; member_sub rỗng nghĩa là người nhận chưa đăng nhập bao giờ. */
+export function mapShareDaCap(item: IotxShare): ChiaSeNhan {
+  return {
+    id: String(item.id),
+    email: item.member_email || item.email || item.ownerEmail || "",
+    house: item.house || "",
+    scope: item.scope || "house",
+    scopeRef: item.scope_ref || item.scopeRef || "",
+    perms: item.perms,
+    choDangKy: !item.member_sub,
+  };
+}
+
+function iconThongBao(type: string) {
+  if (type === "error" || type === "alarm") return "flame";
+  if (type === "success") return "checkCircle";
+  if (type === "water") return "drop";
+  return "bell";
+}
+
+export function mapNotification(item: IotxNotification): UiNotification {
+  return {
+    id: String(item.id),
+    icon: iconThongBao(item.type),
+    title: item.title,
+    text: item.body || "",
+    time: dinhDangLuc(item.created_at),
+    unread: !item.read,
   };
 }

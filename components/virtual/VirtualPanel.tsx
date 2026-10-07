@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTacVu } from "@/hooks/useTacVu";
 import { ArrowLeft, CloudSun, Hand, Home, Plus, Trash2, X } from "lucide-react";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxKieuAo, IotxNoiChon, IotxThietBiAo } from "@/lib/iotx/contracts";
@@ -11,14 +12,13 @@ const TRAN = 10;
 export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => void; onThayDoi: () => void | Promise<void> }) {
   const { t } = useChu();
   const [ds, setDs] = useState<IotxThietBiAo[]>([]);
-  const [noi, setNoi] = useState<IotxNoiChon[]>([]);
+  const [dsNoi, setDsNoi] = useState<IotxNoiChon[]>([]);
   const [kieu, setKieu] = useState<IotxKieuAo>("state");
   const [ten, setTen] = useState("");
-  const [nơi, setNoiChon] = useState("");
+  const [noiChon, setNoiChon] = useState("");
   const [dangSuaId, setDangSuaId] = useState<string | null>(null);
   const [tenSua, setTenSua] = useState("");
-  const [loi, setLoi] = useState("");
-  const [dangLam, setDangLam] = useState(false);
+  const { loi, setLoi, dangLam, chay } = useTacVu();
 
   const tai = useCallback(async () => {
     // Thiết bị ảo sống ở IBS, không có bản mock nào. Ở chế độ mock mà vẫn gọi thì chỉ nhận
@@ -31,9 +31,9 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
         iotxClient.noChonDuoc().catch(() => [] as IotxNoiChon[]),
       ]);
       setDs(danhSach);
-      setNoi(noiCo);
+      setDsNoi(noiCo);
     } catch (error) { setLoi(moTaLoi(error)); }
-  }, []);
+  }, [setLoi]);
 
   // Nạp lần đầu. Quy tắc set-state-in-effect nhắm vào setState ĐỒNG BỘ trong thân effect;
   // ở đây state chỉ đổi sau khi request trả về, đúng kiểu "đăng ký nhận dữ liệu từ hệ ngoài".
@@ -46,17 +46,12 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
     button: { nhan: t("virtual.button"), goiY: t("virtual.buttonDesc"), cho: t("virtual.phButton"), icon: <Hand /> },
   };
 
-  async function lam(viec: () => Promise<unknown>) {
-    setLoi(""); setDangLam(true);
-    try { await viec(); await tai(); await onThayDoi(); }
-    catch (error) { setLoi(moTaLoi(error)); }
-    finally { setDangLam(false); }
-  }
+  const lam = (viec: () => Promise<unknown>) => chay(async () => { await viec(); await tai(); await onThayDoi(); });
 
   async function tao() {
     if (!ten.trim()) return;
     await lam(async () => {
-      await iotxClient.taoThietBiAo({ kind: kieu, name: ten.trim(), ...(kieu === "external" && nơi ? { place: nơi } : {}) });
+      await iotxClient.taoThietBiAo({ kind: kieu, name: ten.trim(), ...(kieu === "external" && noiChon ? { place: noiChon } : {}) });
       setTen("");
     });
   }
@@ -90,11 +85,11 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
         </div>
         <div className="stack">
           <input value={ten} maxLength={40} placeholder={moTaKieu[kieu].cho} onChange={e => setTen(e.target.value)} />
-          {kieu === "external" && <select aria-label={t("place.title")} value={nơi} onChange={e => setNoiChon(e.target.value)}>
+          {kieu === "external" && <select aria-label={t("place.title")} value={noiChon} onChange={e => setNoiChon(e.target.value)}>
             <option value="">{t("virtual.pickPlace")}</option>
-            {noi.map(n => <option key={n.key} value={n.key}>{n.name}</option>)}
+            {dsNoi.map(n => <option key={n.key} value={n.key}>{n.name}</option>)}
           </select>}
-          <button className="primary" disabled={!isIotxMode || dangLam || !ten.trim() || ds.length >= TRAN || (kieu === "external" && !nơi)} onClick={() => { void tao(); }}>
+          <button className="primary" disabled={!isIotxMode || dangLam || !ten.trim() || ds.length >= TRAN || (kieu === "external" && !noiChon)} onClick={() => { void tao(); }}>
             <Plus /> {t("common.create")}
           </button>
         </div>

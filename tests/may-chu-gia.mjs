@@ -153,6 +153,9 @@ http.createServer((req,res)=>{
   const u = new URL(req.url,'http://x');
   const p = u.pathname.replace(/^\/v1/,'');
   if (req.method==='OPTIONS') return J(res,{});
+  // IBS thật CÓ các nhánh này (quản trị, nội bộ, thăm dò sức khoẻ). Trả 200 để bài bao-ve
+  // đo được proxy /v1 có chặn thật không, thay vì ăn may nhờ 404 của máy giả.
+  if (/^\/(admin|internal|danh-muc|vat-tu)(\/|$)|^\/(health|live|ready)$/.test(p)) return J(res,{loRa:true});
   if (p==='/auth/login') return J(res,{accessToken:'a',refreshToken:'r',tenant:'livotec',expiresIn:300});
   if (p==='/auth/refresh') return J(res,{accessToken:'a',refreshToken:'r',tenant:'livotec',expiresIn:300});
   if (p==='/tenant/theme') return J(res,{colorPrimary:'#02b6ac',tenantName:'Livotec Home',logoUrl:null});

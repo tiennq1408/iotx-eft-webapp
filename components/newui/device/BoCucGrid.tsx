@@ -5,6 +5,7 @@ import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 import { diaChiIcon } from "@/lib/newui/assets";
 import { coSo, doSo, laBat } from "@/lib/iotx/giaTri";
+import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
 import {
   CAN_CHU, CAN_DOC, CAN_NGANG, cotChip, cotChipTuDong, danhSachLoi, dayNgang,
   phanGiaiBoCuc, tuCoNhan, type BoCuc, type OdaDung,
@@ -20,13 +21,10 @@ import type { Device } from "@/lib/types";
  * chỉ đổi mô tả đó thành DOM; không có một nhánh `if` nào theo loại thiết bị.
  */
 
-const donVi = (c: IotxCapability) => (c.unit ? `${c.unitSpace ? " " : ""}${c.unit}` : "");
-
 /**
  * `gtIco`: emoji, địa chỉ ảnh, hoặc `@ten` trỏ vào kho icon của sadmin — `diaChiIcon` lo
  * phân loại. Trả null nghĩa là KHÔNG có gì để vẽ, và lúc đó đừng vẽ thẻ bọc (xem `ONoiDung`).
  */
-const icoVeDuoc = diaChiIcon;
 
 function Ico({ ico }: { ico: string }) {
   if (/^(https?:|data:image|\/)/i.test(ico)) {
@@ -58,7 +56,7 @@ function diemTren(goc: number) {
 }
 
 /** `t` trong [0,1]. Cờ cung-lớn bật khi quét quá nửa vòng tròn, đúng luật của SVG arc. */
-export function cungTron(t: number) {
+function cungTron(t: number) {
   const quet = Math.max(0, Math.min(1, t)) * GOC_QUET;
   return `M${diemTren(GOC_DAU)}A${BAN_KINH} ${BAN_KINH} 0 ${quet > 180 ? 1 : 0} 1 ${diemTren(GOC_DAU + quet)}`;
 }
@@ -76,14 +74,18 @@ function Dial({ v, min, max, chu }: { v: number; min: number; max: number; chu: 
   );
 }
 
-function ONoiDung({ o, device, t, gui, vatTu }: {
+function ONoiDung({ o, device, t, chan, gui, vatTu }: {
   o: OdaDung; device: Device; t: HamChu;
+  /** Người dùng không có quyền điều khiển (chia sẻ chỉ-xem). */
+  chan: boolean;
   gui: (cap: IotxCapability, v: unknown) => void;
   vatTu: GuiVatTu;
 }) {
   const cap = o.cap;
   const v = device.lastValues?.[cap.key];
   const ten = nhanCap(cap, t);
+  // Cùng luật với khuôn chi tiết: thiếu quyền hoặc catalog không khai lệnh thì khóa.
+  const khoa = chan || !cap.rpc;
 
   if (cap.kind === "onoff") {
     const bat = laBat(v);
@@ -91,7 +93,7 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
       return (
         <div className="bc-srow" style={{ justifyContent: "center", gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
-            aria-label={ten} onClick={() => gui(cap, !bat)}>⏻</button>
+            aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
           {o.w >= 2 && <b className={lopNhan(o).trim() || undefined} style={{ fontWeight: 600 }}>{ten}</b>}
         </div>
       );
@@ -100,7 +102,7 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
       <div className="bc-srow">
         <span className={lopNhan(o).trim() || undefined}>{ten}</span>
         <button className="switch-hit" role="switch" aria-checked={bat}
-          aria-label={ten} onClick={() => gui(cap, !bat)}>
+          aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
           <span className={`switch${bat ? " on" : ""}`} />
         </button>
       </div>
@@ -108,15 +110,15 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
   }
 
   if (cap.kind === "level") {
-    const min = Number(cap.min ?? 0), max = Number(cap.max ?? 100), buoc = Number(cap.step ?? 1) || 1;
+    const { min, max, buoc, kep } = thongSoMuc(cap);
     const nay = doSo(v, min);
-    const doi = (huong: number) => gui(cap, Math.max(min, Math.min(max, nay + huong * buoc)));
+    const doi = (huong: number) => gui(cap, kep(nay + huong * buoc));
     if (o.variant === "dial01") {
       return (
         <div className="bc-dialwrap">
-          <button className="bc-dialbtn" onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
-          <Dial v={nay} min={min} max={max} chu={coSo(v) ? `${nay}${donVi(cap)}` : "—"} />
-          <button className="bc-dialbtn" onClick={() => doi(1)} aria-label={`${ten} +`}>+</button>
+          <button className="bc-dialbtn" disabled={khoa} onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
+          <Dial v={nay} min={min} max={max} chu={chuSoCap(cap, v)} />
+          <button className="bc-dialbtn" disabled={khoa} onClick={() => doi(1)} aria-label={`${ten} +`}>+</button>
         </div>
       );
     }
@@ -125,16 +127,16 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
         <div className="bc-srow">
           <span className={lopNhan(o).trim() || undefined} style={{ fontSize: 15 }}>{ten}</span>
           <div className="bc-stp">
-            <button onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
-            <span>{coSo(v) ? `${nay}${donVi(cap)}` : "—"}</span>
-            <button onClick={() => doi(1)} aria-label={`${ten} +`}>+</button>
+            <button disabled={khoa} onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
+            <span>{chuSoCap(cap, v)}</span>
+            <button disabled={khoa} onClick={() => doi(1)} aria-label={`${ten} +`}>+</button>
           </div>
         </div>
       );
     }
     return (
       <input className="bc-sl" type="range" min={min} max={max} step={buoc} aria-label={ten}
-        value={coSo(v) ? nay : min} onChange={e => gui(cap, Number(e.target.value))} />
+        value={coSo(v) ? nay : min} disabled={khoa} onChange={e => gui(cap, Number(e.target.value))} />
     );
   }
 
@@ -150,9 +152,10 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
           // Không có icon thì KHÔNG dựng thẻ bọc. `.bc-chip i` có `min-height:18px`, nên một
           // thẻ rỗng vẫn chiếm chỗ và đẩy nhãn tụt xuống — nhìn như chữ không căn giữa.
           // Bản tham chiếu bỏ hẳn thẻ này khi catalog không khai icon.
-          const ico = icoVeDuoc(o.gtIco?.[String(gt)]);
+          const ico = diaChiIcon(o.gtIco?.[String(gt)]);
           return (
-            <span key={String(gt)} role="button" tabIndex={0} aria-pressed={chon} title={chu}
+            // Vẫn gọi `gui` khi bị khóa: chính nó nói lý do, thay vì nuốt cú bấm im lặng.
+            <span key={String(gt)} role="button" tabIndex={khoa ? -1 : 0} aria-pressed={chon} aria-disabled={khoa} title={chu}
               className={`bc-chip${chon ? " on" : ""}`}
               style={{ gridColumn: cotChip(ds.length, Math.max(1, cot), i) }}
               onClick={() => gui(cap, gt)}
@@ -166,19 +169,21 @@ function ONoiDung({ o, device, t, gui, vatTu }: {
     );
   }
 
-  if (cap.kind === "list") return <VatTuBlock device={device} cap={cap} khoa={false} gui={vatTu} />;
+  // Capability `list` không có `rpc` — lệnh đi cửa `muc/{cap}` — nên chỉ khóa theo quyền.
+  if (cap.kind === "list") return <VatTuBlock device={device} cap={cap} khoa={chan} gui={vatTu} />;
 
   // sensor
   if (o.variant === "state01") {
     const chu = cap.labels?.[String(v)] ?? (laBat(v) ? t("on") : t("off"));
     return <span className="bc-big" style={{ fontSize: 15 }}>{chu}</span>;
   }
-  return <span className="bc-big">{coSo(v) ? `${doSo(v, 0)}${donVi(cap)}` : "—"}</span>;
+  return <span className="bc-big">{chuSoCap(cap, v)}</span>;
 }
 
-export default function BoCucGrid({ bc, device, onCommand, onVatTu }: {
+export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
   bc: BoCuc;
   device: Device;
+  chan: boolean;
   onCommand: (cap: IotxCapability, v: unknown) => void;
   onVatTu: GuiVatTu;
 }) {
@@ -216,7 +221,7 @@ export default function BoCucGrid({ bc, device, onCommand, onVatTu }: {
                 </div>
               )}
               <div className="bc-body" style={than}>
-                <ONoiDung o={o} device={device} t={t} gui={onCommand} vatTu={onVatTu} />
+                <ONoiDung o={o} device={device} t={t} chan={chan} gui={onCommand} vatTu={onVatTu} />
               </div>
             </div>
           );

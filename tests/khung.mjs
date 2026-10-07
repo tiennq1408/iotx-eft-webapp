@@ -1,4 +1,4 @@
-import { GOC, anh } from './chung.mjs';
+import { GOC, anh, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
  * khổ rộng, nơi duy nhất nhìn ra được.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: CHROMIUM });
 const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 140)));
 

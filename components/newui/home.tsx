@@ -7,7 +7,9 @@ import { useChu, type HamChu } from "./chu";
 import { IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
 import { capNguonCua, phanGiai } from "@/lib/newui/khuon";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
-import { laBat } from "@/lib/iotx/giaTri";
+import { laBat, rong } from "@/lib/iotx/giaTri";
+import { donVi } from "@/lib/newui/giaTriCap";
+import { TAT_CA, type BoLoc, type LoaiLoc } from "@/lib/newui/boLoc";
 import type { IotxCapability } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 
@@ -61,30 +63,27 @@ export function BannerCarousel() {
  * Ba bộ lọc độc lập: nhà, phòng, nhóm. Mỗi cái mở một danh sách chọn thật (không còn toast
  * "sắp ra mắt"), và nút nào đang lọc thì sáng lên để người dùng biết vì sao danh sách ngắn.
  */
-export function FilterRow({ nha, phong, nhom, gonGang, onChonNha, onChonPhong, onChonNhom, onGonGang }: {
-  nha: string;
-  phong: string;
-  nhom: string;
+export function FilterRow({ boLoc, gonGang, onChon, onGonGang }: {
+  boLoc: BoLoc;
   gonGang: boolean;
-  onChonNha: () => void;
-  onChonPhong: () => void;
-  onChonNhom: () => void;
+  onChon: (loai: LoaiLoc) => void;
   onGonGang: () => void;
 }) {
   const { t } = useChu();
+  const { nha, phong, nhom } = boLoc;
   const lop = (dangLoc: boolean) => `filter-pill${dangLoc ? " active" : ""}`;
   // Chưa lọc thì nút chỉ mang tên loại ("Nhà"), lọc rồi thì mang tên đang chọn. Không để
   // chữ "Tất cả" trên nút: nó chiếm chỗ mà không nói thêm gì so với trạng thái không lọc.
   return (
     <div className="filter-row">
-      <button className={lop(nha !== "all")} onClick={onChonNha}>
-        <Icon name="house" /> <span className="fp-ten">{nha === "all" ? t("loc_nha") : nha}</span> <Icon name="chevDown" />
+      <button className={lop(nha !== TAT_CA)} onClick={() => onChon("nha")}>
+        <Icon name="house" /> <span className="fp-ten">{nha === TAT_CA ? t("loc_nha") : nha}</span> <Icon name="chevDown" />
       </button>
-      <button className={lop(phong !== "all")} onClick={onChonPhong}>
-        <Icon name="box" /> <span className="fp-ten">{phong === "all" ? t("loc_phong") : phong}</span> <Icon name="chevDown" />
+      <button className={lop(phong !== TAT_CA)} onClick={() => onChon("phong")}>
+        <Icon name="box" /> <span className="fp-ten">{phong === TAT_CA ? t("loc_phong") : phong}</span> <Icon name="chevDown" />
       </button>
-      <button className={lop(nhom !== "all")} onClick={onChonNhom}>
-        <span className="fp-ten">{nhom === "all" ? t("loc_nhom") : nhom}</span> <Icon name="chevDown" />
+      <button className={lop(nhom !== TAT_CA)} onClick={() => onChon("nhom")}>
+        <span className="fp-ten">{nhom === TAT_CA ? t("loc_nhom") : nhom}</span> <Icon name="chevDown" />
       </button>
       <button className="filter-pill eye" aria-label={t("nav_devices")} aria-pressed={gonGang} onClick={onGonGang}>
         <Icon name="eye" />
@@ -116,7 +115,7 @@ function dongTrangThai(device: Device, t: HamChu): string {
     : [];
   const doc = (cap: IotxCapability) => {
     const giaTri = device.lastValues?.[cap.key];
-    return giaTri === undefined || giaTri === null || giaTri === "" ? null : giaTri;
+    return rong(giaTri) ? null : giaTri;
   };
 
   // Nút nguồn đã nói bằng chữ "Bật/Tắt" ở đầu dòng — nhắc lại tên nó là thừa.
@@ -137,8 +136,8 @@ function dongTrangThai(device: Device, t: HamChu): string {
     if (cap.kind === "enum") { manh.push(nhanGiaTriCap(cap, String(giaTri), t)); continue; }
     // Có đơn vị thì con số tự nói lên nó là gì (18.3°C); không có thì phải kèm nhãn, nếu
     // không thẻ chỉ hiện trơ một con "12" chẳng biết của cái gì.
-    const donVi = cap.unit ? `${cap.unitSpace ? " " : ""}${cap.unit}` : "";
-    manh.push(donVi ? `${giaTri}${donVi}` : `${nhanCap(cap, t)} ${giaTri}`);
+    const dv = donVi(cap);
+    manh.push(dv ? `${giaTri}${dv}` : `${nhanCap(cap, t)} ${giaTri}`);
   }
 
   return [...dau, batTat, ...manh].join(" · ");

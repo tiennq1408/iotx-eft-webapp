@@ -95,7 +95,7 @@ const TINH_NANG_BEP = {
 };
 
 
-export const MOCK_PRODUCTS: Record<string, IotxProduct> = {
+const MOCK_PRODUCTS: Record<string, IotxProduct> = {
   "livotec-aircon-i30j": sanPham("Điều hòa I30J", "Làm mát", "aircon", [
     onoff("power", "Nguồn", "setPower", "power"),
     muc("temp", "Nhiệt độ", "setTemp", 16, 30, "°C"),
