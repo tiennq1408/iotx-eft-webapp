@@ -15,7 +15,7 @@ import { tenChuongTrinhDangDung } from "@/lib/newui/henGio";
 import { dinhDangLuc } from "@/lib/newui/thoiGian";
 import { useHenGio } from "@/hooks/useHenGio";
 import type { IotxCapability, IotxHenGioTongQuan, IotxLenhVatTu } from "@/lib/iotx/contracts";
-import type { Device } from "@/lib/types";
+import type { Device, SpaceState } from "@/lib/types";
 
 /**
  * Màn chi tiết thiết bị — dựng theo đúng bản tham chiếu `web.dev.happibot.net`.
@@ -36,11 +36,25 @@ export type PropsMan = {
   /** Ném lỗi khi máy chủ từ chối — màn này hiện lỗi ngay cạnh khối vật tư. */
   onVatTu: (capability: IotxCapability, lenh: IotxLenhVatTu) => Promise<void>;
   onHenGio: () => void;
+  /** Danh sách nhà / phòng / nhóm để đổ vào ba ô gán ở đầu màn. */
+  spaces: SpaceState;
+  /** Sửa chính thiết bị: đổi tên, gán chỗ, ghim. Một cửa `PATCH /devices/{id}` lo cả bốn. */
+  onSua: (patch: { label?: string; house?: string; room?: string; grp?: string; fav?: boolean }) => Promise<void>;
 };
 
 /* ------------------------------------------------------------------ */
 /* Màn                                                                 */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Ba ô gán ở đầu màn. `grp` là tên trường của API, còn trong `Device` nó là `group` —
+ * khác tên nên tách riêng thay vì suy ra, để sau này đọc không phải đoán.
+ */
+const GAN = [
+  { khoa: "house" as const, dsKey: "houses" as const, nhan: "pick_house", chuaGan: "dev_chua_gan_nha" },
+  { khoa: "room" as const, dsKey: "rooms" as const, nhan: "pick_room", chuaGan: "dev_chua_gan_phong" },
+  { khoa: "grp" as const, dsKey: "groups" as const, nhan: "pick_group", chuaGan: "dev_chua_gan_nhom" },
+];
 
 /**
  * Một dòng tóm tắt cho thanh ghim hẹn giờ. Thứ tự ưu tiên theo cái người dùng cần biết
@@ -56,21 +70,41 @@ function tomTatHenGio(tq: IotxHenGioTongQuan | null, t: HamChu): string {
   return t("hg_chua_dat");
 }
 
-export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGio, onVatTu }: PropsMan) {
+export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGio, onVatTu, spaces, onSua }: PropsMan) {
   const { t } = useChu();
   const [loi, setLoi] = useState("");
+  const [doiTen, setDoiTen] = useState(false);
+  const [tenMoi, setTenMoi] = useState("");
+  const [themMuc, setThemMuc] = useState<"house" | "room" | "grp" | null>(null);
+
+  /** Người chỉ được xem thì không sửa được tên, chỗ hay ghim — ẩn hẳn cho khỏi mời gọi. */
+  const choSua = device.perms?.create !== false && device.perms?.control !== false;
+
+  async function lam(patch: Parameters<typeof onSua>[0]) {
+    setLoi("");
+    try { await onSua(patch); }
+    catch (e) { setLoi(moTaLoi(e)); }
+  }
+
+  async function luuTen() {
+    if (!doiTen) return;
+    const v = tenMoi.trim();
+    setDoiTen(false);
+    if (v && v !== device.name) await lam({ label: v });
+  }
 
   /**
    * Thanh ghim phải nói ĐÚNG trạng thái, không in cứng "chưa đặt gì".
    *
    * Hỏi thẳng `/hen-gio` thay vì suy từ catalog, vì chỉ máy chủ mới biết có hẹn đang chờ
-   * hay chương trình đang chạy. Ba kết cục:
+   * hay chương trình đang chạy. Hai kết cục GIẤU hẳn thanh:
    *   batDuoc=false  → sản phẩm tắt hẹn giờ
-   *   404            → máy được chia sẻ; hợp đồng chỉ cho CHỦ dùng hẹn giờ
-   * Cả hai đều GIẤU hẳn thanh, thay vì mời người dùng bấm vào một màn chỉ báo lỗi.
+   *   404 / 403      → máy được chia sẻ (hợp đồng chỉ cho CHỦ), hoặc sản phẩm tắt hẹn giờ
+   * Lỗi tạm (mất mạng, 502, 401…) thì GIỮ thanh: dòng tóm tắt nói lỗi, bấm vào là màn hẹn
+   * giờ cho thử lại. Đang tải lần đầu thì chưa vẽ, để nút không nháy lên rồi lại biến mất.
    */
-  const { tongQuan: hg, loi: loiHenGio } = useHenGio(device.id);
-  const hienGhim = !isIotxMode || (hg?.batDuoc === true && !loiHenGio);
+  const { tongQuan: hg, loi: loiHenGio, anGian, dangTai: dangTaiHenGio } = useHenGio(device.id);
+  const hienGhim = !isIotxMode || (!dangTaiHenGio && !anGian && hg?.batDuoc !== false);
   const [moThem, setMoThem] = useState(false);
 
   const kq = phanGiaiSanPham(device.product);
@@ -174,15 +208,61 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
           </span>
           <div className="dev-giua">
             <div className="dev-tenhang">
-              <span className="dev-ten">{device.name}</span>
+              {doiTen ? (
+                <input className="dev-teno" autoFocus value={tenMoi} maxLength={60}
+                  aria-label={t("dev_rename")}
+                  onChange={e => setTenMoi(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") void luuTen(); if (e.key === "Escape") setDoiTen(false); }}
+                  onBlur={() => { void luuTen(); }} />
+              ) : (
+                <>
+                  <span className="dev-ten">{device.name}</span>
+                  {choSua && (
+                    <button className="dev-but" aria-label={t("dev_rename")}
+                      onClick={() => { setTenMoi(device.name); setDoiTen(true); }}>✏️</button>
+                  )}
+                </>
+              )}
             </div>
             <div className={`dev-st small${device.online ? "" : " dim"}`}>
               <i className={`dev-dot${device.online ? " on" : ""}`} />
               {device.online ? t("online") : t("offline")}
-              {device.room ? ` · ${device.room}` : ""}
+              {device.shared ? ` · 👥 ${t("dev_shared")}` : ""}
             </div>
           </div>
+          <button className={`fav-lon${device.fav ? " on" : ""}`} aria-pressed={Boolean(device.fav)}
+            aria-label={t("dev_fav")} onClick={() => { void lam({ fav: !device.fav }); }}>★</button>
         </div>
+
+        {/* Gán nhà / phòng / nhóm ngay tại đây, không phải lặn vào màn quản lý. */}
+        {choSua && (
+          <div className="frow dev-gan">
+            {GAN.map(({ khoa, dsKey, nhan, chuaGan }) => {
+              const dang = khoa === "grp" ? device.group : (device[khoa] as string);
+              const ds = [...new Set([...(spaces[dsKey] ?? []), dang].filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, "vi"));
+              return themMuc === khoa ? (
+                <input key={khoa} className="fsel" autoFocus placeholder={t(nhan)} maxLength={40}
+                  aria-label={t(nhan)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") { void lam({ [khoa]: e.currentTarget.value.trim() }); setThemMuc(null); }
+                    if (e.key === "Escape") setThemMuc(null);
+                  }}
+                  onBlur={e => { const v = e.target.value.trim(); if (v) void lam({ [khoa]: v }); setThemMuc(null); }} />
+              ) : (
+                <select key={khoa} className="fsel" aria-label={t(nhan)} value={dang || ""}
+                  onChange={e => {
+                    if (e.target.value === "__moi") { setThemMuc(khoa); return; }
+                    void lam({ [khoa]: e.target.value });
+                  }}>
+                  <option value="">{t(chuaGan)}</option>
+                  {ds.map(v => <option key={v} value={v}>{v}</option>)}
+                  <option value="__moi">＋ {t("dev_them_moi")}</option>
+                </select>
+              );
+            })}
+          </div>
+        )}
 
         {/* Không có capability nào để vẽ: nói thẳng thay vì một màn trống không giải thích. */}
         {!bc && !kq && <p className="small dim">{t("khong_co_khuon")}</p>}
@@ -202,7 +282,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
         {hienGhim && device.product?.henGio?.bat !== false && (
           <button className="hg-ghim" onClick={onHenGio}>
             <b>⏱ {t("hg_open")}</b>
-            <i>{tomTatHenGio(hg, t)}</i>
+            <i>{loiHenGio && !hg ? loiHenGio : tomTatHenGio(hg, t)}</i>
           </button>
         )}
       </div>

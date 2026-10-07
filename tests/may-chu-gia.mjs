@@ -203,6 +203,20 @@ http.createServer((req,res)=>{
   // ── hẹn giờ theo thiết bị (D4) ─────────────────────────────────────────────────────
   // Cài thật trong bộ nhớ chứ không trả cứng: bộ kiểm cần đi hết luồng và cần CẢ những
   // nhánh chối (403/404/409/400) mà một stub không bao giờ dựng ra được.
+  // PATCH /devices/{id} — đổi tên, gán chỗ, ghim. Ghi nhật ký kèm `cua` để bài kiểm lọc ra.
+  if (/^\/devices\/[^/]+$/.test(p) && req.method === 'PATCH') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      let than; try { than = JSON.parse(raw || '{}'); } catch { than = null; }
+      if (!than) return J(res, { message: 'bad_request' }, 400);
+      const id = decodeURIComponent(p.split('/')[2]);
+      const tb = bs.devices.find(d => d.id === id);
+      if (!tb) return J(res, { message: 'not_found' }, 404);
+      Object.assign(tb, than);
+      fs.appendFileSync(NHAT_KY, JSON.stringify({ cua: 'PATCH /devices', id, patch: than }) + '\n');
+      J(res, { ok: true });
+    });
+  }
   if (p.includes("/hen-gio")) return henGio(req, res, p);
   if (p==='/stream') {
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});

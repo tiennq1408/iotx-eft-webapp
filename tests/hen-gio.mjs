@@ -1,4 +1,4 @@
-import { GOC, CHROMIUM } from './chung.mjs';
+import { GOC, GOC_GIA, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
@@ -13,6 +13,10 @@ const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const b = await chromium.launch({ executablePath: CHROMIUM });
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 140)));
+// Đếm DELETE chương trình bắn ra khỏi trình duyệt — máy chủ giả không ghi nhật ký cửa này.
+let soDelete = 0;
+p.on('request', r => { if (r.method() === 'DELETE' && /\/hen-gio\/chuong-trinh\/\d+$/.test(r.url())) soDelete++; });
+const FAN = '29ff86a0-a76a-11f1-b79e-ad8fe8623469';   // 03092026A1
 
 await p.goto(GOC, { waitUntil: 'networkidle' });
 await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
@@ -132,12 +136,52 @@ try {
   await p.locator('.space-list .ao-row button.secondary').filter({ hasText: 'Thôi dùng' }).first().click(); await p.waitForTimeout(1300);
   ok('thôi dùng: hết đánh dấu đang dùng', !/đang dùng/i.test(await than()));
 
+  /* ---------- 5. Khoá sửa đúng trường hợp 409 ---------- */
+  // Nút trong một hàng theo vị trí (NFC/NFD làm so aria-label hay trượt): [Dùng|Thôi dùng, Sửa, Xoá].
+  const hang = i => p.locator('.space-list .ao-row').nth(i);
+  // `lap` đang dùng: sửa là hợp lệ (200) → nút sửa PHẢI còn bấm được. Đây là chỗ dễ khoá nhầm.
+  await hang(0).locator('button.secondary').filter({ hasText: /^Dùng$/ }).click(); await p.waitForTimeout(1300);
+  ok('chương trình `lap` đang dùng → nút sửa vẫn bấm được', await hang(0).locator('button').nth(1).isEnabled());
+  await hang(0).locator('button.secondary').filter({ hasText: 'Thôi dùng' }).click(); await p.waitForTimeout(1300);
+
+  // `motlan` đang chạy giữa chừng: PUT luôn 409 → không mời bấm. Dựng thẳng trên máy chủ giả.
+  // Gọi thẳng từ Node tới máy chủ giả (trong trang thì vướng CORS preflight của POST+JSON).
+  const taoRa = await (await fetch(`${GOC_GIA}/v1/devices/${FAN}/hen-gio/chuong-trinh`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ten: 'Một lần', kieu: 'gio', chay: 'motlan', buoc: [{ moc: '06:00', hd: [{ cap: 'power', val: true }] }] }) })).json();
+  await fetch(`${GOC_GIA}/v1/devices/${FAN}/hen-gio/chuong-trinh/${taoRa.id}/dung`, { method: 'POST' });
+  await dongPanel(); await moHenGio();   // nạp lại tổng quan
+  const hangMotLan = p.locator('.space-list .ao-row').filter({ hasText: 'Một lần' });
+  ok('chương trình `motlan` đang chạy → nút sửa bị khoá', await hangMotLan.locator('button').nth(1).isDisabled());
+  await fetch(`${GOC_GIA}/v1/devices/${FAN}/hen-gio/dang-dung`, { method: 'DELETE' });
+
+  /* ---------- 6. Xoá phải hỏi lại ---------- */
   const truocXoa = await p.locator('.space-list .ao-row').count();
-  // Chọn theo vị trí chứ không theo aria-label: "Xoá" tiếng Việt có hai cách tổ hợp dấu
-  // (NFC/NFD) nên so chuỗi hay trượt. Nút xoá luôn là nút cuối của hàng.
-  await p.locator('.space-list .ao-row').first().locator('button').last().click(); await p.waitForTimeout(1300);
+  const deleteTruoc = soDelete;
+  await hang(0).locator('button').last().click(); await p.waitForTimeout(500);
+  ok('bấm thùng rác một lần → KHÔNG gửi DELETE', soDelete === deleteTruoc);
+  ok('và hiện nút xác nhận "Xoá thật?"', await hang(0).locator('button.canh-bao').count() === 1);
+  ok('hàng ở trạng thái chờ xác nhận không tràn ngang', await p.locator('.full-panel .panel-body').evaluate(n => n.scrollWidth <= n.clientWidth));
+  const nhoXoa = await hang(0).locator('button').evaluateAll(ns => ns.map(n => n.getBoundingClientRect()).filter(r => r.height < 44).length);
+  ok(`cả hai nút xác nhận/huỷ ≥44px (${nhoXoa} nhỏ)`, nhoXoa === 0);
+  await hang(0).locator('button.secondary', { hasText: 'Huỷ' }).click(); await p.waitForTimeout(400);
+  ok('bấm "Huỷ" → không gửi DELETE, thùng rác trở lại', soDelete === deleteTruoc && await hang(0).locator('button.canh-bao').count() === 0);
+  await hang(0).locator('button').last().click(); await p.waitForTimeout(400);
+  await hang(0).locator('button.canh-bao').click(); await p.waitForTimeout(1300);
   const sauXoa = await p.locator('.space-list .ao-row').count();
-  ok(`xoá chương trình (${truocXoa} → ${sauXoa})`, sauXoa < truocXoa);
+  ok(`bấm xác nhận → mới gửi DELETE và chương trình biến mất (${truocXoa} → ${sauXoa})`, soDelete === deleteTruoc + 1 && sauXoa < truocXoa);
+
+  /* ---------- 7. Lỗi tạm giữ thanh ghim, lỗi vĩnh viễn mới giấu ---------- */
+  await dongPanel(); await dongMan();
+  await p.route('**/hen-gio', route => route.fulfill({ status: 503, json: { message: 'upstream_unavailable' } }));
+  await mo('03092026A1');
+  ok('máy chủ trả 503 cho GET /hen-gio → thanh ghim VẪN hiện', await ghim().count() === 1);
+  ok('…và dòng tóm tắt nói lỗi thay vì "chưa đặt gì"', !/chưa đặt gì/.test(await ghim().innerText()));
+  await dongMan();
+  await p.unroute('**/hen-gio');
+  await p.route('**/hen-gio', route => route.fulfill({ status: 404, json: { message: 'not_found' } }));
+  await mo('03092026A1');
+  ok('máy chủ trả 404 → thanh ghim biến mất', await ghim().count() === 0);
+  await p.unroute('**/hen-gio');
 } catch (e) {
   // Vấp giữa chừng vẫn phải in những gì đã đo — không thì mỗi lần hỏng là mất sạch dấu vết.
   R.push(`FAIL  dừng giữa chừng: ${String(e).split('\n')[0].slice(0, 160)}`);

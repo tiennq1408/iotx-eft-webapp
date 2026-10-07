@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "../Icon";
 import { useChu } from "../chu";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
@@ -175,6 +175,20 @@ function DanhSachChuongTrinh({ deviceId, tongQuan, coCap, dangLam, lam, onSoan }
   onSoan: (soan: BanSoan) => void;
 }) {
   const { t } = useChu();
+  /**
+   * Xoá là hai nhịp: bấm thùng rác thì nút đổi thành "Xoá thật?" + "Huỷ" trong 4 giây.
+   * Máy chủ không giữ bản sao nên không có hoàn tác — ngày 07/10 đã mất ba chương trình
+   * vì một chạm. Tổng quan nạp lại (vừa xoá/đổi gì đó) thì bỏ trạng thái chờ luôn.
+   */
+  const [choXoa, setChoXoa] = useState<number | null>(null);
+  useEffect(() => {
+    if (choXoa === null) return;
+    const hen = setTimeout(() => setChoXoa(null), 4000);
+    return () => clearTimeout(hen);
+  }, [choXoa]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setChoXoa(null); }, [tongQuan]);
+
   return (
     <>
       <div className="saved-heading">
@@ -184,7 +198,12 @@ function DanhSachChuongTrinh({ deviceId, tongQuan, coCap, dangLam, lam, onSoan }
       {tongQuan.dangChay && <p className="hint">{t("hg_running", { n: tongQuan.dangChay.buocXong })}</p>}
       {tongQuan.chuongTrinh.length === 0 && <p className="hint">{t("hg_no_program")}</p>}
       <div className="space-list">
-        {tongQuan.chuongTrinh.map(ct => (
+        {tongQuan.chuongTrinh.map(ct => {
+          // `dangChay` chỉ khác null khi chương trình ĐANG DÙNG thuộc kiểu `motlan` và đang
+          // chạy dở — lúc đó PUT luôn bị 409. Chương trình `lap` không bao giờ có `dangChay`
+          // và sửa khi đang dùng là hợp lệ, nên KHÔNG được khoá chỉ theo `dangDung`.
+          const khoaSua = tongQuan.dangChay !== null && tongQuan.dangDung === ct.id;
+          return (
           <div className="ao-row" key={ct.id}>
             <span className="space-icon"><Icon name="clock" /></span>
             <div className="ao-chu">
@@ -197,13 +216,25 @@ function DanhSachChuongTrinh({ deviceId, tongQuan, coCap, dangLam, lam, onSoan }
             {tongQuan.dangDung === ct.id
               ? <button className="secondary nut-bam" disabled={dangLam} onClick={() => { void lam(() => iotxClient.thoiDungChuongTrinh(deviceId)); }}>{t("hg_unuse")}</button>
               : <button className="secondary nut-bam" disabled={dangLam} onClick={() => { void lam(() => iotxClient.dungChuongTrinhNay(deviceId, ct.id)); }}>{t("hg_use")}</button>}
-            <button aria-label={t("hg_edit_program")} disabled={dangLam}
+            <button aria-label={t("hg_edit_program")} disabled={dangLam || khoaSua}
+              title={khoaSua ? t("hg_khoa_sua") : undefined}
               onClick={() => onSoan({ id: ct.id, than: { ten: ct.ten, kieu: ct.kieu, chay: ct.chay, ngay: ct.ngay ?? [], batDau: ct.batDau ?? null, buoc: ct.buoc } })}>
               <Icon name="settings" />
             </button>
-            <button aria-label={t("auto_delete")} disabled={dangLam} onClick={() => { void lam(() => iotxClient.xoaChuongTrinh(deviceId, ct.id)); }}><Icon name="trash" /></button>
+            {choXoa === ct.id ? (
+              <>
+                <button className="nut-bam canh-bao" disabled={dangLam}
+                  onClick={() => { setChoXoa(null); void lam(() => iotxClient.xoaChuongTrinh(deviceId, ct.id)); }}>
+                  {t("hg_xoa_that")}
+                </button>
+                <button className="secondary nut-bam" onClick={() => setChoXoa(null)}>{t("cancel")}</button>
+              </>
+            ) : (
+              <button aria-label={t("auto_delete")} disabled={dangLam} onClick={() => setChoXoa(ct.id)}><Icon name="trash" /></button>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
       <button className="smart-create-button" disabled={tongQuan.chuongTrinh.length >= TRAN.chuongTrinh || !coCap}
         onClick={() => onSoan({ id: null, than: thanRong() })}>

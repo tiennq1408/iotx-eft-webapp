@@ -110,9 +110,29 @@ Khớp spec, không lệch chỗ nào:
 - Một `PUT /hen` dính `401` rồi client tự `/auth/refresh` và thử lại ra `200` — đường làm mới
   token một lần chạy đúng trên cửa GHI, không phải chỉ trên GET.
 
-**Chưa kiểm** (vì sẽ hẹn lệnh thật xuống mạch đang cắm điện): `POST /chuong-trinh/{id}/dung`,
-`DELETE /dang-dung`, `PUT /chuong-trinh/{id}`, và nhánh `409`. Bốn cái này mới chỉ chạy qua
-máy chủ giả trong `tests/hen-gio.mjs`. Kế hoạch kiểm: `docs/viec-kiem-hen-gio-that.md`.
+### Bốn cửa còn lại — kiểm ngày 07/10/2026, 22:5x
+
+Thiết bị `SBI314` (`fan_sbi314`, id `31e9d160-…`), tài khoản CHỦ, qua webapp local cổng 3001.
+Chương trình thử: `kieu=khoang`, `chay=motlan`, một bước `moc=1440`, hành động `buzzer=false`.
+
+| Gọi | Kết quả |
+|---|---|
+| `POST …/chuong-trinh` | `201 {ok:true, id:56}` |
+| `POST …/chuong-trinh/56/dung` | **`201`** (không phải 200) — `dangDung=56`, `dangChay={buocXong:0}` |
+| `PUT …/chuong-trinh/56` lúc đang chạy | **`409`** |
+| `DELETE …/dang-dung` | `200` — `dangDung`/`dangChay` về null, **chương trình vẫn còn** |
+| `PUT …/chuong-trinh/56` sau khi dừng | `200` — tên đổi thành công |
+| `PUT …/hen {bat:false, phut:720}` | `200` — `luc` = bây giờ + 720 phút |
+| `DELETE …/hen` | `200` |
+| `DELETE …/chuong-trinh/56` | `200` — về 0/10, trả đúng nguyên trạng |
+
+Nguyên văn `message` của nhánh 409:
+
+> Chương trình đang chạy giữa chừng — dừng rồi hãy sửa
+
+Một điểm lệch nhỏ so với tóm tắt cũ: **`/dung` trả `201 Created`**, dù nó không tạo tài
+nguyên nào mà chỉ đổi cái đang dùng. Client hiện chỉ đọc `ok` nên không ảnh hưởng, nhưng
+nếu openapi khai `200` cho `dungChuongTrinhHenGio` thì spec và máy chủ đang lệch nhau.
 
 ## Đối chiếu với webapp "IOT App - New UI"
 

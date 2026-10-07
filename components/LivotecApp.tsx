@@ -132,6 +132,41 @@ export default function LivotecApp() {
   }
 
   /**
+   * Đổi tên / gán chỗ / ghim — cùng một cửa `PATCH /devices/{id}`.
+   *
+   * Vẽ ngay rồi mới gửi, vì ba thao tác này người dùng kỳ vọng thấy liền tay. Hỏng thì trả
+   * về nguyên trạng và ném lỗi ra cho màn chi tiết hiện câu của máy chủ.
+   *
+   * Tên chỗ mới gõ ra được nhét luôn vào `spaces`, nếu không thì nó biến mất khỏi ô chọn
+   * ngay sau khi lưu và người dùng tưởng là hỏng.
+   */
+  async function suaThongTinThietBi(id: string, patch: { label?: string; house?: string; room?: string; grp?: string; fav?: boolean }) {
+    const truoc = data.devices.find(device => device.id === id);
+    setData(current => ({
+      ...current,
+      spaces: {
+        houses: patch.house ? [...new Set([...current.spaces.houses, patch.house])] : current.spaces.houses,
+        rooms: patch.room ? [...new Set([...current.spaces.rooms, patch.room])] : current.spaces.rooms,
+        groups: patch.grp ? [...new Set([...current.spaces.groups, patch.grp])] : current.spaces.groups,
+      },
+      devices: current.devices.map(device => device.id !== id ? device : {
+        ...device,
+        name: patch.label ?? device.name,
+        house: patch.house ?? device.house,
+        room: patch.room ?? device.room,
+        group: patch.grp ?? device.group,
+        fav: patch.fav ?? device.fav,
+      }),
+    }));
+    if (!isIotxMode) return;
+    try { await iotxClient.updateDevice(id, patch); }
+    catch (error) {
+      if (truoc) setData(current => ({ ...current, devices: current.devices.map(d => d.id === id ? truoc : d) }));
+      throw error;
+    }
+  }
+
+  /**
    * Gửi một lệnh theo capability. Đổi giao diện trước cho nút phản hồi tức thì; hỏng thì
    * trả lại đúng trạng thái cũ và ném lỗi ra để panel hiện ngay cạnh control vừa bấm.
    */
@@ -397,6 +432,8 @@ export default function LivotecApp() {
                 onAn={() => { void anThietBi(thietBiDangMo.id); }}
                 onVatTu={(capability, lenh) => guiVatTu(thietBiDangMo.id, capability, lenh)}
                 onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id, tuChiTiet: true })}
+                spaces={data.spaces}
+                onSua={patch => suaThongTinThietBi(thietBiDangMo.id, patch)}
               />
             )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
+import { IotxApiError, iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxHenGioTongQuan } from "@/lib/iotx/contracts";
 
 /**
@@ -14,13 +14,24 @@ export function useHenGio(deviceId: string) {
   // nhờ vậy effect nạp lần đầu không phải setState đồng bộ.
   const [dangTai, setDangTai] = useState(isIotxMode);
   const [loi, setLoi] = useState("");
+  /**
+   * 404 (máy được chia sẻ / không phải của mình) và 403 (sản phẩm tắt hẹn giờ) là VĨNH VIỄN:
+   * giấu hẳn nút. Mọi lỗi khác (mất mạng, 502 từ proxy, 401…) là tạm thời — giữ nút, bấm
+   * vào thì thấy lỗi và thử lại được, thay vì biến mất như thể thiết bị không có hẹn giờ.
+   */
+  const [anGian, setAnGian] = useState(false);
 
   const tai = useCallback(async () => {
     if (!isIotxMode) return;
     try {
       setTongQuan(await iotxClient.xemHenGio(deviceId));
       setLoi("");
-    } catch (error) { setLoi(moTaLoi(error)); }
+      setAnGian(false);
+    } catch (error) {
+      const ma = error instanceof IotxApiError ? error.status : 0;
+      setAnGian(ma === 404 || ma === 403);
+      setLoi(moTaLoi(error));
+    }
     finally { setDangTai(false); }
   }, [deviceId]);
 
@@ -29,5 +40,5 @@ export function useHenGio(deviceId: string) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void tai(); }, [tai]);
 
-  return { tongQuan, dangTai, loi, setLoi, tai };
+  return { tongQuan, dangTai, loi, setLoi, anGian, tai };
 }

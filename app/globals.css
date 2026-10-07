@@ -483,6 +483,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .ao-chu small{color:var(--muted);font-size:10.5px;overflow-wrap:anywhere;}
 .ao-chu input{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;}
 .nut-bam{min-height:44px;padding:0 16px;font-size:12px;flex:none;}
+/* Nhịp hai của xoá chương trình: cùng cỡ chạm, màu cảnh báo để không bấm nhầm lần nữa. */
+.nut-bam.canh-bao{border:1px solid var(--danger);border-radius:var(--r-sm);background:var(--danger-soft);color:var(--danger);font-weight:700;padding:0 10px;}
 
 /* --- bộ lọc đang bật thì sáng lên, để biết vì sao danh sách ngắn --- */
 .filter-pill.active{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff;}
@@ -523,6 +525,30 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .row{display:flex; align-items:center; gap:.5rem;}
 .devpage .devdau{padding-bottom:.1rem;}
 .devpage .frow{display:flex; gap:.4rem;}
+/* ---- đầu màn chi tiết: nút đổi tên, sao ghim, ba ô gán chỗ ----
+   Số đo chép từ bản tham chiếu web.dev (đọc 07/10/2026), trừ chiều cao ô chọn: bản đó để
+   30px, dự án đòi vùng chạm 44px nên nâng lên và tăng cỡ chữ cho cân. */
+.devpage .dev-but{
+  flex:0 0 auto; width:44px; height:44px; padding:6px; border:0; border-radius:10px;
+  background:transparent; color:var(--dim); font-size:.9rem; cursor:pointer; line-height:1;
+}
+.devpage .dev-but:hover{background:var(--brand-soft);}
+.devpage .dev-teno{
+  flex:1 1 auto; min-width:0; min-height:36px; padding:.25rem .5rem;
+  border:1px solid var(--brand); border-radius:9px; background:var(--card);
+  color:var(--ink); font-size:1rem; font-weight:600; font-family:inherit;
+}
+.devpage .fav-lon{
+  flex:0 0 auto; width:44px; height:44px; padding:1px 6px; border:0; border-radius:12px;
+  background:transparent; color:var(--sao); font-size:1.7rem; line-height:1; cursor:pointer;
+}
+.devpage .fav-lon.on{color:var(--sao-on);}
+.devpage .dev-gan{margin-top:.1rem;}
+.devpage .fsel{
+  flex:1 1 0; min-width:0; min-height:44px; padding:.4rem .3rem;
+  border:1px solid var(--line); border-radius:10px; background:var(--card);
+  color:var(--ink); font-size:.72rem; font-family:inherit;
+}
 .devpage .capline{display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding-block:.25rem;}
 .devpage .card.capline{padding:.5rem .85rem;}
 
