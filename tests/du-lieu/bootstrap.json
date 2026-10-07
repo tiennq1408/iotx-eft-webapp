@@ -125,7 +125,7 @@
    "type": "fan_sbi314",
    "label": "SBI314",
    "house": "",
-   "room": "Phòng Khách",
+   "room": "",
    "grp": "",
    "fav": false,
    "hidden": false,
@@ -140,7 +140,7 @@
     "speed": "4",
     "timerOff": null
    },
-   "shared": false,
+   "shared": true,
    "perms": {
     "control": true,
     "create": true,
