@@ -1,6 +1,6 @@
 # Việc: Ba điểm cần sửa ở khối hẹn giờ
 
-- Trạng thái: **chưa làm**
+- Trạng thái: **đã làm 07/10/2026**
 - Phạm vi: `IOT App - New UI`
 - Làm ở đâu: **tab Code**
 - Viết: 07/10/2026, sau khi chạy hết luồng hẹn giờ trên API thật
