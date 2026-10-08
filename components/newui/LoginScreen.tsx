@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState, type FormEvent } from "react";
-import Icon from "./Icon";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
 import { iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
@@ -45,7 +44,6 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   const [pass, setPass] = useState("");
   const [loi, setLoi] = useState("");
   const [dangGui, setDangGui] = useState(false);
-  const [dangQuet, setDangQuet] = useState(false);
 
   async function guiDi(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,17 +68,11 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   }
 
   /**
-   * Nhận diện khuôn mặt chưa có cửa nào trong hợp đồng `/v1`, nên nút này chỉ mô phỏng
-   * hiệu ứng quét rồi nói thẳng là chưa nối được — không lặng lẽ cho vào app.
+   * Hợp đồng `/v1` chưa có cửa đặt lại mật khẩu (không có trong openapi), nên nút này nói
+   * thẳng là chưa hỗ trợ — không giả vờ gửi email. IBS mở cửa thật thì chỉ thay thân hàm.
    */
-  function quetKhuonMat() {
-    if (dangQuet) return;
-    setDangQuet(true);
-    setLoi("");
-    window.setTimeout(() => {
-      setDangQuet(false);
-      setLoi(t("login_face_demo"));
-    }, 1400);
+  function quenMatKhau() {
+    setLoi(t("login_forgot_chua"));
   }
 
   return (
@@ -136,39 +128,30 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
               onChange={event => setEmail(event.target.value)}
             />
           )}
-          <div className="login-pw-row">
-            <input
-              className="login-field"
-              type="password"
-              value={pass}
-              autoComplete={che === "login" ? "current-password" : "new-password"}
-              aria-label={t("login_pass")}
-              placeholder={t("login_pass")}
-              onChange={event => setPass(event.target.value)}
-            />
-            <button type="button" className={`face-scan-btn${dangQuet ? " scanning" : ""}`} aria-label={t("login_face_hint")} onClick={quetKhuonMat}>
-              <i><Icon name="faceScan" /></i>
-            </button>
-          </div>
+          <input
+            className="login-field"
+            type="password"
+            value={pass}
+            autoComplete={che === "login" ? "current-password" : "new-password"}
+            aria-label={t("login_pass")}
+            placeholder={t("login_pass")}
+            onChange={event => setPass(event.target.value)}
+          />
 
           <button className="login-btn" type="submit" disabled={dangGui}>
             {dangGui ? t("working") : che === "login" ? t("login_btn") : t("login_signup")}
           </button>
-          <button type="button" className="login-face-hint" onClick={quetKhuonMat}>
-            <Icon name="faceScan" /> {t("login_face_hint")}
-          </button>
+          {che === "login" && (
+            <div className="login-phu">
+              <button type="button" className="login-forgot" onClick={quenMatKhau}>{t("login_forgot")}</button>
+            </div>
+          )}
           {che === "login" && (
             <button type="button" className="login-create" onClick={() => { setChe("register"); setLoi(""); }}>{t("login_create")}</button>
           )}
           {loi && <p className="login-msg" role="status">{loi}</p>}
         </form>
       </div>
-      {dangQuet && (
-        <div className="login-scanning-overlay" role="status">
-          <div className="scan-ring" />
-          <div>{t("login_scanning")}</div>
-        </div>
-      )}
     </main>
   );
 }
