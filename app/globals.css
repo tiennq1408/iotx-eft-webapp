@@ -264,7 +264,6 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .login-content{padding:20px 18px 24px;gap:20px;align-items:stretch;}
 .dn-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;}
 .dn-brand{display:flex;align-items:center;gap:10px;min-width:0;}
-.dn-ten-hang{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dn-back{width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--text);display:flex;align-items:center;justify-content:center;}
 .dn-back svg{width:20px;height:20px;}
 .login-lang select{height:44px;padding:0 8px 0 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:14px;color:var(--text);}
@@ -272,7 +271,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Khung: mẫu đặt chữ tối trên nền phẳng; local giữ ảnh nền nên chữ đặt trên lớp tối mờ cùng kiểu
    khối chào cũ — đạt tương phản ở cả vùng đào sáng phía trên lẫn vùng xanh đậm phía dưới. */
 .dn-khung{display:flex;flex-direction:column;gap:24px;padding:22px 18px;border-radius:20px;color:#fff;
-  background:rgba(10,30,26,0.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin-top:auto;}
+  background:rgba(10,30,26,0.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin:clamp(8px,6vh,56px) 0 auto;}
 .dn-head{display:flex;flex-direction:column;gap:8px;}
 .dn-head h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15;}
 .dn-lead{margin:0;font-size:15px;line-height:1.5;}

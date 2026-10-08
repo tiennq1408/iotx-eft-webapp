@@ -367,11 +367,9 @@ export default function LivotecApp() {
             <LoginScreen
               onDone={xongDangNhap}
               logoUrl={theme?.logoUrl ?? null}
-              tenHang={theme?.tenantName}
               lang={lang}
               langs={boChu.langs}
               onLang={doiNgonNgu}
-              loginMethods={theme?.loginMethods}
             />
           </div></div>
         ) : (

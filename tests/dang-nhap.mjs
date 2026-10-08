@@ -53,12 +53,16 @@ try {
   /* ---------- 6. Không có "lần thử" ---------- */
   ok('không phần tử nào chứa chữ "lần thử"', !/lần thử/i.test(await p.locator('.login-screen').innerText()));
 
-  /* ---------- 7. Không có phone trong loginMethods → chỉ Email ---------- */
-  ok('nhãn ô định danh chỉ là "Email"', (await p.locator('label[for="dn-id"]').innerText()).trim() === 'Email');
-  await p.locator('#dn-id').fill('0912345678'); await p.locator('#dn-pw').fill('matkhau1');
+  /* ---------- 7. Ô định danh: "Email hoặc SĐT", không placeholder (yêu cầu 08/10) ---------- */
+  ok('nhãn ô định danh là "Email hoặc SĐT"', (await p.locator('label[for="dn-id"]').innerText()).trim() === 'Email hoặc SĐT');
+  ok('ô định danh không có placeholder', !(await p.locator('#dn-id').getAttribute('placeholder')));
+  ok('nhãn mật khẩu là "Mật khẩu (≥ 8 ký tự)"', (await p.locator('label[for="dn-pw"]').innerText()).trim() === 'Mật khẩu (≥ 8 ký tự)');
+  await p.locator('#dn-id').fill('khong-phai-email'); await p.locator('#dn-pw').fill('matkhau1');
   const mangTruoc = mang();
   await p.locator('.dn-khung .login-btn').click(); await cho(300);
-  ok('gõ số điện thoại → chặn tại chỗ, không gửi', await errCua(p, 'dn-id').count() === 1 && mang() === mangTruoc && await p.locator('.top-bar').count() === 0);
+  ok('không phải email cũng không phải SĐT → chặn tại chỗ, không gửi', await errCua(p, 'dn-id').count() === 1 && mang() === mangTruoc && await p.locator('.top-bar').count() === 0);
+  await p.locator('#dn-id').fill('0912345678');
+  ok('gõ số điện thoại → hết lỗi định dạng', await errCua(p, 'dn-id').count() === 0);
 
   /* ---------- 8. Quên mật khẩu chưa có cửa ---------- */
   await p.locator('.dn-row .dn-link').click(); await cho(300);

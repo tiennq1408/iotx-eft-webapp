@@ -30,6 +30,19 @@ function tenNgonNgu(ma: string): string {
   } catch { return ma.toUpperCase(); }
 }
 
+/**
+ * Cờ đứng trước tên ngôn ngữ. Suy vùng từ chính mã ngôn ngữ (`vi`→VN, `th`→TH, `fil`→PH,
+ * `en`→US) rồi đổi sang emoji cờ — không viết cứng danh sách, máy chủ thêm ngôn ngữ là có cờ.
+ * <option> không chứa được ảnh nên dùng emoji; không suy được vùng thì dùng 🌐.
+ */
+function coNgonNgu(ma: string): string {
+  try {
+    const vung = new Intl.Locale(ma).maximize().region;
+    if (vung && /^[A-Z]{2}$/.test(vung)) return [...vung].map(c => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65)).join("");
+  } catch { /* mã lạ */ }
+  return "🌐";
+}
+
 const laEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const laSoDienThoai = (v: string) => /^(0|\+84)\d{9}$/.test(v.replace(/[\s.-]/g, ""));
 const MAT_KHAU_TOI_THIEU = 8;
@@ -48,25 +61,16 @@ function O({ id, nhan, loi, children }: { id: string; nhan: string; loi?: string
   );
 }
 
-export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = [], onLang, loginMethods }: {
+export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang }: {
   onDone: () => void | Promise<void>;
   /** Logo của hãng từ `GET /tenant/theme`; chưa có thì dùng wordmark Livotec đóng kèm. */
   logoUrl?: string | null;
-  /** `tenantName` của `/tenant/theme` — không viết cứng. */
-  tenHang?: string | null;
   lang?: string;
   /** `langs` của `GET /i18n` (cửa public). Rỗng thì ẩn ô chọn. */
   langs?: string[];
   onLang?: (ma: string) => void;
-  /**
-   * `loginMethods` của `/tenant/theme`. Trường này đang khai nhiều hơn thực tế (sadmin 08/10:
-   * SĐT + mật khẩu TẮT, cổng SMS trống), nên chỉ nhận SĐT khi nó ghi rõ `phone` — mặc định
-   * chỉ email.
-   */
-  loginMethods?: { eu?: string[] } | null;
 }) {
   const { t } = useChu();
-  const choSdt = Boolean(loginMethods?.eu?.includes("phone"));
   const dsLang = lang && !langs.includes(lang) ? [lang, ...langs] : langs;
   const coChonLang = langs.length > 0 && Boolean(onLang);
 
@@ -91,8 +95,12 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
   const [dkPw2, setDkPw2] = useState("");
   const [dkDongY, setDkDongY] = useState(false);
 
-  const nhanId = choSdt ? t("dn_id_email_sdt") : t("dn_id_email");
-  const phId = choSdt ? t("dn_id_ph_email_sdt") : t("dn_id_ph_email");
+  /**
+   * Ô định danh nhận email HOẶC số điện thoại (yêu cầu 08/10), không có placeholder — nhãn đã
+   * nói đủ. Nhận SĐT ở client không có nghĩa máy chủ nhận: sadmin đang tắt "SĐT + mật khẩu",
+   * nên gõ SĐT sẽ được gửi đi và nhận câu lỗi chung của 401/404 nếu IBS chưa bật.
+   */
+  const nhanId = t("dn_id_email_sdt");
 
   function sangMan(moi: Man) {
     setMan(moi); setCanhBao(""); setLoi({}); setHienMk(false); setQmBuoc("nhap");
@@ -103,11 +111,11 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
     setLoi(cu => { if (!cu[id]) return cu; const moi = { ...cu }; delete moi[id]; return moi; });
   }
 
-  /** Lỗi định dạng của ô định danh (email, hoặc email/SĐT khi tenant bật SĐT). */
+  /** Lỗi định dạng của ô định danh: phải là email hoặc số điện thoại Việt Nam. */
   function kiemDinhDanh(v: string): string {
-    if (!v) return choSdt ? t("dn_loi_id_trong") : t("dn_loi_id_trong_email");
-    if (laEmail(v) || (choSdt && laSoDienThoai(v))) return "";
-    return choSdt ? t("dn_loi_id_sai") : t("dn_loi_id_sai_email");
+    if (!v) return t("dn_loi_id_trong");
+    if (laEmail(v) || laSoDienThoai(v)) return "";
+    return t("dn_loi_id_sai");
   }
 
   async function goi(viec: () => Promise<void>) {
@@ -186,7 +194,7 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
     </div>
   );
 
-  const oChu = (id: string, giaTri: string, dat: (v: string) => void, ph: string, tuDien: string, kieu = "text") => (
+  const oChu = (id: string, giaTri: string, dat: (v: string) => void, ph: string | undefined, tuDien: string, kieu = "text") => (
     <input className={`dn-input${loi[id] ? " invalid" : ""}`} id={id} type={kieu} value={giaTri} placeholder={ph} autoComplete={tuDien}
       aria-invalid={Boolean(loi[id])} aria-describedby={loi[id] ? `${id}-err` : undefined}
       onChange={e => { dat(e.target.value); xoaLoi(id); }} />
@@ -214,14 +222,13 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img className="login-wordmark" src={logoUrl} alt="" />
                 : <Image unoptimized className="login-wordmark" src={IMG.logoWordmark} alt="Livotec" width={210} height={64} />}
-              {tenHang && <span className="dn-ten-hang">{tenHang}</span>}
             </div>
           ) : nutLai}
           {coChonLang && (
             <label className="login-lang">
               <span className="dn-sr">{t("login_lang")}</span>
               <select value={lang} onChange={event => onLang?.(event.target.value)}>
-                {dsLang.map(ma => <option key={ma} value={ma}>{tenNgonNgu(ma)}</option>)}
+                {dsLang.map(ma => <option key={ma} value={ma}>{coNgonNgu(ma)} {tenNgonNgu(ma)}</option>)}
               </select>
             </label>
           )}
@@ -236,7 +243,7 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
             <form className="dn-form" noValidate onSubmit={dangNhap}>
               {thongBao}
               <O id="dn-id" nhan={nhanId} loi={loi["dn-id"]}>
-                {oChu("dn-id", dnId, setDnId, phId, "username")}
+                {oChu("dn-id", dnId, setDnId, undefined, "username")}
               </O>
               <O id="dn-pw" nhan={t("dn_pw")} loi={loi["dn-pw"]}>
                 {oMatKhau("dn-pw", dnPw, setDnPw, t("dn_pw_ph"), "current-password")}
@@ -258,12 +265,12 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
                 <div className="dn-head">
                   <span className="dn-badge"><Lock aria-hidden="true" /></span>
                   <h1 id="qm-title">{t("qm_title")}</h1>
-                  <p className="dn-lead">{choSdt ? t("qm_lead") : t("qm_lead_email")}</p>
+                  <p className="dn-lead">{t("qm_lead")}</p>
                 </div>
                 <form className="dn-form" noValidate onSubmit={guiMa}>
                   {thongBao}
                   <O id="qm-id" nhan={nhanId} loi={loi["qm-id"]}>
-                    {oChu("qm-id", qmId, setQmId, phId, "username")}
+                    {oChu("qm-id", qmId, setQmId, undefined, "username")}
                   </O>
                   <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("qm_gui")}</button>
                 </form>
@@ -297,7 +304,7 @@ export default function LoginScreen({ onDone, logoUrl, tenHang, lang, langs = []
                 {oChu("dk-ten", dkTen, setDkTen, t("dk_ten_ph"), "name")}
               </O>
               <O id="dk-id" nhan={nhanId} loi={loi["dk-id"]}>
-                {oChu("dk-id", dkId, setDkId, phId, "username")}
+                {oChu("dk-id", dkId, setDkId, undefined, "username")}
               </O>
               <O id="dk-pw" nhan={t("dn_pw")} loi={loi["dk-pw"]}>
                 {oMatKhau("dk-pw", dkPw, setDkPw, t("dk_pw_ph"), "new-password", "dk-pw-hint")}
