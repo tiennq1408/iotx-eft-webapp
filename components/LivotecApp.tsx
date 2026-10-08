@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
 import type { Device } from "@/lib/types";
-import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
+import { apGiaTri, iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule } from "@/lib/iotx/contracts";
 import IfThenEditor from "@/components/automation/IfThenEditor";
 import VirtualPanel from "@/components/virtual/VirtualPanel";
@@ -20,13 +20,15 @@ import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/
 import { capNguonCua } from "@/lib/newui/khuon";
 import { CHU, laMaNgonNgu } from "@/lib/newui/strings";
 import {
-  DevicePickerModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal,
-  type MucMenu,
+  ChonModal, DevicePickerModal, XemTruocCoChu, DoiMatKhauModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal,
+  NHAN_CO_CHU, NHAN_GIAO_DIEN, type MucChon, type MucMenu,
 } from "@/components/newui/modals";
 import DeviceDetail from "@/components/newui/device/DeviceDetail";
 import HenGioPanel from "@/components/newui/device/HenGioPanel";
 import LoginScreen from "@/components/newui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
+import { DS_CO_CHU, DS_GIAO_DIEN, useCaiDat, type CoChu, type GiaoDien } from "@/lib/newui/caiDat";
+import { coNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
 
 /**
  * Tấm đang mở. Thứ chỉ có nghĩa với một loại tấm nằm ngay trong nó — id thiết bị của màn
@@ -34,7 +36,9 @@ import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
  */
 type Panel =
   | null
-  | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" }
+  | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" | "doiMatKhau" }
+  /** Popup chọn của menu (ngôn ngữ / cỡ chữ / giao diện) — đóng là quay về menu. */
+  | { loai: "chon"; muc: MucChon }
   | { loai: "loc"; boLoc: LoaiLoc }
   | { loai: "placeholder"; tieuDe: string }
   | { loai: "device"; id: string }
@@ -59,6 +63,8 @@ export default function LivotecApp() {
     doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
   } = useDuLieuIotx({ xemKy: panel?.loai === "device" });
 
+  // Giao diện tối, cỡ/kiểu chữ chỉ áp sau đăng nhập — màn đăng nhập có bảng màu riêng.
+  const [caiDat, suaCaiDat] = useCaiDat(hydrated && signedIn);
   const [thongBaoLoi, setThongBaoLoi] = useState("");
   const [man, setMan] = useState<ManChinh>("home");
   const [boLoc, setBoLoc] = useState<BoLoc>(BO_LOC_DAU);
@@ -354,6 +360,31 @@ export default function LivotecApp() {
     }
   }
 
+  /** Popup chọn của menu. Chọn xong là áp ngay và quay về menu. */
+  function popupChon(muc: MucChon) {
+    const veMenu = () => setPanel({ loai: "drawer" });
+    if (muc === "ngonNgu") {
+      return (
+        <ChonModal khoaTieuDe="menu_ngon_ngu" dangChon={lang} onClose={veMenu}
+          luaChon={dsNgonNgu(lang, boChu.langs).map(ma => ({ giaTri: ma, nhan: `${coNgonNgu(ma)} ${tenNgonNgu(ma)}` }))}
+          onChon={ma => { doiNgonNgu(ma); veMenu(); }} />
+      );
+    }
+    if (muc === "coChu") {
+      return (
+        <ChonModal khoaTieuDe="chu_co" dangChon={caiDat.coChu} onClose={veMenu}
+          luaChon={DS_CO_CHU.map(co => ({ giaTri: co, khoa: NHAN_CO_CHU[co] }))}
+          onChon={co => { suaCaiDat({ coChu: co as CoChu }); veMenu(); }}
+          phuLuc={<XemTruocCoChu />} />
+      );
+    }
+    return (
+      <ChonModal khoaTieuDe="menu_giao_dien" dangChon={caiDat.giaoDien} onClose={veMenu}
+        luaChon={DS_GIAO_DIEN.map(gd => ({ giaTri: gd, khoa: NHAN_GIAO_DIEN[gd] }))}
+        onChon={gd => { suaCaiDat({ giaoDien: gd as GiaoDien }); veMenu(); }} />
+    );
+  }
+
   /* ----------------------------- render ----------------------------- */
 
   if (!hydrated) {
@@ -376,7 +407,7 @@ export default function LivotecApp() {
           <div className="app-shell"><div className="phone">
             <TopBar
               ten={tenHienThi(profile)}
-              chuaDoc={chuaDoc}
+              chuaDoc={caiDat.thongBao ? chuaDoc : 0}
               onProfile={() => setPanel({ loai: "profile" })}
               onNotif={moThongBao}
               onMenu={() => setPanel({ loai: "drawer" })}
@@ -395,13 +426,23 @@ export default function LivotecApp() {
 
             {panel?.loai === "drawer" && (
               <MenuDrawer
+                ten={tenHienThi(profile)}
+                email={profile?.email || ""}
+                tenApp={theme?.tenantName || profile?.tenantName || "Livotec Home"}
+                phienBan="1.0"
                 lang={lang}
-                phienBan={`v1.0 · ${iotxConfig.tenant}`}
-                onLang={doiNgonNgu}
+                caiDat={caiDat}
+                onCaiDat={suaCaiDat}
                 onClose={dongPanel}
                 onChon={chonMenu}
+                onDoiMatKhau={() => setPanel({ loai: "doiMatKhau" })}
+                onMoChon={muc => setPanel({ loai: "chon", muc })}
+                onDangXuat={dangXuat}
               />
             )}
+            {/* Hai hộp mở từ menu: đóng là quay lại menu, như đi một bước vào trong rồi lùi ra. */}
+            {panel?.loai === "doiMatKhau" && <DoiMatKhauModal onClose={() => setPanel({ loai: "drawer" })} />}
+            {panel?.loai === "chon" && popupChon(panel.muc)}
             {panel?.loai === "profile" && (
               <ProfileModal
                 ten={tenHienThi(profile)}

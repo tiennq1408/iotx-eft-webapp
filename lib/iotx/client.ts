@@ -28,6 +28,14 @@ const CUA_DANG_NHAP_GOOGLE: string | null = null;
 /** `message` của lỗi khi đăng nhập Google chưa bật. */
 export const GOOGLE_CHUA_BAT = "google_chua_bat";
 
+/**
+ * Cửa đổi mật khẩu khi đã đăng nhập — CHỜ IBS. Tới 09/10/2026 `/v1` chưa có cửa này (openapi
+ * chỉ có `/auth/login|register|refresh`). IBS mở cửa thì điền đường dẫn vào đây — chỉ sửa một chỗ.
+ */
+const CUA_DOI_MAT_KHAU: string | null = null;
+/** `message` của lỗi khi cửa đổi mật khẩu chưa bật. */
+export const DOI_MAT_KHAU_CHUA_BAT = "doi_mat_khau_chua_bat";
+
 /** Thân `{ ok: true }` mà hầu hết cửa ghi trả về, kèm vài trường riêng của từng cửa. */
 type Ok<T = object> = { ok: true } & T;
 
@@ -214,6 +222,11 @@ export class IotxClient {
   guiMaQuenMatKhau(dinhDanh: string) {
     if (!CUA_QUEN_MAT_KHAU) return Promise.reject(new IotxApiError(0, QUEN_MAT_KHAU_CHUA_BAT));
     return this.request<Ok>(CUA_QUEN_MAT_KHAU, { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, dinhDanh } });
+  }
+  /** Đổi mật khẩu của người đang đăng nhập. Chưa có cửa thì ném lỗi `DOI_MAT_KHAU_CHUA_BAT`. */
+  doiMatKhau(matKhauCu: string, matKhauMoi: string) {
+    if (!CUA_DOI_MAT_KHAU) return Promise.reject(new IotxApiError(0, DOI_MAT_KHAU_CHUA_BAT));
+    return this.request<Ok>(CUA_DOI_MAT_KHAU, { method: "POST", body: { matKhauCu, matKhauMoi } });
   }
   /** Đăng nhập bằng Google. Chưa có cửa thì ném lỗi `GOOGLE_CHUA_BAT`. */
   dangNhapGoogle(): Promise<void> {

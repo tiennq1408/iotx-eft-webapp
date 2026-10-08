@@ -3,7 +3,7 @@
  * cache (`docEtag`/`ghiEtag`) ra ngoài.
  */
 export { docI18n, docProducts, docTheme, ghiI18n, ghiProducts, ghiTheme, docAnhChup, ghiAnhChup } from "./cache";
-export { GOOGLE_CHUA_BAT, IotxClient, QUEN_MAT_KHAU_CHUA_BAT, browserTokenStore, iotxClient, type TokenStore } from "./client";
+export { DOI_MAT_KHAU_CHUA_BAT, GOOGLE_CHUA_BAT, IotxClient, QUEN_MAT_KHAU_CHUA_BAT, browserTokenStore, iotxClient, type TokenStore } from "./client";
 export * from "./config";
 export * from "./contracts";
 export { IotxApiError, laHetPhien, laLoiDangNhap, moTaLoi } from "./errors";

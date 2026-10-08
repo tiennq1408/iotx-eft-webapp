@@ -1,26 +1,46 @@
 "use client";
 
 import Image from "next/image";
+import { useState, type FormEvent, type ReactNode } from "react";
 import Icon from "./Icon";
 import { Sheet } from "./shell";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
-import { NGON_NGU } from "@/lib/newui/strings";
+import { coNgonNgu, MAT_KHAU_TOI_THIEU, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import type { CaiDat, CoChu, GiaoDien } from "@/lib/newui/caiDat";
+import { DOI_MAT_KHAU_CHUA_BAT, IotxApiError, iotxClient, moTaLoi } from "@/lib/iotx";
 import type { UiNotification } from "@/lib/types";
 import { TAT_CA } from "@/lib/newui/boLoc";
 
 export type MucMenu = "spaces" | "members" | "add" | "virtual" | "timers" | "devices";
 
-const CO: Record<string, string> = { vi: IMG.flagVi, en: IMG.flagEn, fil: IMG.flagFil };
+/** Nhãn của từng lựa chọn — khóa chữ, dùng chung cho menu và popup chọn. */
+export const NHAN_GIAO_DIEN: Record<GiaoDien, string> = { sang: "gd_sang", toi: "gd_toi", heThong: "gd_he_thong" };
+export const NHAN_CO_CHU: Record<CoChu, string> = { vua: "co_vua", lon: "co_lon", ratLon: "co_rat_lon" };
 
-/* ------------------------------------------------------------------ */
+/** Ba mục trong cụm Tài khoản mở popup chọn: cùng một kiểu dòng, cùng một kiểu popup. */
+export type MucChon = "ngonNgu" | "coChu" | "giaoDien";
 
-export function MenuDrawer({ lang, phienBan, onLang, onClose, onChon }: {
-  lang: string;
+/**
+ * Menu góc phải, bốn cụm: hồ sơ · Cài đặt (5 mục quản lý) · Tài khoản (mật khẩu, ngôn ngữ,
+ * cỡ chữ, giao diện, thông báo) · tên app + phiên bản; cuối cùng là nút Đăng xuất.
+ *
+ * Ngôn ngữ, cỡ chữ, giao diện là ba dòng giống nhau: nhãn bên trái, giá trị đang chọn bên
+ * phải, bấm vào mở popup chọn (`ChonModal`). Danh sách ngôn ngữ dựng từ `langs` máy chủ trả.
+ */
+export function MenuDrawer({ ten, email, tenApp, phienBan, lang, caiDat, onCaiDat, onClose, onChon, onDoiMatKhau, onMoChon, onDangXuat }: {
+  ten: string;
+  email: string;
+  tenApp: string;
   phienBan: string;
-  onLang: (ma: string) => void;
+  lang: string;
+  caiDat: CaiDat;
+  onCaiDat: (patch: Partial<CaiDat>) => void;
   onClose: () => void;
   onChon: (muc: MucMenu) => void;
+  onDoiMatKhau: () => void;
+  onMoChon: (muc: MucChon) => void;
+  onDangXuat: () => void;
 }) {
   const { t } = useChu();
   const items: Array<{ emo: string; nhan: string; muc: MucMenu }> = [
@@ -30,27 +50,161 @@ export function MenuDrawer({ lang, phienBan, onLang, onClose, onChon }: {
     { emo: "📶", nhan: "menu_add", muc: "add" },
     { emo: "☀️", nhan: "menu_virtual", muc: "virtual" },
   ];
+  const dongChon: Array<{ muc: MucChon; emo: string; nhan: string; giaTri: string }> = [
+    { muc: "ngonNgu", emo: "🌐", nhan: "menu_ngon_ngu", giaTri: `${coNgonNgu(lang)} ${tenNgonNgu(lang)}` },
+    { muc: "coChu", emo: "🔤", nhan: "chu_co", giaTri: t(NHAN_CO_CHU[caiDat.coChu]) },
+    { muc: "giaoDien", emo: "🌓", nhan: "menu_giao_dien", giaTri: t(NHAN_GIAO_DIEN[caiDat.giaoDien]) },
+  ];
   return (
     <div className="drawer-overlay" role="dialog" aria-modal="true" aria-label={t("menu_title")}>
       <button className="modal-scrim" aria-label={t("close")} onClick={onClose} />
       <aside className="drawer">
-        <h3><Icon name="menu" /> {t("menu_title")}</h3>
-        <div className="lang-row">
-          {NGON_NGU.map(muc => (
-            <button key={muc.id} className={`lang-flag${lang === muc.id ? " active" : ""}`} aria-pressed={lang === muc.id} onClick={() => onLang(muc.id)}>
-              <Image unoptimized src={CO[muc.id]} alt="" width={22} height={22} style={{ borderRadius: "50%" }} />
-              <span>{muc.ten}</span>
+        <button className="menu-thu-gon" aria-label={t("menu_thu_gon")} onClick={onClose}><Icon name="close" /></button>
+        <div className="menu-ho-so">
+          <span className="avatar-circle"><Image unoptimized src={IMG.avatar} alt="" width={48} height={48} /></span>
+          <div className="menu-ho-so-chu">
+            <strong>{ten}</strong>
+            {email && <span>{email}</span>}
+          </div>
+        </div>
+
+        <section className="menu-cum" aria-labelledby="menu-cum-cai-dat">
+          <h3 id="menu-cum-cai-dat">{t("menu_cai_dat")}</h3>
+          {items.map(muc => (
+            <button key={muc.muc} className="drawer-item" onClick={() => onChon(muc.muc)}>
+              <span className="emo" aria-hidden="true">{muc.emo}</span>{t(muc.nhan)}
             </button>
           ))}
-        </div>
-        {items.map(muc => (
-          <button key={muc.muc} className="drawer-item" onClick={() => onChon(muc.muc)}>
-            <span className="emo" aria-hidden="true">{muc.emo}</span>{t(muc.nhan)}
+        </section>
+
+        <section className="menu-cum" aria-labelledby="menu-cum-tai-khoan">
+          <h3 id="menu-cum-tai-khoan">{t("menu_tai_khoan")}</h3>
+          <button className="drawer-item" onClick={onDoiMatKhau}>
+            <span className="emo" aria-hidden="true">🔑</span>
+            <span className="menu-nhan">{t("menu_doi_mk")}</span>
+            <span className="menu-mui" aria-hidden="true"><Icon name="chevRight" /></span>
           </button>
-        ))}
-        <p className="drawer-foot">{t("version_line", { ban: phienBan })}</p>
+          {dongChon.map(d => (
+            <button key={d.muc} className="drawer-item menu-dong-chon" aria-haspopup="dialog" onClick={() => onMoChon(d.muc)}>
+              <span className="emo" aria-hidden="true">{d.emo}</span>
+              <span className="menu-nhan">{t(d.nhan)}</span>
+              <span className="menu-gia-tri">{d.giaTri}</span>
+              <span className="menu-mui" aria-hidden="true"><Icon name="chevRight" /></span>
+            </button>
+          ))}
+          <button className="drawer-item" role="switch" aria-checked={caiDat.thongBao} onClick={() => onCaiDat({ thongBao: !caiDat.thongBao })}>
+            <span className="emo" aria-hidden="true">🔔</span>
+            <span className="menu-nhan">
+              {t("menu_thong_bao")}
+              <small>{t("menu_thong_bao_mo_ta")}</small>
+            </span>
+            <span className={`switch${caiDat.thongBao ? " on" : ""}`} aria-hidden="true" />
+          </button>
+        </section>
+
+        <p className="drawer-foot">{tenApp} · {t("menu_ban", { ban: phienBan })}</p>
+        <button className="btn-full danger menu-dang-xuat" onClick={onDangXuat}>{t("logout")}</button>
       </aside>
     </div>
+  );
+}
+
+/** Dòng xem trước trong popup cỡ chữ — dịch theo ngôn ngữ đang dùng. */
+export function XemTruocCoChu() {
+  const { t } = useChu();
+  return <p className="chu-xem-truoc">{t("chu_xem_truoc")}</p>;
+}
+
+/**
+ * Popup chọn MỘT giá trị — dùng chung cho ngôn ngữ, cỡ chữ, giao diện để ba mục trông và
+ * dùng giống hệt nhau. Chọn xong là đóng (quay về menu); `phuLuc` để thêm dòng xem trước.
+ */
+export function ChonModal({ khoaTieuDe, luaChon, dangChon, onChon, onClose, phuLuc }: {
+  /** Khóa chữ — hộp nằm trong `ChuProvider` nên tự dịch, kể cả chữ máy chủ `/i18n` trả. */
+  khoaTieuDe: string;
+  /** `khoa`: khóa chữ để dịch; `nhan`: chữ sẵn (tên ngôn ngữ viết bằng chính nó). */
+  luaChon: Array<{ giaTri: string; khoa?: string; nhan?: string }>;
+  dangChon: string;
+  onChon: (giaTri: string) => void;
+  onClose: () => void;
+  phuLuc?: ReactNode;
+}) {
+  const { t } = useChu();
+  const tieuDe = t(khoaTieuDe);
+  return (
+    <Sheet title={tieuDe} onClose={onClose} centered>
+      <h2 className="modal-title">{tieuDe}</h2>
+      <div className="chon-ds">
+        {luaChon.map(l => (
+          <button key={l.giaTri} className={`radio-list-row${dangChon === l.giaTri ? " sel" : ""}`} aria-pressed={dangChon === l.giaTri} onClick={() => onChon(l.giaTri)}>
+            <span className="rc" />{l.khoa ? t(l.khoa) : l.nhan}
+          </button>
+        ))}
+      </div>
+      {phuLuc}
+    </Sheet>
+  );
+}
+
+/**
+ * Đổi mật khẩu. Chặn tại chỗ những lỗi biết trước (bỏ trống, < 8 ký tự, nhập lại không khớp,
+ * trùng mật khẩu cũ); lỗi máy chủ vào ô báo chung. Tới khi IBS mở cửa, gửi đi sẽ nhận lỗi
+ * `DOI_MAT_KHAU_CHUA_BAT` và màn nói rõ là tính năng đang chờ bật.
+ */
+export function DoiMatKhauModal({ onClose }: { onClose: () => void }) {
+  const { t } = useChu();
+  const [cu, setCu] = useState("");
+  const [moi, setMoi] = useState("");
+  const [nhapLai, setNhapLai] = useState("");
+  const [loi, setLoi] = useState<Record<string, string>>({});
+  const [canhBao, setCanhBao] = useState("");
+  const [xong, setXong] = useState(false);
+  const [dangGui, setDangGui] = useState(false);
+
+  async function gui(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCanhBao("");
+    const l: Record<string, string> = {};
+    if (!cu) l.cu = t("dmk_loi_cu");
+    if (moi.length < MAT_KHAU_TOI_THIEU) l.moi = t("dk_loi_pw_ngan", { n: MAT_KHAU_TOI_THIEU });
+    else if (moi === cu) l.moi = t("dmk_loi_trung");
+    if (nhapLai !== moi) l.nhapLai = t("dk_loi_pw2");
+    setLoi(l);
+    if (Object.keys(l).length) return;
+    setDangGui(true);
+    try {
+      await iotxClient.doiMatKhau(cu, moi);
+      setXong(true);
+    } catch (error) {
+      setCanhBao(error instanceof IotxApiError && error.message === DOI_MAT_KHAU_CHUA_BAT ? t("dmk_chua_bat") : moTaLoi(error));
+    } finally { setDangGui(false); }
+  }
+
+  const o = (id: "cu" | "moi" | "nhapLai", nhan: string, ph: string, giaTri: string, dat: (v: string) => void, tuDien: string) => (
+    <div className="field">
+      <label htmlFor={`dmk-${id}`}>{nhan}</label>
+      <input id={`dmk-${id}`} type="password" value={giaTri} placeholder={ph} autoComplete={tuDien}
+        aria-invalid={Boolean(loi[id])} aria-describedby={loi[id] ? `dmk-${id}-err` : undefined}
+        onChange={event => { dat(event.target.value); if (loi[id]) setLoi(c => { const n = { ...c }; delete n[id]; return n; }); }} />
+      {loi[id] && <span className="dmk-err" id={`dmk-${id}-err`}>{loi[id]}</span>}
+    </div>
+  );
+
+  return (
+    <Sheet title={t("menu_doi_mk")} onClose={onClose}>
+      <h2 className="modal-title">{t("menu_doi_mk")}</h2>
+      {xong ? (
+        <p className="dmk-xong" role="status">{t("dmk_xong")}</p>
+      ) : (
+        <form className="stack" noValidate onSubmit={gui}>
+          {canhBao && <p className="dynamic-error" role="alert">{canhBao}</p>}
+          {o("cu", t("dmk_cu"), t("dmk_cu_ph"), cu, setCu, "current-password")}
+          {o("moi", t("dmk_moi"), t("dmk_moi_ph"), moi, setMoi, "new-password")}
+          {o("nhapLai", t("dmk_nhap_lai"), t("dmk_nhap_lai"), nhapLai, setNhapLai, "new-password")}
+          <button className="btn-full" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("menu_doi_mk")}</button>
+        </form>
+      )}
+    </Sheet>
   );
 }
 

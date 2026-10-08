@@ -57,7 +57,10 @@ const AUDIT = `(() => {
 })()`;
 
 const browser = await chromium.launch({ executablePath: CHROMIUM });
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+const ngCanh = await browser.newContext({ viewport: { width: 390, height: 844 } });
+// `GIAO_DIEN=toi` (xem a11y-toi.mjs): đặt sẵn tuỳ chọn giao diện để đo lại mọi màn ở giao diện tối.
+if (process.env.GIAO_DIEN) await ngCanh.addInitScript(gd => localStorage.setItem('livotec-cai-dat', JSON.stringify({ giaoDien: gd })), process.env.GIAO_DIEN);
+const page = await ngCanh.newPage();
 const out = {};
 /**
  * Bộ đo trong trang đi ngược cây DOM tìm nền, nên KHÔNG thấy `background-image` — chữ trên

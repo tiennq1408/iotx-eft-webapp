@@ -5,6 +5,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, Lock } from "lucide-react";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
+import { MAT_KHAU_TOI_THIEU, coNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
 import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
 
 /**
@@ -22,30 +23,8 @@ import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIo
  *   `.err` dưới ô chỉ dành cho lỗi định dạng phát hiện ở client.
  */
 
-/** Tên ngôn ngữ viết bằng chính ngôn ngữ đó ("Tiếng Việt", "ไทย"); không có thì để mã. */
-function tenNgonNgu(ma: string): string {
-  try {
-    const ten = new Intl.DisplayNames([ma], { type: "language" }).of(ma);
-    return ten && ten !== ma ? ten : ma.toUpperCase();
-  } catch { return ma.toUpperCase(); }
-}
-
-/**
- * Cờ đứng trước tên ngôn ngữ. Suy vùng từ chính mã ngôn ngữ (`vi`→VN, `th`→TH, `fil`→PH,
- * `en`→US) rồi đổi sang emoji cờ — không viết cứng danh sách, máy chủ thêm ngôn ngữ là có cờ.
- * <option> không chứa được ảnh nên dùng emoji; không suy được vùng thì dùng 🌐.
- */
-function coNgonNgu(ma: string): string {
-  try {
-    const vung = new Intl.Locale(ma).maximize().region;
-    if (vung && /^[A-Z]{2}$/.test(vung)) return [...vung].map(c => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65)).join("");
-  } catch { /* mã lạ */ }
-  return "🌐";
-}
-
 const laEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const laSoDienThoai = (v: string) => /^(0|\+84)\d{9}$/.test(v.replace(/[\s.-]/g, ""));
-const MAT_KHAU_TOI_THIEU = 8;
 
 type Man = "dangNhap" | "quenMatKhau" | "dangKy";
 type Loi = Record<string, string>;
@@ -84,7 +63,7 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   onLang?: (ma: string) => void;
 }) {
   const { t } = useChu();
-  const dsLang = lang && !langs.includes(lang) ? [lang, ...langs] : langs;
+  const dsLang = dsNgonNgu(lang, langs);
   const coChonLang = langs.length > 0 && Boolean(onLang);
 
   const [man, setMan] = useState<Man>("dangNhap");

@@ -85,7 +85,8 @@ const suaThan = (ctx, mau, sua) => ctx.route(mau, async route => {
   const hoi = [];
   p.on('request', r => { const u = new URL(r.url()); if (/\/v1\/(bootstrap|products)$/.test(u.pathname)) hoi.push(`${u.pathname.split('/').pop()}?${u.searchParams.get('lang')}`); });
   await p.locator('.top-actions .icon-btn').last().click(); await cho(300);
-  await p.locator('.lang-flag').nth(1).click();   // English
+  await p.locator('.drawer .menu-dong-chon').first().click(); await cho(300);   // dòng Ngôn ngữ → popup chọn
+  await p.locator('.chon-ds .radio-list-row', { hasText: 'English' }).click();   // danh sách dựng từ `langs` máy chủ
   ok('Đổi sang EN: hỏi lại /bootstrap?lang=en', await doi(async () => hoi.includes('bootstrap?en')));
   ok('Đổi sang EN: hỏi lại /products?lang=en', await doi(async () => hoi.includes('products?en')));
   await ctx.close();
