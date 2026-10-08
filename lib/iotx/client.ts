@@ -19,6 +19,15 @@ const CUA_QUEN_MAT_KHAU: string | null = null;
 /** `message` của lỗi khi cửa quên mật khẩu chưa bật — màn đăng nhập dựa vào đây để nói rõ. */
 export const QUEN_MAT_KHAU_CHUA_BAT = "quen_mat_khau_chua_bat";
 
+/**
+ * Cửa đăng nhập Google — CHỜ IBS. Tới 08/10/2026 `/v1` chưa có cửa này; tài liệu IoTX ghi
+ * Google SSO "chờ creds + luồng redirect" và sadmin đang tắt. App không được gọi thẳng Keycloak,
+ * nên phải đợi IBS mở cửa trong `/v1/auth/*`. Có cửa thì điền đường dẫn vào đây và viết luồng.
+ */
+const CUA_DANG_NHAP_GOOGLE: string | null = null;
+/** `message` của lỗi khi đăng nhập Google chưa bật. */
+export const GOOGLE_CHUA_BAT = "google_chua_bat";
+
 /** Thân `{ ok: true }` mà hầu hết cửa ghi trả về, kèm vài trường riêng của từng cửa. */
 type Ok<T = object> = { ok: true } & T;
 
@@ -205,6 +214,12 @@ export class IotxClient {
   guiMaQuenMatKhau(dinhDanh: string) {
     if (!CUA_QUEN_MAT_KHAU) return Promise.reject(new IotxApiError(0, QUEN_MAT_KHAU_CHUA_BAT));
     return this.request<Ok>(CUA_QUEN_MAT_KHAU, { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, dinhDanh } });
+  }
+  /** Đăng nhập bằng Google. Chưa có cửa thì ném lỗi `GOOGLE_CHUA_BAT`. */
+  dangNhapGoogle(): Promise<void> {
+    // Có cửa rồi thì viết luồng redirect theo hợp đồng IBS ở đây; tới lúc đó luôn báo chưa bật.
+    if (CUA_DANG_NHAP_GOOGLE === null) return Promise.reject(new IotxApiError(0, GOOGLE_CHUA_BAT));
+    throw new Error(`Chưa viết luồng đăng nhập Google cho ${CUA_DANG_NHAP_GOOGLE}`);
   }
   bootstrap(lang = iotxConfig.lang) { return this.request<IotxBootstrap>(`/bootstrap?lang=${encodeURIComponent(lang)}`, { etagKey: `bootstrap:${lang}` }); }
   products(lang = iotxConfig.lang) { return this.request<Record<string, IotxProduct>>(`/products?lang=${encodeURIComponent(lang)}&tenant=${encodeURIComponent(iotxConfig.tenant)}`, { auth: false, etagKey: `products:${iotxConfig.tenant}:${lang}` }); }

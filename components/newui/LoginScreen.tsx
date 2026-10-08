@@ -5,7 +5,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, Lock } from "lucide-react";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
-import { IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
+import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
 
 /**
  * Màn đăng nhập dựng theo mẫu `docs/mau/login.html` (xem `docs/viec-man-dang-nhap.md`):
@@ -51,10 +51,23 @@ type Man = "dangNhap" | "quenMatKhau" | "dangKy";
 type Loi = Record<string, string>;
 
 /** Một ô nhập có nhãn riêng (đọc màn hình hiểu được), lỗi định dạng ngay dưới ô. */
-function O({ id, nhan, loi, children }: { id: string; nhan: string; loi?: string; children: ReactNode }) {
+/** Chữ G bốn màu của Google, dùng nguyên theo hướng dẫn nút "Sign in with Google". */
+function LogoGoogle() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+/** `anNhan`: nhãn chỉ để trình đọc màn hình đọc, mắt chỉ thấy placeholder. */
+function O({ id, nhan, loi, anNhan, children }: { id: string; nhan: string; loi?: string; anNhan?: boolean; children: ReactNode }) {
   return (
     <div className="dn-field">
-      <label htmlFor={id}>{nhan}</label>
+      <label htmlFor={id} className={anNhan ? "dn-sr" : undefined}>{nhan}</label>
       {children}
       {loi && <span className="dn-err" id={`${id}-err`}><AlertCircle aria-hidden="true" />{loi}</span>}
     </div>
@@ -93,14 +106,15 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   const [dkId, setDkId] = useState("");
   const [dkPw, setDkPw] = useState("");
   const [dkPw2, setDkPw2] = useState("");
-  const [dkDongY, setDkDongY] = useState(false);
 
   /**
-   * Ô định danh nhận email HOẶC số điện thoại (yêu cầu 08/10), không có placeholder — nhãn đã
-   * nói đủ. Nhận SĐT ở client không có nghĩa máy chủ nhận: sadmin đang tắt "SĐT + mật khẩu",
-   * nên gõ SĐT sẽ được gửi đi và nhận câu lỗi chung của 401/404 nếu IBS chưa bật.
+   * Ô tài khoản ở cả ba màn: nhãn "Tài khoản", placeholder "Email hoặc số điện thoại". Chỉ màn
+   * đăng ký kiểm định dạng; đăng nhập và quên mật khẩu gửi nguyên lên máy chủ. Nhận SĐT ở client
+   * không có nghĩa máy chủ nhận: sadmin đang tắt "SĐT + mật khẩu", nên gõ SĐT sẽ được gửi đi và
+   * nhận câu lỗi chung của 401/404 nếu IBS chưa bật.
    */
-  const nhanId = t("dn_id_email_sdt");
+  const nhanId = t("dn_tai_khoan");
+  const goiYId = t("dn_tai_khoan_ph");
 
   function sangMan(moi: Man) {
     setMan(moi); setCanhBao(""); setLoi({}); setHienMk(false); setQmBuoc("nhap");
@@ -132,8 +146,8 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     setCanhBao("");
     const id = dnId.trim();
     const moi: Loi = {};
-    const loiId = kiemDinhDanh(id);
-    if (loiId) moi["dn-id"] = loiId;
+    // Màn đăng nhập không kiểm định dạng tài khoản: gửi nguyên lên máy chủ, đúng sai do máy chủ trả.
+    if (!id) moi["dn-id"] = t("dn_loi_id_trong");
     if (!dnPw) moi["dn-pw"] = t("dn_loi_pw_trong");
     setLoi(moi);
     if (Object.keys(moi).length) return;
@@ -142,6 +156,18 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
       else sessionStorage.setItem("livotec-session", "1");
       await onDone();
     });
+  }
+
+  async function dangNhapGoogle() {
+    setCanhBao(""); setLoi({});
+    setDangGui(true);
+    try {
+      await iotxClient.dangNhapGoogle();
+      await onDone();
+    } catch (error) {
+      // Chưa có cửa (chờ IBS): nói rõ trong cảnh báo chung.
+      setCanhBao(error instanceof IotxApiError && error.message === GOOGLE_CHUA_BAT ? t("dn_google_chua_bat") : moTaLoi(error));
+    } finally { setDangGui(false); }
   }
 
   async function dangKy(event: FormEvent<HTMLFormElement>) {
@@ -156,7 +182,6 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     // Chặn tại chỗ: hợp đồng gộp "mật khẩu < 8" vào 409 chung với "email đã đăng ký".
     if (dkPw.length < MAT_KHAU_TOI_THIEU) moi["dk-pw"] = t("dk_loi_pw_ngan", { n: MAT_KHAU_TOI_THIEU });
     if (dkPw2 !== dkPw) moi["dk-pw2"] = t("dk_loi_pw2");
-    if (!dkDongY) moi["dk-dong-y"] = t("dk_loi_dong_y");
     setLoi(moi);
     if (Object.keys(moi).length) return;
     await goi(async () => {
@@ -170,7 +195,8 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     event.preventDefault();
     setCanhBao("");
     const id = qmId.trim();
-    const loiId = kiemDinhDanh(id);
+    // Không kiểm định dạng ở đây, như màn đăng nhập: chỉ chặn ô trống.
+    const loiId = id ? "" : t("dn_loi_id_trong");
     setLoi(loiId ? { "qm-id": loiId } : {});
     if (loiId) return;
     setDangGui(true);
@@ -212,7 +238,6 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
 
   return (
     <main className="login-screen">
-      <div className="login-overlay" />
       <div className="login-content">
         <div className="dn-topbar">
           {man === "dangNhap" ? (
@@ -238,12 +263,11 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
           <section className="dn-khung" aria-labelledby="dn-title">
             <div className="dn-head">
               <h1 id="dn-title">{t("login_btn")}</h1>
-              <p className="dn-lead">{t("dn_lead")}</p>
             </div>
             <form className="dn-form" noValidate onSubmit={dangNhap}>
               {thongBao}
               <O id="dn-id" nhan={nhanId} loi={loi["dn-id"]}>
-                {oChu("dn-id", dnId, setDnId, undefined, "username")}
+                {oChu("dn-id", dnId, setDnId, goiYId, "username")}
               </O>
               <O id="dn-pw" nhan={t("dn_pw")} loi={loi["dn-pw"]}>
                 {oMatKhau("dn-pw", dnPw, setDnPw, t("dn_pw_ph"), "current-password")}
@@ -253,6 +277,10 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
                 <button type="button" className="dn-link" onClick={() => sangMan("quenMatKhau")}>{t("dn_quen")}</button>
               </div>
               <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("login_btn")}</button>
+              <div className="dn-hoac"><span>{t("dn_hoac")}</span></div>
+              <button className="dn-google" type="button" disabled={dangGui} onClick={dangNhapGoogle}>
+                <LogoGoogle />{t("dn_google")}
+              </button>
             </form>
             <p className="dn-foot">{t("dn_chua_co")} <button type="button" className="dn-link" onClick={() => sangMan("dangKy")}>{t("dn_dk_ngay")}</button></p>
           </section>
@@ -263,14 +291,16 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
             {qmBuoc === "nhap" ? (
               <>
                 <div className="dn-head">
-                  <span className="dn-badge"><Lock aria-hidden="true" /></span>
-                  <h1 id="qm-title">{t("qm_title")}</h1>
+                  <div className="dn-tieu-de">
+                    <span className="dn-badge"><Lock aria-hidden="true" /></span>
+                    <h1 id="qm-title">{t("qm_title")}</h1>
+                  </div>
                   <p className="dn-lead">{t("qm_lead")}</p>
                 </div>
                 <form className="dn-form" noValidate onSubmit={guiMa}>
                   {thongBao}
                   <O id="qm-id" nhan={nhanId} loi={loi["qm-id"]}>
-                    {oChu("qm-id", qmId, setQmId, undefined, "username")}
+                    {oChu("qm-id", qmId, setQmId, goiYId, "username")}
                   </O>
                   <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("qm_gui")}</button>
                 </form>
@@ -279,8 +309,10 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
               <>
                 {/* Bước 2 dựng sẵn theo mẫu — chỉ tới được khi IBS có cửa gửi mã. */}
                 <div className="dn-head">
-                  <span className="dn-badge"><Check aria-hidden="true" /></span>
-                  <h1 id="qm-title">{t("qm_da_gui")}</h1>
+                  <div className="dn-tieu-de">
+                    <span className="dn-badge"><Check aria-hidden="true" /></span>
+                    <h1 id="qm-title">{t("qm_da_gui")}</h1>
+                  </div>
                   <p className="dn-lead">{t("qm_da_gui_lead", { dich: qmId.trim() })}</p>
                 </div>
                 {thongBao}
@@ -304,26 +336,14 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
                 {oChu("dk-ten", dkTen, setDkTen, t("dk_ten_ph"), "name")}
               </O>
               <O id="dk-id" nhan={nhanId} loi={loi["dk-id"]}>
-                {oChu("dk-id", dkId, setDkId, undefined, "username")}
+                {oChu("dk-id", dkId, setDkId, goiYId, "username")}
               </O>
               <O id="dk-pw" nhan={t("dn_pw")} loi={loi["dk-pw"]}>
-                {oMatKhau("dk-pw", dkPw, setDkPw, t("dk_pw_ph"), "new-password", "dk-pw-hint")}
-                <span className="dn-hint" id="dk-pw-hint">{t("dk_hint", { n: MAT_KHAU_TOI_THIEU })}</span>
+                {oMatKhau("dk-pw", dkPw, setDkPw, t("dn_pw_ph"), "new-password")}
               </O>
-              <O id="dk-pw2" nhan={t("dk_pw2")} loi={loi["dk-pw2"]}>
+              <O id="dk-pw2" nhan={t("dk_pw2")} loi={loi["dk-pw2"]} anNhan>
                 {oChu("dk-pw2", dkPw2, setDkPw2, t("dk_pw2"), "new-password", hienMk ? "text" : "password")}
               </O>
-              <div className="dn-field">
-                {/* Chưa có trang Điều khoản / Chính sách nên để chữ thường, không gắn liên kết chết. */}
-                <label className="dn-check top">
-                  <input type="checkbox" checked={dkDongY} aria-invalid={Boolean(loi["dk-dong-y"])}
-                    aria-describedby={loi["dk-dong-y"] ? "dk-dong-y-err" : undefined}
-                    onChange={e => { setDkDongY(e.target.checked); xoaLoi("dk-dong-y"); }} />
-                  <span className="dn-tich" aria-hidden="true" />
-                  <span>{t("dk_dong_y")}</span>
-                </label>
-                {loi["dk-dong-y"] && <span className="dn-err" id="dk-dong-y-err"><AlertCircle aria-hidden="true" />{loi["dk-dong-y"]}</span>}
-              </div>
               <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("dk_btn")}</button>
             </form>
             <p className="dn-foot">{t("dk_da_co")} <button type="button" className="dn-link" onClick={() => sangMan("dangNhap")}>{t("login_btn")}</button></p>

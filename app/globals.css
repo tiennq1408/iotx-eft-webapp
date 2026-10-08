@@ -253,10 +253,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
   background:linear-gradient(180deg,rgba(251,217,184,0.85) 0%,rgba(243,166,160,0.85) 45%,rgba(14,156,142,0.92) 100%);
   display:flex;flex-direction:column;overflow:hidden;
 }
-/* Lớp phủ của bản thiết kế. Phần trên để sáng, tối dần xuống dưới nơi có chữ trắng. */
-.login-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 25%,rgba(10,30,26,0.5) 100%);}
 .login-content{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;padding:32px 26px 26px;overflow-y:auto;}
-.login-wordmark{display:block;height:34px;width:auto;max-width:150px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.18));}
+.login-wordmark{display:block;height:50px;width:auto;max-width:230px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.18));}
 /* ---- Dựng theo mẫu docs/mau/login.html: topbar · khung (head + form + chân) ----
    Màu nhấn đi theo theme.colorPrimary qua --teal / --teal-dark / --teal-soft (apDungTheme);
    không cắm cứng màu của mẫu, không tải phông của mẫu. Số đo chạm giữ đúng mẫu: ô và nút 52px,
@@ -270,13 +268,16 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .dn-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 /* Khung: mẫu đặt chữ tối trên nền phẳng; local giữ ảnh nền nên chữ đặt trên lớp tối mờ cùng kiểu
    khối chào cũ — đạt tương phản ở cả vùng đào sáng phía trên lẫn vùng xanh đậm phía dưới. */
-.dn-khung{display:flex;flex-direction:column;gap:24px;padding:22px 18px;border-radius:20px;color:#fff;
-  background:rgba(10,30,26,0.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin:clamp(8px,6vh,56px) 0 auto;}
+/* Khung trong suốt, không lớp phủ: chữ xám đậm đặt thẳng trên ảnh nền, đủ tương phản WCAG từ dải đào tới dải xanh ngọc. */
+.dn-khung{--dn-chu:#1f2826;display:flex;flex-direction:column;gap:24px;padding:22px 18px;border-radius:20px;color:var(--dn-chu);
+  background:transparent;margin:clamp(0px,2vh,20px) 0 auto;}
 .dn-head{display:flex;flex-direction:column;gap:8px;}
 .dn-head h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15;}
 .dn-lead{margin:0;font-size:15px;line-height:1.5;}
 .dn-badge{width:56px;height:56px;border-radius:16px;background:var(--teal-soft);color:var(--teal-dark);display:flex;align-items:center;justify-content:center;}
 .dn-badge svg{width:28px;height:28px;}
+.dn-tieu-de{display:flex;align-items:center;gap:12px;}
+.dn-tieu-de .dn-badge{flex:none;}
 .dn-form{display:flex;flex-direction:column;gap:18px;}
 .dn-field{display:flex;flex-direction:column;gap:8px;}
 .dn-field>label:not(.dn-check){font-size:14px;font-weight:600;}
@@ -289,8 +290,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .dn-input.invalid,.dn-input-wrap.invalid{border:1.5px solid var(--danger);}
 .dn-eye{width:48px;height:48px;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;}
 .dn-eye svg{width:20px;height:20px;}
-.dn-hint{font-size:13px;}
-.dn-err{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--danger-soft);}
+.dn-err{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4A1412;}
 .dn-err svg{width:14px;height:14px;flex:none;}
 .dn-alert{display:flex;gap:10px;padding:12px 14px;border-radius:12px;background:var(--danger-soft);color:#8A2A27;font-size:14px;line-height:1.45;}
 .dn-alert svg{width:20px;height:20px;flex:none;}
@@ -298,20 +298,27 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Ô tích: mẫu vẽ ô 18px trong nhãn 44px. Thẻ <input> thật phủ KÍN cả nhãn (vô hình) để chính nó
    đạt vùng chạm ≥44px như a11y.mjs đo; ô vuông 18px nhìn thấy là .dn-tich vẽ riêng. */
 .dn-check{position:relative;display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:400;cursor:pointer;}
-.dn-check.top{align-items:flex-start;gap:10px;line-height:1.45;padding-top:12px;}
 .dn-check input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
-.dn-tich{flex:none;width:18px;height:18px;border:2px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;}
-.dn-check.top .dn-tich{margin-top:1px;}
+.dn-tich{flex:none;width:18px;height:18px;border:2px solid var(--dn-chu);border-radius:4px;display:flex;align-items:center;justify-content:center;}
 .dn-check input:checked+.dn-tich{background:var(--teal);border-color:var(--teal);}
 .dn-check input:checked+.dn-tich::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg);}
 .dn-check input:focus-visible+.dn-tich{outline:3px solid var(--teal);outline-offset:2px;}
-.dn-link{min-height:44px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:700;color:#fff;text-decoration:underline;text-underline-offset:3px;}
+.dn-link{min-height:44px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:700;color:var(--dn-chu);text-decoration:underline;text-underline-offset:3px;}
 .dn-foot{margin:0;text-align:center;font-size:15px;}
 .login-btn{
   width:100%;height:52px;background:var(--teal-dark);color:#fff;border:0;border-radius:12px;
   font:inherit;font-size:16px;font-weight:700;
 }
 .login-btn:disabled{opacity:.7;}
+.dn-hoac{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--dn-chu);}
+.dn-hoac::before,.dn-hoac::after{content:"";flex:1;height:1px;background:rgba(31,40,38,0.35);}
+.dn-google{
+  width:100%;height:52px;display:flex;align-items:center;justify-content:center;gap:10px;
+  background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:12px;
+  font:inherit;font-size:16px;font-weight:600;
+}
+.dn-google:disabled{opacity:.7;}
+.dn-google:focus-visible{outline:3px solid var(--dn-chu);outline-offset:2px;}
 .empty-card .empty-line{display:block;}
 
 /* ---------- toast lỗi ---------- */

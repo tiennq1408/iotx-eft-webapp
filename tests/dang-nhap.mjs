@@ -30,7 +30,7 @@ try {
   /* ---------- 1. Đủ thành phần ---------- */
   const { ctx, p, loi, mang } = await mo({ i18n: { vi: { boChu: { lang: 'vi', langs: ['en', 'th', 'vi'], strings: {} } } } });
   ok('topbar: có logo và ô chọn ngôn ngữ', await p.locator('.dn-topbar .login-wordmark').count() === 1 && await p.locator('.dn-topbar .login-lang select').count() === 1);
-  ok('có h1 và dòng dẫn', await p.locator('.dn-khung h1').count() === 1 && await p.locator('.dn-khung .dn-lead').count() === 1);
+  ok('có h1, không còn dòng dẫn "Chào mừng bạn quay lại"', await p.locator('.dn-khung h1').count() === 1 && await p.locator('.dn-khung .dn-lead').count() === 0);
   ok('hai ô có NHÃN riêng (label for)', await p.locator('label[for="dn-id"]').count() === 1 && await p.locator('label[for="dn-pw"]').count() === 1);
   ok('có nút con mắt', await p.locator('.dn-eye').count() === 1);
   ok('hàng [ghi nhớ | quên mật khẩu]', await p.locator('.dn-row .dn-check input[type=checkbox]').count() === 1 && /Quên mật khẩu/.test(await p.locator('.dn-row .dn-link').innerText()));
@@ -50,49 +50,58 @@ try {
   await p.locator('#dn-id').fill('a');
   ok('gõ vào ô thì lỗi của CHÍNH ô đó biến mất', await errCua(p, 'dn-id').count() === 0 && await errCua(p, 'dn-pw').count() === 1);
 
+  /* ---------- Dòng "hoặc" + nút Google: chưa có cửa /v1 nên báo chờ bật, không gửi gì ---------- */
+  ok('dưới nút Đăng nhập có dòng "hoặc" và nút "Tiếp tục với Google"', (await p.locator('.dn-hoac').innerText()).trim() === 'hoặc' && (await p.locator('.dn-google').innerText()).trim() === 'Tiếp tục với Google');
+  await p.locator('.dn-google').click(); await cho(300);
+  ok('bấm Google khi chưa có cửa → .alert báo chờ bật, vẫn ở màn đăng nhập', /Google — tính năng đang chờ bật/.test(await p.locator('.dn-alert').innerText()) && await p.locator('.top-bar').count() === 0);
+
   /* ---------- 6. Không có "lần thử" ---------- */
   ok('không phần tử nào chứa chữ "lần thử"', !/lần thử/i.test(await p.locator('.login-screen').innerText()));
 
-  /* ---------- 7. Ô định danh: "Email hoặc SĐT", không placeholder (yêu cầu 08/10) ---------- */
-  ok('nhãn ô định danh là "Email hoặc SĐT"', (await p.locator('label[for="dn-id"]').innerText()).trim() === 'Email hoặc SĐT');
-  ok('ô định danh không có placeholder', !(await p.locator('#dn-id').getAttribute('placeholder')));
-  ok('nhãn mật khẩu là "Mật khẩu (≥ 8 ký tự)"', (await p.locator('label[for="dn-pw"]').innerText()).trim() === 'Mật khẩu (≥ 8 ký tự)');
-  await p.locator('#dn-id').fill('khong-phai-email'); await p.locator('#dn-pw').fill('matkhau1');
-  const mangTruoc = mang();
+  /* ---------- 7. Ô tài khoản: nhãn "Tài khoản", placeholder, KHÔNG kiểm định dạng (yêu cầu 08/10) ---------- */
+  ok('nhãn ô tài khoản là "Tài khoản"', (await p.locator('label[for="dn-id"]').innerText()).trim() === 'Tài khoản');
+  ok('ô tài khoản có placeholder "Email hoặc số điện thoại"', (await p.locator('#dn-id').getAttribute('placeholder')) === 'Email hoặc số điện thoại');
+  ok('nhãn mật khẩu là "Mật khẩu"', (await p.locator('label[for="dn-pw"]').innerText()).trim() === 'Mật khẩu');
+  ok('placeholder mật khẩu là "Nhập mật khẩu (≥ 8 ký tự)"', (await p.locator('#dn-pw').getAttribute('placeholder')) === 'Nhập mật khẩu (≥ 8 ký tự)');
+  // Bỏ trống mật khẩu để không vào app: chỉ ô mật khẩu báo lỗi, ô tài khoản thì không, dù không phải email/SĐT.
+  await p.locator('#dn-id').fill('khong-phai-email'); await p.locator('#dn-pw').fill('');
   await p.locator('.dn-khung .login-btn').click(); await cho(300);
-  ok('không phải email cũng không phải SĐT → chặn tại chỗ, không gửi', await errCua(p, 'dn-id').count() === 1 && mang() === mangTruoc && await p.locator('.top-bar').count() === 0);
-  await p.locator('#dn-id').fill('0912345678');
-  ok('gõ số điện thoại → hết lỗi định dạng', await errCua(p, 'dn-id').count() === 0);
+  ok('tài khoản không phải email/SĐT → KHÔNG báo lỗi định dạng ở màn đăng nhập', await errCua(p, 'dn-id').count() === 0 && await errCua(p, 'dn-pw').count() === 1);
 
   /* ---------- 8. Quên mật khẩu chưa có cửa ---------- */
   await p.locator('.dn-row .dn-link').click(); await cho(300);
   ok('sang màn Quên mật khẩu (state, không đổi hash)', await p.locator('#qm-title').count() === 1 && !new URL(p.url()).hash);
+  ok('quên mật khẩu: nhãn "Tài khoản" + placeholder', (await p.locator('label[for="qm-id"]').innerText()).trim() === 'Tài khoản' && (await p.locator('#qm-id').getAttribute('placeholder')) === 'Email hoặc số điện thoại');
   await p.locator('#qm-id').fill('ai@do.vn');
   await p.locator('.dn-khung .login-btn').click(); await cho(400);
+  ok('quên mật khẩu: icon ổ khoá và tiêu đề cùng một hàng', await p.evaluate(() => {
+    const i = document.querySelector('.dn-tieu-de .dn-badge').getBoundingClientRect(), h = document.querySelector('#qm-title').getBoundingClientRect();
+    return h.left >= i.right && Math.abs((i.top + i.bottom) / 2 - (h.top + h.bottom) / 2) < 6;
+  }));
   ok('Gửi mã khi chưa có cửa → .alert báo đang chờ bật', /chờ bật/.test(await p.locator('.dn-alert').innerText()));
   ok('…và KHÔNG sang bước "Đã gửi mã"', await p.locator('#qm-id').count() === 1 && !/Đã gửi mã/.test(await p.locator('.dn-khung').innerText()));
   await p.locator('.dn-back').click(); await cho(300);
 
-  /* ---------- 9, 10, 4. Đăng ký ---------- */
+  /* ---------- 9, 4. Đăng ký ---------- */
   await p.locator('.dn-foot .dn-link').click(); await cho(300);
   await p.locator('#dk-ten').fill('Người Thử');
+  ok('đăng ký: nhãn "Tài khoản" + placeholder, mật khẩu "Mật khẩu" + "Nhập mật khẩu (≥ 8 ký tự)"',
+    (await p.locator('label[for="dk-id"]').innerText()).trim() === 'Tài khoản' && (await p.locator('#dk-id').getAttribute('placeholder')) === 'Email hoặc số điện thoại'
+    && (await p.locator('label[for="dk-pw"]').innerText()).trim() === 'Mật khẩu' && (await p.locator('#dk-pw').getAttribute('placeholder')) === 'Nhập mật khẩu (≥ 8 ký tự)');
   await p.locator('#dk-id').fill('thu@test.vn');
   await p.locator('#dk-pw').fill('matkhau1');
   await p.locator('#dk-pw2').fill('matkhau2');
-  await p.locator('.dn-check.top input').check();
   await p.locator('.dn-khung .login-btn').click(); await cho(300);
   ok('hai mật khẩu khác nhau → báo tại chỗ', await errCua(p, 'dk-pw2').count() === 1 && await p.locator('.top-bar').count() === 0);
   await p.locator('#dk-pw2').fill('matkhau1');
-  await p.locator('.dn-check.top input').uncheck();
-  await p.locator('.dn-khung .login-btn').click(); await cho(300);
-  ok('chưa tích điều khoản → không gửi', await errCua(p, 'dk-dong-y').count() === 1 && await p.locator('.top-bar').count() === 0);
-  await p.locator('.dn-check.top input').check();
   await p.locator('#dk-pw').fill('abc1234'); await p.locator('#dk-pw2').fill('abc1234');
   const mangDk = mang();
   await p.locator('.dn-khung .login-btn').click(); await cho(300);
   ok('mật khẩu 7 ký tự → chặn tại chỗ, không gửi request', await errCua(p, 'dk-pw').count() === 1 && mang() === mangDk && await p.locator('.top-bar').count() === 0);
-  ok('gợi ý mật khẩu đúng chính sách thật ("Tối thiểu 8 ký tự.")', (await p.locator('.dn-hint').innerText()).trim() === 'Tối thiểu 8 ký tự.');
-  ok('Điều khoản / Chính sách không phải liên kết chết', await p.locator('.dn-check.top a').count() === 0);
+  ok('đăng ký: không còn dòng "Tối thiểu 8 ký tự."', !/Tối thiểu/.test(await p.locator('.dn-khung').innerText()));
+  ok('nhập lại mật khẩu: không nhãn hiện ra, chỉ placeholder (nhãn vẫn cho trình đọc màn hình)',
+    await p.locator('label[for="dk-pw2"]').evaluate(n => n.getBoundingClientRect().width <= 1) && (await p.locator('#dk-pw2').getAttribute('placeholder')) === 'Nhập lại mật khẩu');
+  ok('đăng ký không còn ô tích điều khoản', await p.locator('.dn-check.top').count() === 0);
 
   /* ---------- 12. Vùng chạm ---------- */
   const nho = await p.locator('.login-screen button, .login-screen input:not([type=checkbox]), .login-screen select, .login-screen .dn-check').evaluateAll(
