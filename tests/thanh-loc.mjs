@@ -6,8 +6,8 @@ const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();
 const loi=[]; p.on('pageerror',e=>loi.push(String(e).slice(0,140)));
 await p.goto(GOC,{waitUntil:'networkidle'});
 await p.addStyleTag({content:'nextjs-portal{display:none!important}'});
-await p.getByPlaceholder(/Email hoặc/).fill('demo');
-await p.getByPlaceholder(/Mật khẩu/).fill('demo');
+await p.locator('#dn-id').fill('demo@demo.vn');
+await p.locator('#dn-pw').fill('demo');
 await p.locator('button.login-btn').click(); await p.waitForTimeout(1600);
 
 // 1) không còn cờ ngôn ngữ ở trang chủ và màn thiết bị

@@ -256,38 +256,63 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Lớp phủ của bản thiết kế. Phần trên để sáng, tối dần xuống dưới nơi có chữ trắng. */
 .login-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 25%,rgba(10,30,26,0.5) 100%);}
 .login-content{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;padding:32px 26px 26px;overflow-y:auto;}
-.login-wordmark{width:210px;max-width:60%;height:auto;object-fit:contain;margin:8px 0 22px;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.25));}
-.login-avatar{width:76px;height:76px;border-radius:50%;overflow:hidden;border:3px solid #fff;box-shadow:0 8px 22px rgba(0,0,0,0.25);margin:6px 0 10px;flex-shrink:0;}
-.login-avatar img{width:100%;height:100%;object-fit:cover;}
-/* Khối chào thu gọn (08/10): chữ nhỏ hơn, không còn đệm dưới — nhường chỗ cho khối ngôn ngữ. */
-.login-title{color:#fff;font-size:20px;font-weight:800;text-align:center;line-height:1.2;margin:0;text-shadow:0 2px 10px rgba(0,0,0,0.35);}
-.login-title-band{color:#fff;font-size:15px;font-weight:800;text-align:center;line-height:1.3;padding:2px 16px 0;margin:0;width:100%;text-shadow:0 2px 10px rgba(0,0,0,0.35);}
-.login-sub{color:#fff;font-size:11.5px;text-align:center;margin:4px 0 0;text-shadow:0 1px 6px rgba(0,0,0,0.35);}
-/* Ô chọn ngôn ngữ ngay dưới khối chào: một <select> trong viên 44px cùng kiểu nền tối mờ của
-   ô nhập. Đẩy biểu mẫu xuống bằng margin-bottom:auto. */
-.login-lang{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin:10px auto auto;padding:0 10px 0 12px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.75);background:rgba(10,30,26,0.5);color:#fff;}
-.login-lang-ico{font-size:16px;line-height:1;}
-.login-lang select{min-height:44px;border:0;background:transparent;color:#fff;font:inherit;font-size:13px;font-weight:700;padding-right:4px;outline:none;}
-.login-lang select option{color:#111;}
-.login-form{width:100%;margin-top:auto;display:flex;flex-direction:column;}
-.login-field{
-  width:100%;background:rgba(10,30,26,0.26);border:1.5px solid rgba(255,255,255,0.75);
-  border-radius:999px;padding:14px 18px;min-height:48px;font-size:14px;color:#fff;margin-bottom:12px;
-  outline:none;
-}
-.login-field::placeholder{color:rgba(255,255,255,0.92);}
-.login-field:focus{border-color:#fff;background:rgba(10,30,26,0.38);}
+.login-wordmark{display:block;height:34px;width:auto;max-width:150px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.18));}
+/* ---- Dựng theo mẫu docs/mau/login.html: topbar · khung (head + form + chân) ----
+   Màu nhấn đi theo theme.colorPrimary qua --teal / --teal-dark / --teal-soft (apDungTheme);
+   không cắm cứng màu của mẫu, không tải phông của mẫu. Số đo chạm giữ đúng mẫu: ô và nút 52px,
+   ô tích / liên kết 44px. */
+.login-content{padding:20px 18px 24px;gap:20px;align-items:stretch;}
+.dn-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;}
+.dn-brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.dn-ten-hang{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dn-back{width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--text);display:flex;align-items:center;justify-content:center;}
+.dn-back svg{width:20px;height:20px;}
+.login-lang select{height:44px;padding:0 8px 0 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:14px;color:var(--text);}
+.dn-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+/* Khung: mẫu đặt chữ tối trên nền phẳng; local giữ ảnh nền nên chữ đặt trên lớp tối mờ cùng kiểu
+   khối chào cũ — đạt tương phản ở cả vùng đào sáng phía trên lẫn vùng xanh đậm phía dưới. */
+.dn-khung{display:flex;flex-direction:column;gap:24px;padding:22px 18px;border-radius:20px;color:#fff;
+  background:rgba(10,30,26,0.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin-top:auto;}
+.dn-head{display:flex;flex-direction:column;gap:8px;}
+.dn-head h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15;}
+.dn-lead{margin:0;font-size:15px;line-height:1.5;}
+.dn-badge{width:56px;height:56px;border-radius:16px;background:var(--teal-soft);color:var(--teal-dark);display:flex;align-items:center;justify-content:center;}
+.dn-badge svg{width:28px;height:28px;}
+.dn-form{display:flex;flex-direction:column;gap:18px;}
+.dn-field{display:flex;flex-direction:column;gap:8px;}
+.dn-field>label:not(.dn-check){font-size:14px;font-weight:600;}
+.dn-input,.dn-input-wrap{height:52px;border:1px solid var(--border);border-radius:12px;background:#fff;}
+.dn-input{width:100%;padding:0 16px;font:inherit;font-size:16px;color:var(--text);outline:none;}
+.dn-input-wrap{display:flex;align-items:center;overflow:hidden;}
+.dn-input-wrap input{flex:1;min-width:0;height:100%;padding:0 16px;border:0;outline:none;background:transparent;font:inherit;font-size:16px;color:var(--text);}
+.dn-input:focus-visible,.dn-input-wrap:focus-within{outline:3px solid var(--teal);outline-offset:2px;}
+.dn-input::placeholder,.dn-input-wrap input::placeholder{color:var(--muted);}
+.dn-input.invalid,.dn-input-wrap.invalid{border:1.5px solid var(--danger);}
+.dn-eye{width:48px;height:48px;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;}
+.dn-eye svg{width:20px;height:20px;}
+.dn-hint{font-size:13px;}
+.dn-err{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--danger-soft);}
+.dn-err svg{width:14px;height:14px;flex:none;}
+.dn-alert{display:flex;gap:10px;padding:12px 14px;border-radius:12px;background:var(--danger-soft);color:#8A2A27;font-size:14px;line-height:1.45;}
+.dn-alert svg{width:20px;height:20px;flex:none;}
+.dn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+/* Ô tích: mẫu vẽ ô 18px trong nhãn 44px. Thẻ <input> thật phủ KÍN cả nhãn (vô hình) để chính nó
+   đạt vùng chạm ≥44px như a11y.mjs đo; ô vuông 18px nhìn thấy là .dn-tich vẽ riêng. */
+.dn-check{position:relative;display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:400;cursor:pointer;}
+.dn-check.top{align-items:flex-start;gap:10px;line-height:1.45;padding-top:12px;}
+.dn-check input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
+.dn-tich{flex:none;width:18px;height:18px;border:2px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;}
+.dn-check.top .dn-tich{margin-top:1px;}
+.dn-check input:checked+.dn-tich{background:var(--teal);border-color:var(--teal);}
+.dn-check input:checked+.dn-tich::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg);}
+.dn-check input:focus-visible+.dn-tich{outline:3px solid var(--teal);outline-offset:2px;}
+.dn-link{min-height:44px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:700;color:#fff;text-decoration:underline;text-underline-offset:3px;}
+.dn-foot{margin:0;text-align:center;font-size:15px;}
 .login-btn{
-  width:100%;background:#fff;color:var(--teal-dark);border:none;border-radius:999px;
-  padding:15px;min-height:52px;font-size:14.5px;font-weight:800;margin-top:4px;
-  box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);
+  width:100%;height:52px;background:var(--teal-dark);color:#fff;border:0;border-radius:12px;
+  font:inherit;font-size:16px;font-weight:700;
 }
 .login-btn:disabled{opacity:.7;}
-/* Hàng phụ dưới nút Đăng nhập: "Quên mật khẩu?" căn phải, vùng chạm 44px. */
-.login-phu{display:flex;justify-content:flex-end;width:100%;margin-top:4px;}
-.login-forgot{min-height:44px;padding:0 4px;border:0;background:transparent;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,0.35);}
-.login-create{display:block;width:100%;min-height:44px;border:0;background:transparent;text-align:center;color:#fff;font-size:12px;font-weight:700;margin-top:6px;text-decoration:underline;}
-.login-msg{margin:10px 0 0;padding:10px;border-radius:12px;background:rgba(255,255,255,0.92);color:#8A2A27;text-align:center;font-size:12px;font-weight:600;}
 .empty-card .empty-line{display:block;}
 
 /* ---------- toast lỗi ---------- */
@@ -656,13 +681,6 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .discover-promo-img{width:100%;height:auto;border-radius:18px;display:block;box-shadow:0 10px 24px -10px rgba(0,0,0,.25);}
 
 /* Nền mờ sau khối chào ở màn đăng nhập — xem chú thích trong LoginScreen.tsx. */
-.login-greet{
-  margin:2px 0 0;padding:10px 16px 11px;text-align:center;border-radius:18px;
-  /* 0,42 → 0,5: chữ thu về 15px không còn là "chữ lớn" nên cần 4,5:1 thay vì 3:1. */
-  background:rgba(10,30,26,0.5);
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
-}
-
 /* ==================================================================== */
 /* Lưới boCuc — chép từ bộ vẽ của bản tham chiếu web.dev.happibot.net     */
 /* ==================================================================== */

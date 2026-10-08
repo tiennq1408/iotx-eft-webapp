@@ -105,8 +105,15 @@ const back = async () => { await page.locator('.devback').click(); await wait(40
 await page.goto(GOC, { waitUntil: 'networkidle' });
 await page.addStyleTag({ content: 'nextjs-portal{display:none!important} .banner-slide{transition:none!important}' });
 await audit('01-login');
-await page.getByPlaceholder(/Email hoặc/).fill('demo');
-await page.getByPlaceholder(/Mật khẩu/).fill('demo');
+// Màn đăng nhập có ba màn con; chữ nằm trên ẢNH NỀN của local nên đo cả ba.
+await page.locator('.dn-row .dn-link').click(); await wait(300);
+await audit('01b-quen-mat-khau');
+await page.locator('.dn-back').click(); await wait(300);
+await page.locator('.dn-foot .dn-link').click(); await wait(300);
+await audit('01c-dang-ky');
+await page.locator('.dn-back').click(); await wait(300);
+await page.locator('#dn-id').fill('demo@demo.vn');
+await page.locator('#dn-pw').fill('demo');
 await page.locator('button.login-btn').click(); await wait(900);
 await audit('02-home');
 await page.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await wait(400);

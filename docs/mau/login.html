@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng nhập</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F6F3; --surface:#FFFFFF; --ink:#12211E; --muted:#4F625D; --muted-2:#3E524D;
+    --line:#CDD6D2; --brand:#0B5E51; --brand-ink:#073F37; --brand-dark:#0F2E29; --brand-soft:#DCEFEA;
+    --mint:#3FB59E; --focus:#8FD3C4; --danger:#C62D1F; --danger-ink:#A52418; --danger-bg:#FDECEA; --danger-text:#8A1C12;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Be Vietnam Pro',system-ui,sans-serif;color:var(--ink);background:#E9ECE9;display:flex;justify-content:center}
+  a{color:var(--brand);font-weight:600;text-decoration:none}
+  a:hover{color:var(--brand-ink)}
+  input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+  .app{width:100%;max-width:390px;min-height:100vh;background:var(--bg)}
+  @media (min-width:600px){
+    body{align-items:center;padding:32px 16px}
+    .app{min-height:844px;border-radius:32px;box-shadow:0 20px 60px rgba(15,46,41,.12);overflow:hidden}
+  }
+  .screen{min-height:inherit;padding:24px 24px 32px;display:none;flex-direction:column;gap:32px}
+  .screen.active{display:flex}
+  .screen.tight{gap:24px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700}
+  .logo{width:36px;height:36px;border-radius:10px;background:var(--brand-dark);display:flex;align-items:center;justify-content:center}
+  .back{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center}
+  select{height:44px;padding:0 8px 0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  .head{display:flex;flex-direction:column;gap:8px}
+  .head.pad{padding-top:24px}
+  h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.02em}
+  .lead{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+  .badge{width:56px;height:56px;border-radius:16px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center}
+
+  form{display:flex;flex-direction:column;gap:20px}
+  form.tight{gap:16px}
+  .field{display:flex;flex-direction:column;gap:8px}
+  .field label{font-size:14px;font-weight:600}
+  .input,.input-wrap{height:52px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .input{width:100%;padding:0 16px;font:inherit;font-size:16px;color:var(--ink)}
+  .input-wrap{display:flex;align-items:center;overflow:hidden}
+  .input-wrap input{flex:1;min-width:0;height:100%;padding:0 16px;border:0;outline:none;background:transparent;font:inherit;font-size:16px;color:var(--ink)}
+  .input-wrap:focus-within{outline:3px solid var(--focus);outline-offset:2px}
+  .eye{width:48px;height:48px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .invalid{border:1.5px solid var(--danger)}
+  .hint{font-size:13px;color:var(--muted)}
+  .err{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--danger-ink)}
+  .err[hidden],.alert[hidden]{display:none}
+  .alert{display:flex;gap:10px;padding:12px 14px;border-radius:12px;background:var(--danger-bg);color:var(--danger-text);font-size:14px;line-height:1.45}
+  .alert svg{flex:none}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .check{display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:var(--muted-2);cursor:pointer}
+  .check.top{align-items:flex-start;gap:10px;line-height:1.45}
+  .check input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--brand)}
+  .check.top input{margin-top:1px}
+  .row a{font-size:14px;min-height:44px;display:flex;align-items:center}
+
+  .btn{height:52px;border:0;border-radius:12px;background:var(--brand);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--brand-ink)}
+  .link-btn{min-height:44px;padding:0 4px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:600;color:var(--brand);cursor:pointer}
+  .foot{margin:auto 0 0;text-align:center;font-size:15px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main class="app">
+
+  <!-- ============ ĐĂNG NHẬP ============ -->
+  <section class="screen" id="login" aria-labelledby="login-title">
+    <div class="topbar">
+      <div class="brand">
+        <span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3FB59E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg></span>
+        [TÊN APP]
+      </div>
+      <label>
+        <span class="sr-only" data-i18n="langLabel">Ngôn ngữ</span>
+        <select id="lang">
+          <option value="vi">Tiếng Việt</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="head pad">
+      <h1 id="login-title" data-i18n="title">Đăng nhập</h1>
+      <p class="lead" data-i18n="subtitle">Chào mừng bạn quay lại. Đăng nhập để tiếp tục.</p>
+    </div>
+
+    <form id="login-form" novalidate>
+      <div class="alert" id="login-alert" role="alert" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <span id="login-alert-text"></span>
+      </div>
+
+      <div class="field">
+        <label for="login-id" data-i18n="idLabel">Email hoặc số điện thoại</label>
+        <input class="input" id="login-id" name="identifier" type="text" autocomplete="username" data-i18n-ph="idPh" placeholder="ten@congty.com hoặc 0912 345 678" aria-describedby="login-id-err">
+        <span class="err" id="login-id-err" hidden></span>
+      </div>
+
+      <div class="field">
+        <label for="login-pw" data-i18n="password">Mật khẩu</label>
+        <div class="input-wrap" id="login-pw-wrap">
+          <input id="login-pw" name="password" type="password" autocomplete="current-password" data-i18n-ph="pwPh" placeholder="Nhập mật khẩu" aria-describedby="login-pw-err">
+          <button type="button" class="eye" data-toggle="login-pw" aria-label="Hiện mật khẩu"></button>
+        </div>
+        <span class="err" id="login-pw-err" hidden></span>
+      </div>
+
+      <div class="row">
+        <label class="check"><input type="checkbox" name="remember"> <span data-i18n="remember">Ghi nhớ đăng nhập</span></label>
+        <a href="#forgot" data-i18n="forgot">Quên mật khẩu?</a>
+      </div>
+
+      <button type="submit" class="btn" data-i18n="submit">Đăng nhập</button>
+    </form>
+
+    <p class="foot"><span data-i18n="noAccount">Bạn chưa có tài khoản?</span> <a href="#signup" data-i18n="signup">Đăng ký ngay</a></p>
+  </section>
+
+  <!-- ============ QUÊN MẬT KHẨU ============ -->
+  <section class="screen" id="forgot" aria-labelledby="forgot-title">
+    <div class="topbar">
+      <a href="#login" class="back" aria-label="Quay lại đăng nhập"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+    </div>
+
+    <div id="forgot-step-input" style="display:flex;flex-direction:column;gap:32px">
+      <div class="head" style="gap:16px;padding-top:8px">
+        <span class="badge"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+        <h1 id="forgot-title">Quên mật khẩu</h1>
+        <p class="lead">Nhập email hoặc số điện thoại bạn đã đăng ký. Chúng tôi sẽ gửi mã xác nhận để đặt lại mật khẩu.</p>
+      </div>
+      <form id="forgot-form" novalidate>
+        <div class="field">
+          <label for="fp-id">Email hoặc số điện thoại</label>
+          <input class="input" id="fp-id" name="identifier" type="text" autocomplete="username" placeholder="ten@congty.com hoặc 0912 345 678" aria-describedby="fp-err">
+          <span class="err" id="fp-err" role="alert" hidden></span>
+        </div>
+        <button type="submit" class="btn">Gửi mã xác nhận</button>
+      </form>
+    </div>
+
+    <div id="forgot-step-sent" style="display:none;flex-direction:column;gap:24px;padding-top:8px">
+      <span class="badge"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg></span>
+      <div class="head" style="gap:12px">
+        <h1>Đã gửi mã xác nhận</h1>
+        <p class="lead">Chúng tôi đã gửi mã 6 số tới <strong id="fp-target" style="color:var(--ink)"></strong>. Mã có hiệu lực trong 10 phút.</p>
+      </div>
+      <button type="button" class="btn">Nhập mã xác nhận</button>
+      <p class="lead" style="text-align:center;font-size:14px">Không nhận được mã? <button type="button" class="link-btn" id="fp-resend">Gửi lại</button></p>
+    </div>
+
+    <p class="foot">Đã nhớ mật khẩu? <a href="#login">Đăng nhập</a></p>
+  </section>
+
+  <!-- ============ ĐĂNG KÝ ============ -->
+  <section class="screen tight" id="signup" aria-labelledby="signup-title">
+    <div class="topbar">
+      <a href="#login" class="back" aria-label="Quay lại đăng nhập"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+    </div>
+
+    <div class="head">
+      <h1 id="signup-title">Tạo tài khoản</h1>
+      <p class="lead">Chỉ mất chưa đến một phút.</p>
+    </div>
+
+    <form id="signup-form" class="tight" novalidate>
+      <div class="field" style="gap:6px">
+        <label for="su-name">Họ và tên</label>
+        <input class="input" id="su-name" name="name" type="text" autocomplete="name" placeholder="Nguyễn Văn A" style="height:50px">
+      </div>
+      <div class="field" style="gap:6px">
+        <label for="su-id">Email hoặc số điện thoại</label>
+        <input class="input" id="su-id" name="identifier" type="text" autocomplete="username" placeholder="ten@congty.com hoặc 0912 345 678" style="height:50px">
+      </div>
+      <div class="field" style="gap:6px">
+        <label for="su-pw">Mật khẩu</label>
+        <div class="input-wrap" style="height:50px">
+          <input id="su-pw" name="password" type="password" autocomplete="new-password" placeholder="Tạo mật khẩu" aria-describedby="su-pw-hint">
+          <button type="button" class="eye" data-toggle="su-pw,su-pw2" aria-label="Hiện mật khẩu"></button>
+        </div>
+        <span class="hint" id="su-pw-hint">Tối thiểu 8 ký tự, gồm chữ và số.</span>
+      </div>
+      <div class="field" style="gap:6px">
+        <label for="su-pw2">Nhập lại mật khẩu</label>
+        <input class="input" id="su-pw2" name="password2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" style="height:50px">
+      </div>
+      <label class="check top">
+        <input type="checkbox" name="terms">
+        <span>Tôi đồng ý với <a href="#terms">Điều khoản sử dụng</a> và <a href="#privacy">Chính sách bảo mật</a>.</span>
+      </label>
+      <button type="submit" class="btn">Đăng ký</button>
+    </form>
+
+    <p class="foot">Đã có tài khoản? <a href="#login">Đăng nhập</a></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var I18N = {
+    vi: {
+      langLabel: 'Ngôn ngữ', title: 'Đăng nhập', subtitle: 'Chào mừng bạn quay lại. Đăng nhập để tiếp tục.',
+      idLabel: 'Email hoặc số điện thoại', idPh: 'ten@congty.com hoặc 0912 345 678',
+      password: 'Mật khẩu', pwPh: 'Nhập mật khẩu', showPw: 'Hiện mật khẩu', hidePw: 'Ẩn mật khẩu',
+      remember: 'Ghi nhớ đăng nhập', forgot: 'Quên mật khẩu?', submit: 'Đăng nhập',
+      noAccount: 'Bạn chưa có tài khoản?', signup: 'Đăng ký ngay',
+      errIdEmpty: 'Vui lòng nhập email hoặc số điện thoại', errIdInvalid: 'Email hoặc số điện thoại không hợp lệ',
+      errPwEmpty: 'Vui lòng nhập mật khẩu', errPwWrong: 'Mật khẩu không đúng',
+      errBanner: 'Mật khẩu không đúng. Bạn còn {n} lần thử trước khi tài khoản bị tạm khóa.'
+    },
+    en: {
+      langLabel: 'Language', title: 'Sign in', subtitle: 'Welcome back. Sign in to continue.',
+      idLabel: 'Email or phone number', idPh: 'name@company.com or 0912 345 678',
+      password: 'Password', pwPh: 'Enter your password', showPw: 'Show password', hidePw: 'Hide password',
+      remember: 'Remember me', forgot: 'Forgot password?', submit: 'Sign in',
+      noAccount: "Don't have an account?", signup: 'Sign up now',
+      errIdEmpty: 'Please enter your email or phone number', errIdInvalid: 'Invalid email or phone number',
+      errPwEmpty: 'Please enter your password', errPwWrong: 'Incorrect password',
+      errBanner: 'Incorrect password. You have {n} attempts left before your account is temporarily locked.'
+    }
+  };
+  var lang = 'vi';
+  var attemptsLeft = 5;
+  var t = function (k) { return (I18N[lang] || I18N.vi)[k]; };
+
+  var EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7a12.6 12.6 0 0 1-3.2 4.3M6.1 6.1C3.9 7.6 2.5 9.8 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1"/></svg>';
+  var ERR_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01"/></svg>';
+
+  function $(id) { return document.getElementById(id); }
+  function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+  function isPhone(v) { return /^(0|\+84)\d{9}$/.test(v.replace(/[\s.-]/g, '')); }
+
+  /* ---------- Điều hướng giữa các màn hình (#login, #error, #forgot, #signup) ---------- */
+  function route() {
+    var id = (location.hash || '#login').slice(1);
+    if (id === 'error') { showLoginErrorDemo(); id = 'login'; }
+    if (!$(id) || !$(id).classList.contains('screen')) id = 'login';
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
+    var title = $(id).querySelector('h1');
+    document.title = title ? title.textContent : 'Đăng nhập';
+  }
+  window.addEventListener('hashchange', route);
+
+  /* ---------- Hiện / ẩn mật khẩu ---------- */
+  document.querySelectorAll('[data-toggle]').forEach(function (btn) {
+    var ids = btn.getAttribute('data-toggle').split(',');
+    var render = function () {
+      var shown = $(ids[0]).type === 'text';
+      btn.innerHTML = shown ? EYE_OFF : EYE;
+      btn.setAttribute('aria-label', shown ? t('hidePw') : t('showPw'));
+    };
+    btn.addEventListener('click', function () {
+      var next = $(ids[0]).type === 'password' ? 'text' : 'password';
+      ids.forEach(function (i) { $(i).type = next; });
+      render();
+    });
+    btn._render = render;
+    render();
+  });
+
+  /* ---------- Ngôn ngữ ---------- */
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('#login [data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('#login [data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+    document.querySelectorAll('[data-toggle]').forEach(function (b) { b._render && b._render(); });
+    clearLoginErrors();
+    route();
+  }
+  $('lang').addEventListener('change', function (e) { lang = e.target.value; applyLang(); });
+
+  /* ---------- Lỗi form đăng nhập ---------- */
+  function setFieldError(inputEl, boxEl, errEl, msg) {
+    boxEl.classList.toggle('invalid', !!msg);
+    inputEl.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    errEl.hidden = !msg;
+    errEl.innerHTML = msg ? ERR_ICON + '<span>' + msg + '</span>' : '';
+  }
+  function clearLoginErrors() {
+    $('login-alert').hidden = true;
+    setFieldError($('login-id'), $('login-id'), $('login-id-err'), '');
+    setFieldError($('login-pw'), $('login-pw-wrap'), $('login-pw-err'), '');
+  }
+  function showWrongPassword() {
+    attemptsLeft = Math.max(0, attemptsLeft - 1);
+    $('login-alert-text').innerHTML = t('errBanner').replace('{n}', '<strong>' + attemptsLeft + '</strong>');
+    $('login-alert').hidden = false;
+    setFieldError($('login-pw'), $('login-pw-wrap'), $('login-pw-err'), t('errPwWrong'));
+  }
+  function showLoginErrorDemo() {
+    $('login-id').value = 'ten@congty.com';
+    $('login-pw').value = 'matkhau';
+    clearLoginErrors();
+    showWrongPassword();
+  }
+  $('login-id').addEventListener('input', function () { setFieldError($('login-id'), $('login-id'), $('login-id-err'), ''); });
+  $('login-pw').addEventListener('input', function () { setFieldError($('login-pw'), $('login-pw-wrap'), $('login-pw-err'), ''); });
+
+  $('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearLoginErrors();
+    var id = $('login-id').value.trim();
+    var pw = $('login-pw').value;
+    var ok = true;
+    if (!id) { setFieldError($('login-id'), $('login-id'), $('login-id-err'), t('errIdEmpty')); ok = false; }
+    else if (!isEmail(id) && !isPhone(id)) { setFieldError($('login-id'), $('login-id'), $('login-id-err'), t('errIdInvalid')); ok = false; }
+    if (!pw) { setFieldError($('login-pw'), $('login-pw-wrap'), $('login-pw-err'), t('errPwEmpty')); ok = false; }
+    if (!ok) return;
+    // TODO: gọi API đăng nhập ở đây. Bản demo luôn giả lập sai mật khẩu.
+    showWrongPassword();
+  });
+
+  /* ---------- Quên mật khẩu ---------- */
+  $('forgot-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = $('fp-id'), v = input.value.trim(), msg = '';
+    if (!v) msg = 'Vui lòng nhập email hoặc số điện thoại';
+    else if (!isEmail(v) && !isPhone(v)) msg = 'Email hoặc số điện thoại không hợp lệ';
+    setFieldError(input, input, $('fp-err'), msg);
+    if (msg) return;
+    // TODO: gọi API gửi mã xác nhận ở đây.
+    $('fp-target').textContent = v;
+    $('forgot-step-input').style.display = 'none';
+    $('forgot-step-sent').style.display = 'flex';
+  });
+  $('fp-id').addEventListener('input', function () { setFieldError($('fp-id'), $('fp-id'), $('fp-err'), ''); });
+  $('fp-resend').addEventListener('click', function () {
+    $('forgot-step-sent').style.display = 'none';
+    $('forgot-step-input').style.display = 'flex';
+  });
+
+  /* ---------- Đăng ký ---------- */
+  $('signup-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    // TODO: kiểm tra dữ liệu và gọi API đăng ký ở đây.
+  });
+
+  route();
+})();
+</script>
+</body>
+</html>

@@ -364,7 +364,15 @@ export default function LivotecApp() {
     <ChuProvider lang={lang} boChu={boChu}>
         {!signedIn ? (
           <div className="app-shell"><div className="phone">
-            <LoginScreen onDone={xongDangNhap} logoUrl={theme?.logoUrl ?? null} lang={lang} langs={boChu.langs} onLang={doiNgonNgu} />
+            <LoginScreen
+              onDone={xongDangNhap}
+              logoUrl={theme?.logoUrl ?? null}
+              tenHang={theme?.tenantName}
+              lang={lang}
+              langs={boChu.langs}
+              onLang={doiNgonNgu}
+              loginMethods={theme?.loginMethods}
+            />
           </div></div>
         ) : (
           <div className="app-shell"><div className="phone">
