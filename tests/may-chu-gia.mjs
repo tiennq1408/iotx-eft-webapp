@@ -203,6 +203,34 @@ http.createServer((req,res)=>{
   // ── hẹn giờ theo thiết bị (D4) ─────────────────────────────────────────────────────
   // Cài thật trong bộ nhớ chứ không trả cứng: bộ kiểm cần đi hết luồng và cần CẢ những
   // nhánh chối (403/404/409/400) mà một stub không bao giờ dựng ra được.
+  // Hai cửa nhận thiết bị. Ghi nhật ký kèm `cua` + `id` thiết bị tạo ra để bài kiểm nối với
+  // PATCH /devices đi sau. Thiết bị nhận được thêm vào bs.devices để các cửa sau tìm thấy.
+  if ((p === '/claim' || p === '/claim-mach-that') && req.method === 'POST') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      let than; try { than = JSON.parse(raw || '{}'); } catch { than = {}; }
+      const them = (name, type, active) => {
+        const d = { id: `claim-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`, name, type, label: name, house: '', room: '', grp: '',
+          fav: false, hidden: false, active, createdTime: Date.now(), lastValues: {}, shared: false, perms: { control: true, create: true, delete: true } };
+        bs.devices.push(d);
+        return d;
+      };
+      if (p === '/claim') {
+        // Tem hợp lệ duy nhất: fan81029 / 12345. Sai tên, sai mã, đã có chủ: 404 đồng nhất.
+        const dung = than.name === 'fan81029' && than.secret === '12345' && !bs.devices.some(d => d.name === 'fan81029');
+        const d = dung ? them('fan81029', 'fan_sbi314', true) : null;
+        fs.appendFileSync(NHAT_KY, JSON.stringify({ cua: 'POST /claim', id: d?.id ?? null, than }) + '\n');
+        return d ? J(res, { ok: true, id: d.id, name: d.name, type: d.type }, 201) : J(res, { message: 'not_found' }, 404);
+      }
+      // Serial: 40A… → online; OFF… → nhận được nhưng mạch chưa online; còn lại 400 câu tiếng Việt.
+      const serial = String(than.serial ?? '');
+      const hopLe = /^(40A|OFF)/.test(serial);
+      const d = hopLe ? them(serial, 'fan', serial.startsWith('40A')) : null;
+      fs.appendFileSync(NHAT_KY, JSON.stringify({ cua: 'POST /claim-mach-that', id: d?.id ?? null, than }) + '\n');
+      if (!d) return J(res, { message: 'Không nhận được mạch này. Kiểm lại serial in trên vỏ; nếu đúng rồi thì mạch có thể đã thuộc tài khoản khác.' }, 400);
+      return J(res, { ok: true, id: d.id, name: d.name, type: d.type, dangNoi: d.active }, 201);
+    });
+  }
   // PATCH /devices/{id} — đổi tên, gán chỗ, ghim. Ghi nhật ký kèm `cua` để bài kiểm lọc ra.
   if (/^\/devices\/[^/]+$/.test(p) && req.method === 'PATCH') {
     let raw = ''; req.on('data', c => raw += c);

@@ -7,7 +7,7 @@ const loi=[]; p.on('pageerror',e=>loi.push(String(e).slice(0,140)));
 p.on('console',m=>{if(m.type()==='error')loi.push(m.text().slice(0,140));});
 await p.goto(GOC,{waitUntil:'networkidle'});
 await p.addStyleTag({content:'nextjs-portal{display:none!important}'});
-await p.getByPlaceholder(/Tên đăng nhập/).fill('demo');
+await p.getByPlaceholder(/Email hoặc/).fill('demo');
 await p.getByPlaceholder(/Mật khẩu/).fill('demo');
 await p.locator('button.login-btn').click(); await p.waitForTimeout(1600);
 await p.locator('.bn-item',{hasText:'Thiết bị'}).click(); await p.waitForTimeout(700);

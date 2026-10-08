@@ -105,7 +105,7 @@ const back = async () => { await page.locator('.devback').click(); await wait(40
 await page.goto(GOC, { waitUntil: 'networkidle' });
 await page.addStyleTag({ content: 'nextjs-portal{display:none!important} .banner-slide{transition:none!important}' });
 await audit('01-login');
-await page.getByPlaceholder(/Tên đăng nhập/).fill('demo');
+await page.getByPlaceholder(/Email hoặc/).fill('demo');
 await page.getByPlaceholder(/Mật khẩu/).fill('demo');
 await page.locator('button.login-btn').click(); await wait(900);
 await audit('02-home');

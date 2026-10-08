@@ -11,7 +11,7 @@ const quet=async ten=>{const t=await p.locator('body').innerText();
   const x=[...new Set(t.split('\n').map(s=>s.trim()).filter(s=>KHOA.test(s)))];
   if(x.length){n+=x.length;console.log(`${ten}: LỌT → ${x.slice(0,5).join(' | ')}`);} else console.log(`${ten}: sạch`);};
 await quet('Đăng nhập');
-await p.getByPlaceholder(/Tên đăng nhập/).fill('demo');
+await p.getByPlaceholder(/Email hoặc/).fill('demo');
 await p.getByPlaceholder(/Mật khẩu/).fill('demo');
 await p.locator('button.login-btn').click(); await p.waitForTimeout(1600);
 await quet('Trang chủ');

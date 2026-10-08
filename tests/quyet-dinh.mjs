@@ -29,7 +29,7 @@ async function dangNhap(truocKhiVao) {
   const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 160)));
   await p.goto(GOC, { waitUntil: 'networkidle' });
   await p.addStyleTag({ content: AN });
-  await p.getByPlaceholder(/Tên đăng nhập/).fill('p@p');
+  await p.getByPlaceholder(/Email hoặc/).fill('p@p');
   await p.getByPlaceholder(/Mật khẩu/).fill('x');
   await p.locator('button.login-btn').click();
   await p.locator('.top-bar').waitFor({ timeout: 8000 }).catch(() => undefined);

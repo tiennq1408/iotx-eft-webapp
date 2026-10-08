@@ -14,12 +14,31 @@ import { iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
  * thiết kế đặt nó. Ô nhập để trống chứ không điền sẵn "Ngocthuy/123" như nguyên mẫu, vì
  * màn này chạy với tài khoản thật.
  */
-export default function LoginScreen({ onDone, logoUrl }: {
+/** Tên ngôn ngữ viết bằng chính ngôn ngữ đó ("Tiếng Việt", "ไทย"); không có thì để mã. */
+function tenNgonNgu(ma: string): string {
+  try {
+    const ten = new Intl.DisplayNames([ma], { type: "language" }).of(ma);
+    return ten && ten !== ma ? ten : ma.toUpperCase();
+  } catch { return ma.toUpperCase(); }
+}
+
+export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang }: {
   onDone: () => void | Promise<void>;
   /** Logo của hãng từ `GET /tenant/theme`; chưa có thì dùng wordmark Livotec đóng kèm. */
   logoUrl?: string | null;
+  lang?: string;
+  /**
+   * `langs` của `GET /i18n` (cửa public, gọi được trước đăng nhập). Dựng khối chọn từ đây,
+   * không viết cứng: máy chủ thêm ngôn ngữ là màn tự có. Rỗng (chưa tải xong) thì ẩn hẳn.
+   */
+  langs?: string[];
+  onLang?: (ma: string) => void;
 }) {
   const { t } = useChu();
+  // Ngôn ngữ đang dùng mà máy chủ không liệt kê vẫn phải có trong danh sách, không thì nút
+  // nào cũng không sáng.
+  const dsLang = lang && !langs.includes(lang) ? [lang, ...langs] : langs;
+  const coChonLang = langs.length > 0 && Boolean(onLang);
   const [che, setChe] = useState<"login" | "register">("login");
   const [user, setUser] = useState("");
   const [email, setEmail] = useState("");
@@ -82,6 +101,19 @@ export default function LoginScreen({ onDone, logoUrl }: {
           <p className="login-title-band">{t("login_back")}</p>
           <p className="login-sub">{t("login_sub")}</p>
         </div>
+
+        {/* Chọn ngôn ngữ TRƯỚC khi đăng nhập: người dùng Thái mở app lần đầu không thể mắc kẹt
+            ở màn tiếng Việt. Ô select, danh sách từ `langs` máy chủ, tên viết bằng chính ngôn
+            ngữ đó. Mặc định tiếng Việt; đã chọn gì thì lần sau mở app (kể cả sau đăng xuất)
+            vẫn là ngôn ngữ đó — `ghiNgonNguDaChon` lưu riêng, không bị xoá cùng phiên. */}
+        {coChonLang && (
+          <label className="login-lang">
+            <span className="login-lang-ico" aria-hidden="true">🌐</span>
+            <select aria-label={t("login_lang")} value={lang} onChange={event => onLang?.(event.target.value)}>
+              {dsLang.map(ma => <option key={ma} value={ma}>{tenNgonNgu(ma)}</option>)}
+            </select>
+          </label>
+        )}
 
         <form className="login-form" onSubmit={guiDi}>
           <input

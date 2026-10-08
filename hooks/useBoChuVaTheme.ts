@@ -7,6 +7,7 @@ import {
 import type { BoChu } from "@/lib/iotx";
 import type { IotxTheme } from "@/lib/iotx/contracts";
 import { apDungTheme } from "@/lib/newui/theme";
+import { CHU } from "@/lib/newui/strings";
 
 /**
  * Ngôn ngữ đang chọn, bảng chữ `/i18n` và theme của hãng. Cả hai cửa đều công khai và có
@@ -26,8 +27,9 @@ export function useBoChuVaTheme() {
       if (nhan !== undefined) return;
     }
     // Chế độ mock không có máy chủ nào để hỏi: gọi `/i18n` chỉ tạo một request 403/404 vô
-    // nghĩa trong console. Bảng chữ trong mã đã đủ cho cả ba ngôn ngữ.
-    if (!isIotxMode) return;
+    // nghĩa trong console. Bảng chữ trong mã đã đủ cho cả ba ngôn ngữ — và chính danh sách
+    // đó là `langs` để màn đăng nhập dựng khối chọn, thay cho `langs` máy chủ trả.
+    if (!isIotxMode) { if (!dangGiu) setBoChu({ lang: ma, langs: Object.keys(CHU), strings: {} }); return; }
     try {
       const moi = await iotxClient.i18n(ma);
       ghiI18n(ma, nhan, moi);

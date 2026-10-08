@@ -9,7 +9,7 @@ const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();
 const loi=[]; p.on('pageerror',e=>loi.push(String(e).slice(0,120)));
 await p.goto(GOC,{waitUntil:'networkidle'});
 await p.addStyleTag({content:'nextjs-portal{display:none!important}'});
-await p.getByPlaceholder(/Tên đăng nhập/).fill('p@p');
+await p.getByPlaceholder(/Email hoặc/).fill('p@p');
 await p.getByPlaceholder(/Mật khẩu/).fill('x');
 await p.locator('button.login-btn').click(); await p.waitForTimeout(2500);
 await p.locator('.bn-item',{hasText:'Thiết bị'}).click(); await p.waitForTimeout(700);

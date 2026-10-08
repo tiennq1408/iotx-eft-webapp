@@ -14,7 +14,7 @@ const back=async()=>{await p.locator('.devback').click();await w(400)};
 
 await p.goto(GOC,{waitUntil:'networkidle'});
 await p.addStyleTag({content:'nextjs-portal{display:none!important}'});
-await p.getByPlaceholder(/Tên đăng nhập/).fill('demo');
+await p.getByPlaceholder(/Email hoặc/).fill('demo');
 await p.getByPlaceholder(/Mật khẩu/).fill('demo');
 await p.locator('button.login-btn').click(); await w(900);
 await p.locator('.bn-item',{hasText:'Thiết bị'}).click(); await w(400);

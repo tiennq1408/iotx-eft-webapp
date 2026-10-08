@@ -23,7 +23,7 @@ async function dangNhap() {
   const p = await ctx.newPage();
   await p.goto(GOC, { waitUntil: 'networkidle' });
   await p.addStyleTag({ content: AN });
-  await p.getByPlaceholder(/Tên đăng nhập/).fill('p@p');
+  await p.getByPlaceholder(/Email hoặc/).fill('p@p');
   await p.getByPlaceholder(/Mật khẩu/).fill('x');
   await p.locator('button.login-btn').click();
   await p.locator('.top-bar').waitFor({ timeout: 8000 });
@@ -129,7 +129,7 @@ ok('proxy vẫn cho /v1/products đi qua', (await fetch(`${GOC}/v1/products`)).s
   const p = await ctx.newPage();
   await p.goto(GOC, { waitUntil: 'networkidle' });
   await p.addStyleTag({ content: AN });
-  await p.getByPlaceholder(/Tên đăng nhập/).fill('p@p');
+  await p.getByPlaceholder(/Email hoặc/).fill('p@p');
   await p.getByPlaceholder(/Mật khẩu/).fill('x');
   await p.locator('button.login-btn').click();
   await p.locator('.top-bar').waitFor({ timeout: 8000 });
