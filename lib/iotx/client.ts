@@ -36,6 +36,16 @@ const CUA_DOI_MAT_KHAU: string | null = null;
 /** `message` của lỗi khi cửa đổi mật khẩu chưa bật. */
 export const DOI_MAT_KHAU_CHUA_BAT = "doi_mat_khau_chua_bat";
 
+/**
+ * Sửa hồ sơ (tên hiển thị, ảnh đại diện) — CHỜ IBS. Tới 09/10/2026 `/v1` chỉ có `GET /me`,
+ * trả email/tenant, không có tên hay ảnh, cũng không có cửa ghi. IBS mở cửa thì điền đường
+ * dẫn vào hai hằng dưới — chỉ sửa một chỗ.
+ */
+const CUA_DOI_TEN: string | null = null;
+const CUA_DOI_ANH_DAI_DIEN: string | null = null;
+/** `message` của lỗi khi cửa sửa hồ sơ chưa bật. */
+export const HO_SO_CHUA_BAT = "ho_so_chua_bat";
+
 /** Thân `{ ok: true }` mà hầu hết cửa ghi trả về, kèm vài trường riêng của từng cửa. */
 type Ok<T = object> = { ok: true } & T;
 
@@ -227,6 +237,16 @@ export class IotxClient {
   doiMatKhau(matKhauCu: string, matKhauMoi: string) {
     if (!CUA_DOI_MAT_KHAU) return Promise.reject(new IotxApiError(0, DOI_MAT_KHAU_CHUA_BAT));
     return this.request<Ok>(CUA_DOI_MAT_KHAU, { method: "POST", body: { matKhauCu, matKhauMoi } });
+  }
+  /** Đổi tên hiển thị. Chưa có cửa thì ném lỗi `HO_SO_CHUA_BAT`. */
+  doiTen(ten: string) {
+    if (!CUA_DOI_TEN) return Promise.reject(new IotxApiError(0, HO_SO_CHUA_BAT));
+    return this.request<Ok>(CUA_DOI_TEN, { method: "PATCH", body: { ten } });
+  }
+  /** Đổi ảnh đại diện. Chưa có cửa thì ném lỗi `HO_SO_CHUA_BAT`; hợp đồng tải tệp do IBS chốt khi mở cửa. */
+  doiAnhDaiDien(anh: File): Promise<Ok> {
+    if (!CUA_DOI_ANH_DAI_DIEN) return Promise.reject(new IotxApiError(0, HO_SO_CHUA_BAT));
+    return Promise.reject(new Error(`Chưa viết luồng tải ảnh ${anh.name} lên ${CUA_DOI_ANH_DAI_DIEN}`));
   }
   /** Đăng nhập bằng Google. Chưa có cửa thì ném lỗi `GOOGLE_CHUA_BAT`. */
   dangNhapGoogle(): Promise<void> {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
 import type { Device } from "@/lib/types";
-import { apGiaTri, iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
+import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule } from "@/lib/iotx/contracts";
 import IfThenEditor from "@/components/automation/IfThenEditor";
 import VirtualPanel from "@/components/virtual/VirtualPanel";
@@ -20,7 +20,7 @@ import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/
 import { capNguonCua } from "@/lib/newui/khuon";
 import { CHU, laMaNgonNgu } from "@/lib/newui/strings";
 import {
-  ChonModal, DevicePickerModal, XemTruocCoChu, DoiMatKhauModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, ProfileModal,
+  ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
   NHAN_CO_CHU, NHAN_GIAO_DIEN, type MucChon, type MucMenu,
 } from "@/components/newui/modals";
 import DeviceDetail from "@/components/newui/device/DeviceDetail";
@@ -36,8 +36,8 @@ import { coNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
  */
 type Panel =
   | null
-  | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" | "doiMatKhau" }
-  /** Popup chọn của menu (ngôn ngữ / cỡ chữ / giao diện) — đóng là quay về menu. */
+  | { loai: "drawer" | "profile" | "notif" | "spaces" | "members" | "add" | "chonThietBi" | "virtual" | "if-editor" | "doiMatKhau" | "doiTen" | "doiAnh" }
+  /** Popup chọn của popup tài khoản (ngôn ngữ / cỡ chữ / giao diện) — đóng là quay về popup đó. */
   | { loai: "chon"; muc: MucChon }
   | { loai: "loc"; boLoc: LoaiLoc }
   | { loai: "placeholder"; tieuDe: string }
@@ -360,9 +360,9 @@ export default function LivotecApp() {
     }
   }
 
-  /** Popup chọn của menu. Chọn xong là áp ngay và quay về menu. */
+  /** Popup chọn của popup tài khoản. Chọn xong là áp ngay và quay về popup tài khoản. */
   function popupChon(muc: MucChon) {
-    const veMenu = () => setPanel({ loai: "drawer" });
+    const veMenu = () => setPanel({ loai: "profile" });
     if (muc === "ngonNgu") {
       return (
         <ChonModal khoaTieuDe="menu_ngon_ngu" dangChon={lang} onClose={veMenu}
@@ -425,33 +425,28 @@ export default function LivotecApp() {
             )}
 
             {panel?.loai === "drawer" && (
-              <MenuDrawer
+              <MenuDrawer phienBan={`v1.0 · ${iotxConfig.tenant}`} onClose={dongPanel} onChon={chonMenu} />
+            )}
+            {panel?.loai === "profile" && (
+              <TaiKhoanPopup
                 ten={tenHienThi(profile)}
                 email={profile?.email || ""}
-                tenApp={theme?.tenantName || profile?.tenantName || "Livotec Home"}
-                phienBan="1.0"
                 lang={lang}
                 caiDat={caiDat}
                 onCaiDat={suaCaiDat}
                 onClose={dongPanel}
-                onChon={chonMenu}
+                onDoiTen={() => setPanel({ loai: "doiTen" })}
+                onDoiAnh={() => setPanel({ loai: "doiAnh" })}
                 onDoiMatKhau={() => setPanel({ loai: "doiMatKhau" })}
                 onMoChon={muc => setPanel({ loai: "chon", muc })}
                 onDangXuat={dangXuat}
               />
             )}
-            {/* Hai hộp mở từ menu: đóng là quay lại menu, như đi một bước vào trong rồi lùi ra. */}
-            {panel?.loai === "doiMatKhau" && <DoiMatKhauModal onClose={() => setPanel({ loai: "drawer" })} />}
+            {/* Hai hộp mở từ popup tài khoản: đóng là quay lại popup, như đi một bước vào trong rồi lùi ra. */}
+            {panel?.loai === "doiMatKhau" && <DoiMatKhauModal onClose={() => setPanel({ loai: "profile" })} />}
+            {panel?.loai === "doiTen" && <DoiTenModal tenHienTai={tenHienThi(profile)} onClose={() => setPanel({ loai: "profile" })} />}
+            {panel?.loai === "doiAnh" && <DoiAnhModal onClose={() => setPanel({ loai: "profile" })} />}
             {panel?.loai === "chon" && popupChon(panel.muc)}
-            {panel?.loai === "profile" && (
-              <ProfileModal
-                ten={tenHienThi(profile)}
-                email={profile?.email || ""}
-                vaiTro={profile?.tenantName || ""}
-                onClose={dongPanel}
-                onLogout={dangXuat}
-              />
-            )}
             {panel?.loai === "notif" && (
               <NotifModal
                 items={notifications}

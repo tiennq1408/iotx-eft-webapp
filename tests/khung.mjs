@@ -41,8 +41,10 @@ async function trongKhung(ten, chon) {
 
 // Hộp thoại: nền mờ phải phủ đúng khung máy, không phủ cả cửa sổ
 await p.locator('.profile-chip').click(); await p.waitForTimeout(700);
-if (await p.locator('.modal-overlay').count()) await trongKhung('hộp thoại tài khoản', '.modal-overlay');
-await p.locator('.modal-close').first().click().catch(() => p.keyboard.press('Escape'));
+// Popup tài khoản thả xuống dưới avatar: nền mờ của nó cũng phải nằm gọn trong khung máy.
+if (await p.locator('.tk-overlay').count()) await trongKhung('popup tài khoản', '.tk-overlay');
+else R.push('FAIL  bấm avatar không mở popup tài khoản');
+await p.locator('.tk-overlay .modal-scrim').click({ position: { x: 10, y: 500 } });
 await p.waitForTimeout(500);
 
 await p.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await p.waitForTimeout(800);
