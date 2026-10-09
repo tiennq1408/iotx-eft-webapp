@@ -186,6 +186,11 @@ const vi: Record<string, string> = {
   supplies_drop_confirm: "Bỏ theo dõi?",
   supplies_unverified: "chưa xác thực", next: "Sau",
   hide_device: "Ẩn thiết bị khỏi danh sách",
+  loc_da_an: "Thiết bị đã ẩn",
+  da_an_dang_xem: "Đang xem các thiết bị đã ẩn. Bấm nút mắt lần nữa để trở lại.",
+  da_an_trong: "Không có thiết bị nào đã ẩn",
+  da_an_goi_y: "Thiết bị bạn ẩn khỏi danh sách sẽ hiện ở đây.",
+  show_device: "Hiện lại thiết bị",
 };
 const en: Record<string, string> = {
   on: "On", off: "Off", "common.on": "On", "common.off": "Off",
@@ -352,6 +357,11 @@ const en: Record<string, string> = {
   supplies_drop_confirm: "Stop tracking?",
   supplies_unverified: "unverified", next: "Next",
   hide_device: "Hide this device from the list",
+  loc_da_an: "Hidden devices",
+  da_an_dang_xem: "Showing hidden devices. Tap the eye button again to go back.",
+  da_an_trong: "No hidden devices",
+  da_an_goi_y: "Devices you hide from the list appear here.",
+  show_device: "Show this device again",
 };
 const fil: Record<string, string> = {
   on: "On", off: "Off", "common.on": "On", "common.off": "Off",
@@ -518,6 +528,11 @@ const fil: Record<string, string> = {
   supplies_drop_confirm: "Itigil ang pagsubaybay?",
   supplies_unverified: "hindi verified", next: "Susunod",
   hide_device: "Itago ang device sa listahan",
+  loc_da_an: "Mga nakatagong device",
+  da_an_dang_xem: "Ipinapakita ang mga nakatagong device. I-tap muli ang mata para bumalik.",
+  da_an_trong: "Walang nakatagong device",
+  da_an_goi_y: "Lalabas dito ang mga device na itinago mo sa listahan.",
+  show_device: "Ipakita muli ang device",
 };
 /* ------------------------------------------------------------------ */
 /* Chữ của tám màn thiết bị mới (bản giao diện MasterDetail)            */

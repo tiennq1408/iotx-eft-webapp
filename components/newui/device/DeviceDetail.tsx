@@ -33,6 +33,8 @@ export type PropsMan = {
   onClose: () => void;
   onCommand: (capability: IotxCapability, value: unknown) => Promise<void>;
   onAn: () => void;
+  /** Thiết bị đang ẩn: nút cuối màn là "Hiện lại" thay cho "Ẩn". */
+  onHienLai: () => void;
   /** Ném lỗi khi máy chủ từ chối — màn này hiện lỗi ngay cạnh khối vật tư. */
   onVatTu: (capability: IotxCapability, lenh: IotxLenhVatTu) => Promise<void>;
   onHenGio: () => void;
@@ -70,7 +72,7 @@ function tomTatHenGio(tq: IotxHenGioTongQuan | null, t: HamChu): string {
   return t("hg_chua_dat");
 }
 
-export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGio, onVatTu, spaces, onSua }: PropsMan) {
+export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienLai, onHenGio, onVatTu, spaces, onSua }: PropsMan) {
   const { t } = useChu();
   const [loi, setLoi] = useState("");
   const [doiTen, setDoiTen] = useState(false);
@@ -275,7 +277,9 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHenGi
         {choDieuKhien && !device.online && <p className="small dim">{t("nhac_offline")}</p>}
 
         <div className="frow">
-          {choXoa && <button className="btn gh" onClick={onAn}>🙈 {t("hide_device")}</button>}
+          {choXoa && (device.hidden
+            ? <button className="btn gh" onClick={onHienLai}>👁 {t("show_device")}</button>
+            : <button className="btn gh" onClick={onAn}>🙈 {t("hide_device")}</button>)}
           <button className="btn gh" onClick={onClose}>{t("close")}</button>
         </div>
 

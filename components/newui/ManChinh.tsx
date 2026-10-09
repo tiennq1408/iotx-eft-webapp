@@ -24,13 +24,15 @@ export type HanhDongLuat = {
   dung: (rule: IotxRule) => void;
 };
 
-function LuoiThietBi({ danhSach, gonGang, hanhDong }: { danhSach: Device[]; gonGang: boolean; hanhDong: HanhDongThietBi }) {
+function LuoiThietBi({ danhSach, xemDaAn, hanhDong }: { danhSach: Device[]; xemDaAn?: boolean; hanhDong: HanhDongThietBi }) {
   const { t } = useChu();
   if (danhSach.length === 0) {
-    return <div className="empty-state"><Icon name="search" /><strong>{t("no_device")}</strong><span>{t("no_device_hint")}</span></div>;
+    return xemDaAn
+      ? <div className="empty-state"><Icon name="eye" /><strong>{t("da_an_trong")}</strong><span>{t("da_an_goi_y")}</span></div>
+      : <div className="empty-state"><Icon name="search" /><strong>{t("no_device")}</strong><span>{t("no_device_hint")}</span></div>;
   }
   return (
-    <div className={`device-grid${gonGang ? " compact" : ""}`}>
+    <div className="device-grid">
       {danhSach.map(device => (
         <DeviceCard key={device.id} device={device} hanhDong={hanhDong} />
       ))}
@@ -42,25 +44,25 @@ function LuoiThietBi({ danhSach, gonGang, hanhDong }: { danhSach: Device[]; gonG
  * Trang chủ hiện hàng lọc nhưng lưới là TOÀN BỘ thiết bị: chọn một bộ lọc thì app chuyển
  * sang màn Thiết bị, nơi danh sách mới được lọc.
  */
-export function ManTrangChu({ devices, hangLoc, gonGang, hanhDong }: {
+export function ManTrangChu({ devices, hangLoc, hanhDong }: {
   devices: Device[];
   hangLoc: ReactNode;
-  gonGang: boolean;
   hanhDong: HanhDongThietBi;
 }) {
   return (
     <div className="app-scroll">
       <BannerCarousel />
       {hangLoc}
-      <LuoiThietBi danhSach={devices} gonGang={gonGang} hanhDong={hanhDong} />
+      <LuoiThietBi danhSach={devices} hanhDong={hanhDong} />
     </div>
   );
 }
 
-export function ManThietBi({ devices, hangLoc, gonGang, hanhDong, onThem }: {
+/** `xemDaAn`: nút mắt trên hàng lọc đang bật — danh sách là các thiết bị đã ẩn. */
+export function ManThietBi({ devices, hangLoc, xemDaAn, hanhDong, onThem }: {
   devices: Device[];
   hangLoc: ReactNode;
-  gonGang: boolean;
+  xemDaAn: boolean;
   hanhDong: HanhDongThietBi;
   onThem: () => void;
 }) {
@@ -69,7 +71,8 @@ export function ManThietBi({ devices, hangLoc, gonGang, hanhDong, onThem }: {
     <div className="app-scroll">
       <button className="add-device-btn" onClick={onThem}><Icon name="plus" /> {t("add_device")}</button>
       {hangLoc}
-      <LuoiThietBi danhSach={devices} gonGang={gonGang} hanhDong={hanhDong} />
+      {xemDaAn && <p className="da-an-ghi-chu" role="status">{t("da_an_dang_xem")}</p>}
+      <LuoiThietBi danhSach={devices} xemDaAn={xemDaAn} hanhDong={hanhDong} />
     </div>
   );
 }

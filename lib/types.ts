@@ -19,6 +19,8 @@ export type Device = {
   perms?: IotxPermission;
   shared?: boolean;
   virtual?: boolean;
+  /** Đã ẩn khỏi danh sách (`PATCH /devices/{id} { hidden }`) — vẫn ghép nối, chỉ không hiện. */
+  hidden?: boolean;
 };
 
 export type SpaceState = { houses: string[]; rooms: string[]; groups: string[] };

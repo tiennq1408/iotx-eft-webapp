@@ -68,7 +68,8 @@ export default function LivotecApp() {
   const [thongBaoLoi, setThongBaoLoi] = useState("");
   const [man, setMan] = useState<ManChinh>("home");
   const [boLoc, setBoLoc] = useState<BoLoc>(BO_LOC_DAU);
-  const [gonGang, setGonGang] = useState(false);
+  /** Nút mắt trên hàng lọc: đang xem các thiết bị ĐÃ ẨN thay cho danh sách thường. */
+  const [xemDaAn, setXemDaAn] = useState(false);
 
   const dongPanel = () => setPanel(null);
   // Thành phần này đứng NGOÀI `ChuProvider` nó dựng, nên tra bảng chữ trực tiếp theo ngôn ngữ.
@@ -78,8 +79,14 @@ export default function LivotecApp() {
 
   const idDangMo = panel?.loai === "device" || panel?.loai === "hengio" ? panel.id : null;
   const thietBiDangMo = data.devices.find(device => device.id === idDangMo) || null;
-  const thietBiDaLoc = useMemo(() => locThietBi(data.devices, boLoc), [data.devices, boLoc]);
-  const cacNhom = useMemo(() => cacNhomCua(data.devices, data.spaces.groups), [data.devices, data.spaces.groups]);
+  // Máy đã ẩn vẫn nằm trong `data.devices` (để tìm và hiện lại được) nhưng mọi danh sách,
+  // bộ chọn thường đều chỉ thấy máy đang hiện — đúng như trước khi giữ lại máy ẩn.
+  const thietBiHien = useMemo(() => data.devices.filter(device => !device.hidden), [data.devices]);
+  const thietBiDaAn = useMemo(() => data.devices.filter(device => device.hidden), [data.devices]);
+  /** Bản `data` chỉ có máy đang hiện — cho màn chia sẻ, nơi trước đây máy ẩn không có mặt. */
+  const duLieuHien = useMemo(() => ({ ...data, devices: thietBiHien }), [data, thietBiHien]);
+  const thietBiDaLoc = useMemo(() => locThietBi(xemDaAn ? thietBiDaAn : thietBiHien, boLoc), [xemDaAn, thietBiDaAn, thietBiHien, boLoc]);
+  const cacNhom = useMemo(() => cacNhomCua(thietBiHien, data.spaces.groups), [thietBiHien, data.spaces.groups]);
   const danhSachLoc: Record<LoaiLoc, string[]> = { nha: data.spaces.houses, phong: data.spaces.rooms, nhom: cacNhom };
   const chuaDoc = notifications.filter(item => item.unread).length;
 
@@ -263,14 +270,14 @@ export default function LivotecApp() {
    * Ẩn thiết bị khỏi danh sách. Hợp đồng chỉ có `hidden` — thiết bị vẫn ghép nối, không
    * có cửa nào "xoá" hẳn ở phía người dùng cuối.
    */
-  async function anThietBi(id: string) {
+  async function datAn(id: string, hidden: boolean) {
     const truoc = data.devices;
     await lacQuan(
       () => {
-        setData(current => ({ ...current, devices: current.devices.filter(device => device.id !== id) }));
+        setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? { ...device, hidden } : device) }));
         dongPanel();
       },
-      () => iotxClient.updateDevice(id, { hidden: true }),
+      () => iotxClient.updateDevice(id, { hidden }),
       () => setData(current => ({ ...current, devices: truoc })),
     );
   }
@@ -299,6 +306,13 @@ export default function LivotecApp() {
     // Hẹn giờ là chuyện của TỪNG thiết bị (`/devices/{id}/hen-gio`), nên phải chọn máy trước.
     if (muc === "timers") { setPanel({ loai: "chonThietBi" }); return; }
     setPanel({ loai: muc });
+  }
+
+  /** Bật nút mắt thì sang màn Thiết bị, như chọn một mục lọc — trang chủ luôn là máy đang hiện. */
+  function doiXemDaAn() {
+    const moi = !xemDaAn;
+    setXemDaAn(moi);
+    if (moi) setMan("devices");
   }
 
   /** Chọn một mục lọc thì sang màn Thiết bị — trang chủ luôn hiện đủ thiết bị. */
@@ -333,13 +347,13 @@ export default function LivotecApp() {
     dung: rule => { void dungLuat(rule); },
   };
   const hangLoc = (
-    <FilterRow boLoc={boLoc} gonGang={gonGang} onChon={loai => setPanel({ loai: "loc", boLoc: loai })} onGonGang={() => setGonGang(!gonGang)} />
+    <FilterRow boLoc={boLoc} xemDaAn={xemDaAn} onChon={loai => setPanel({ loai: "loc", boLoc: loai })} onXemDaAn={doiXemDaAn} />
   );
 
   function manChinh() {
     switch (man) {
       case "devices":
-        return <ManThietBi devices={thietBiDaLoc} hangLoc={hangLoc} gonGang={gonGang} hanhDong={hanhDongThietBi} onThem={() => setPanel({ loai: "add" })} />;
+        return <ManThietBi devices={thietBiDaLoc} hangLoc={hangLoc} xemDaAn={xemDaAn} hanhDong={hanhDongThietBi} onThem={() => setPanel({ loai: "add" })} />;
       case "automation":
         return (
           <ManTuDong
@@ -356,7 +370,7 @@ export default function LivotecApp() {
       case "discover":
         return <ManKhamPha logoUrl={theme?.logoUrl ?? null} />;
       default:
-        return <ManTrangChu devices={data.devices} hangLoc={hangLoc} gonGang={gonGang} hanhDong={hanhDongThietBi} />;
+        return <ManTrangChu devices={thietBiHien} hangLoc={hangLoc} hanhDong={hanhDongThietBi} />;
     }
   }
 
@@ -471,7 +485,8 @@ export default function LivotecApp() {
                 device={thietBiDangMo}
                 onClose={dongPanel}
                 onCommand={(capability, value) => guiLenh(thietBiDangMo.id, capability, value)}
-                onAn={() => { void anThietBi(thietBiDangMo.id); }}
+                onAn={() => { void datAn(thietBiDangMo.id, true); }}
+                onHienLai={() => { void datAn(thietBiDangMo.id, false); }}
                 onVatTu={(capability, lenh) => guiVatTu(thietBiDangMo.id, capability, lenh)}
                 onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id, tuChiTiet: true })}
                 spaces={data.spaces}
@@ -480,11 +495,11 @@ export default function LivotecApp() {
             )}
 
             {panel?.loai === "spaces" && <Spaces data={data} setData={setData} onClose={dongPanel} />}
-            {panel?.loai === "members" && <Members data={data} daCap={chiaSeDaCap} nhanDuoc={chiaSeNhanDuoc} onReload={taiChiaSe} onClose={dongPanel} />}
+            {panel?.loai === "members" && <Members data={duLieuHien} daCap={chiaSeDaCap} nhanDuoc={chiaSeNhanDuoc} onReload={taiChiaSe} onClose={dongPanel} />}
             {panel?.loai === "add" && <AddDevice data={data} setData={setData} onSynced={syncRemote} onClose={dongPanel} />}
             {panel?.loai === "chonThietBi" && (
               <DevicePickerModal
-                danhSach={data.devices.map(device => ({ id: device.id, name: device.name, room: device.room }))}
+                danhSach={thietBiHien.map(device => ({ id: device.id, name: device.name, room: device.room }))}
                 onClose={dongPanel}
                 onChon={id => setPanel({ loai: "hengio", id })}
               />
@@ -498,7 +513,7 @@ export default function LivotecApp() {
               />
             )}
             {panel?.loai === "virtual" && <VirtualPanel onClose={dongPanel} onThayDoi={syncRemote} />}
-            {panel?.loai === "if-editor" && <IfThenEditor devices={data.devices} onSaved={taiLuat} onClose={dongPanel} />}
+            {panel?.loai === "if-editor" && <IfThenEditor devices={thietBiHien} onSaved={taiLuat} onClose={dongPanel} />}
           </div></div>
         )}
     </ChuProvider>

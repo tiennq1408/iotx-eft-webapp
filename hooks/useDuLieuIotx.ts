@@ -75,9 +75,11 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     langProductsRef.current = lang;
   }, [langHienTai]);
 
-  /** Thiết bị từ máy chủ → thiết bị của app: bỏ máy ẩn, gắn catalog, giữ lệnh đang chờ. */
+  /**
+   * Thiết bị từ máy chủ → thiết bị của app: gắn catalog, giữ lệnh đang chờ. Máy đã ẩn vẫn
+   * giữ lại (cờ `hidden`) để nút "thiết bị đã ẩn" trên hàng lọc tìm được và hiện lại được.
+   */
   const mapThietBi = useCallback((devices: IotxDevice[]) => devices
-    .filter(device => !device.hidden)
     .map(device => soLenhCho.current.apLen(mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product }))), []);
 
   const syncRemote = useCallback(async () => {

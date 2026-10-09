@@ -64,12 +64,13 @@ export function BannerCarousel() {
 /**
  * Ba bộ lọc độc lập: nhà, phòng, nhóm. Mỗi cái mở một danh sách chọn thật (không còn toast
  * "sắp ra mắt"), và nút nào đang lọc thì sáng lên để người dùng biết vì sao danh sách ngắn.
+ * Nút mắt cuối hàng lọc ra các thiết bị ĐÃ ẨN (bấm lần nữa để trở lại danh sách thường).
  */
-export function FilterRow({ boLoc, gonGang, onChon, onGonGang }: {
+export function FilterRow({ boLoc, xemDaAn, onChon, onXemDaAn }: {
   boLoc: BoLoc;
-  gonGang: boolean;
+  xemDaAn: boolean;
   onChon: (loai: LoaiLoc) => void;
-  onGonGang: () => void;
+  onXemDaAn: () => void;
 }) {
   const { t } = useChu();
   const { nha, phong, nhom } = boLoc;
@@ -87,7 +88,7 @@ export function FilterRow({ boLoc, gonGang, onChon, onGonGang }: {
       <button className={lop(nhom !== TAT_CA)} onClick={() => onChon("nhom")}>
         <span className="fp-ten">{nhom === TAT_CA ? t("loc_nhom") : nhom}</span> <Icon name="chevDown" />
       </button>
-      <button className="filter-pill eye" aria-label={t("nav_devices")} aria-pressed={gonGang} onClick={onGonGang}>
+      <button className={`filter-pill eye${xemDaAn ? " active" : ""}`} aria-label={t("loc_da_an")} title={t("loc_da_an")} aria-pressed={xemDaAn} onClick={onXemDaAn}>
         <Icon name="eye" />
       </button>
     </div>

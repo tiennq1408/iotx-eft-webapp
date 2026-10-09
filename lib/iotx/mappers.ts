@@ -77,6 +77,7 @@ export function mapIotxDevice(device: IotxDevice): Device {
     perms: device.perms,
     shared: device.shared,
     virtual: device.virtual,
+    hidden: Boolean(device.hidden),
   };
 }
 
