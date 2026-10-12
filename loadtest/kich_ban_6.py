@@ -12,7 +12,8 @@ Năm bài, mỗi bài ghi lại QUAN SÁT chứ không chỉ đạt/hỏng, vì 
 Cần:
     python3 -m pip install playwright && python3 -m playwright install chromium
     export IOTX_EMAIL='...'; export IOTX_PASSWORD='...'
-    npm run dev          # app chạy ở localhost:3000
+    npm run build && npm start   # B10 quy tắc 1: bản PRODUCTION ở localhost:3000
+                                 # (bản dev bật StrictMode, mọi effect chạy hai lần)
 
 Chạy:
     python3 loadtest/kich_ban_6.py                      # bài không đụng phần cứng
@@ -83,19 +84,25 @@ async def dang_nhap(page, ghi):
     if await page.locator(".device-card").count() > 0:
         ghi(bai="dang_nhap", ket_qua="da_co_phien")
         return True
-    o_user = page.locator('input[name="user"]')
+    # Màn đăng nhập dựng lại 09/10/2026: ô "Tài khoản" #dn-id, ô mật khẩu #dn-pw, nút .login-btn.
+    o_user = page.locator("#dn-id")
     if await o_user.count() == 0:
         ghi(bai="dang_nhap", ket_qua="khong_thay_man_dang_nhap")
+        print("  Không thấy màn đăng nhập (#dn-id) ở", APP)
         return False
     await o_user.fill(EMAIL)
-    await page.locator('input[name="password"]').fill(PASSWORD)
+    await page.locator("#dn-pw").fill(PASSWORD)
     t0 = time.perf_counter()
-    await page.locator('button.primary[type="submit"]').click()
+    await page.locator("button.login-btn").click()
     try:
         await page.wait_for_selector(".device-card", timeout=20000)
     except Exception:
-        ghi(bai="dang_nhap", ket_qua="that_bai",
+        canh_bao = ""
+        if await page.locator(".dn-alert").count():
+            canh_bao = (await page.locator(".dn-alert").inner_text()).strip()
+        ghi(bai="dang_nhap", ket_qua="that_bai", canh_bao=canh_bao,
             man_hinh=(await page.inner_text("body"))[:300])
+        print("  Đăng nhập không vào được danh sách thiết bị sau 20 s." + (f" Màn báo: {canh_bao}" if canh_bao else ""))
         return False
     ghi(bai="dang_nhap", ket_qua="ok", ms=round((time.perf_counter() - t0) * 1000, 1))
     return True
@@ -104,7 +111,7 @@ async def dang_nhap(page, ghi):
 async def bai_1_bam_dup(page, mang, ghi):
     """Bấm công tắc hai lần thật nhanh. Gửi hai lệnh cùng Idempotency-Key là hỏng:
     máy chủ coi lần hai là bấm lặp, người dùng thấy nút không phản ứng."""
-    cong_tac = page.locator(".device-card footer .switch").first
+    cong_tac = page.locator(".device-card .switch-hit").first
     if await cong_tac.count() == 0:
         ghi(bai="bam_dup", ket_qua="khong_co_thiet_bi")
         return
@@ -127,22 +134,22 @@ async def bai_1_bam_dup(page, mang, ghi):
 async def bai_2_mat_mang_giua_chung(page, mang, ghi):
     """Cắt mạng ngay sau khi bấm. App phải nói mất kết nối và trả giao diện về
     trạng thái cũ, không được để nguyên trạng thái mới như thể đã thành công."""
-    cong_tac = page.locator(".device-card footer .switch").first
+    cong_tac = page.locator(".device-card .switch-hit").first
     if await cong_tac.count() == 0:
         ghi(bai="mat_mang_giua_chung", ket_qua="khong_co_thiet_bi")
         return
-    truoc = await cong_tac.get_attribute("class")
+    truoc = await cong_tac.get_attribute("aria-checked")
     mang.xoa()
     await page.context.set_offline(True)
     await cong_tac.click()
     await page.wait_for_timeout(6000)
-    sau = await cong_tac.get_attribute("class")
+    sau = await cong_tac.get_attribute("aria-checked")
     loi = ""
     if await page.locator(".toast-loi, .form-message").count():
         loi = (await page.locator(".toast-loi, .form-message").first.inner_text())[:200]
     await page.context.set_offline(False)
     await page.wait_for_timeout(4000)
-    cuoi = await cong_tac.get_attribute("class")
+    cuoi = await cong_tac.get_attribute("aria-checked")
     con_dang_nhap = await page.locator(".device-card").count() > 0
 
     ghi(bai="mat_mang_giua_chung", lop_truoc=truoc, lop_khi_mat_mang=sau, lop_sau_khi_co_lai=cuoi,
@@ -173,7 +180,8 @@ async def bai_3_ve_het_han(page, mang, ghi):
     ghi(bai="ve_het_han", so_lan_lam_moi=so_lam_moi, con_dang_nhap=con_dang_nhap,
         nhan_xet=("Làm mới đúng một lần rồi chạy tiếp" if so_lam_moi == 1 and con_dang_nhap
                   else "BỊ ĐÁ RA MÀN ĐĂNG NHẬP" if not con_dang_nhap
-                  else "Làm mới %d lần — nhiều hơn cần thiết" % so_lam_moi))
+                  else ("Không làm mới lần nào — máy chủ không từ chối vé giả (máy chủ giả không kiểm vé?)"
+                        if so_lam_moi == 0 else "Làm mới %d lần — nhiều hơn cần thiết" % so_lam_moi)))
 
 
 async def bai_4_luong_chet_am_tham(page, mang, ghi):
@@ -187,14 +195,82 @@ async def bai_4_luong_chet_am_tham(page, mang, ghi):
     await page.wait_for_timeout(25000)
 
     mo_lai = mang.dem("/stream")
+    # App hiện tại nối lại xong gọi dongBoNhip → /bootstrap (không phải /devices). Trong 25
+    # giây đó nhịp hỏi vòng 10 s cũng chạy 2–3 lần, nên đếm /bootstrap chỉ để tham khảo.
     lay_thiet_bi = mang.dem("/devices", method="GET")
+    bootstrap = mang.dem("/bootstrap", method="GET")
     ghi(bai="luong_chet_am_tham", giay_mat_mang=42,
         so_lan_mo_lai_luong=len(mo_lai), so_lan_goi_devices=len(lay_thiet_bi),
+        so_lan_goi_bootstrap=len(bootstrap),
         tong_giay=round(time.perf_counter() - t0, 1),
         con_dang_nhap=await page.locator(".device-card").count() > 0,
-        nhan_xet=("Nối lại và lấy lại thiết bị đúng một lần" if len(lay_thiet_bi) == 1
-                  else "Không nối lại được" if not mo_lai
-                  else "Gọi /devices %d lần sau một lần đứt" % len(lay_thiet_bi)))
+        nhan_xet=("Không nối lại được" if not mo_lai
+                  else "Nối lại, rồi /bootstrap %d lần trong 25 giây (gồm cả nhịp hỏi vòng)" % len(bootstrap)))
+
+
+def khoang_cach(mang, manh, bo_noi_lai=False):
+    """Khoảng cách (giây) giữa các request liên tiếp tới `manh`.
+
+    `bo_noi_lai`: bỏ lượt /bootstrap đi ngay sau khi luồng SSE mở lại (≤ 2 s) — đó là đồng bộ
+    sau khi nối lại, không thuộc nhịp hỏi vòng. Máy chủ không gửi nhịp giữ kết nối đều (máy
+    giả, proxy cắt luồng) thì cứ ~35 s app nối lại một lần và làm méo phép đo nhịp."""
+    t = [d["t"] for d in mang.dem(manh, method="GET")]
+    if bo_noi_lai:
+        mo = [d["t"] for d in mang.dem("/stream")]
+        t = [x for x in t if not any(0 <= x - m < 2 for m in mo)]
+    return [round(b - a, 2) for a, b in zip(t, t[1:])]
+
+
+def trung_vi(xs):
+    if not xs:
+        return None
+    s = sorted(xs)
+    return s[len(s) // 2]
+
+
+async def bai_6_nhip_hoi_vong(page, mang, ghi):
+    """B9: nhịp hỏi vòng /bootstrap phải đúng 10 s ở danh sách và 2,5 s khi mở màn chi tiết
+    (hooks/useDongBoNen.ts). Nhịp là NỐI ĐUÔI nên khoảng cách = nhịp + thời gian trả lời."""
+    mang.xoa()
+    await page.wait_for_timeout(41000)
+    ds = khoang_cach(mang, "/bootstrap", bo_noi_lai=True)
+    mo = page.locator(".device-card .card-hit").first
+    ct = []
+    if await mo.count():
+        await mo.click()
+        await page.wait_for_timeout(1500)
+        mang.xoa()
+        await page.wait_for_timeout(16000)
+        ct = khoang_cach(mang, "/bootstrap", bo_noi_lai=True)
+        await page.keyboard.press("Escape")
+    # Trung vị chứ không trung bình: một lượt đồng bộ lẻ (quay lại tab, có mạng lại) không
+    # được kéo lệch cả phép đo.
+    tb = trung_vi
+    ghi(bai="nhip_hoi_vong", danh_sach_giay=ds, chi_tiet_giay=ct,
+        tb_danh_sach=tb(ds), tb_chi_tiet=tb(ct),
+        nhan_xet="Danh sách ~%s s (mong 10 + độ trễ), chi tiết ~%s s (mong 2,5 + độ trễ)%s" % (
+            tb(ds), tb(ct), "" if ct else " — không mở được màn chi tiết"))
+
+
+async def bai_7_tab_nen(page, mang, ghi):
+    """B9: tab chạy nền thì KHÔNG hỏi vòng; quay lại thì đồng bộ ngay một lần.
+    Giả visibilityState = hidden bằng cách đè thuộc tính — đúng thứ app đọc."""
+    await page.evaluate("""() => {
+        Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => 'hidden'});
+        document.dispatchEvent(new Event('visibilitychange')); }""")
+    mang.xoa()
+    await page.wait_for_timeout(25000)
+    khi_nen = len(mang.dem("/bootstrap", method="GET"))
+    await page.evaluate("""() => {
+        Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => 'visible'});
+        document.dispatchEvent(new Event('visibilitychange')); }""")
+    mang.xoa()
+    await page.wait_for_timeout(3000)
+    khi_ve = len(mang.dem("/bootstrap", method="GET"))
+    ghi(bai="tab_nen", bootstrap_trong_25s_nen=khi_nen, bootstrap_3s_sau_khi_ve=khi_ve,
+        nhan_xet=("Ngưng hỏi khi nền, đồng bộ ngay khi quay lại" if khi_nen == 0 and khi_ve >= 1
+                  else "VẪN HỎI khi tab nền (%d lần)" % khi_nen if khi_nen
+                  else "Quay lại tab mà không đồng bộ"))
 
 
 async def bai_5_thiet_bi_ngoai_tuyen(page, ghi):
@@ -204,9 +280,11 @@ async def bai_5_thiet_bi_ngoai_tuyen(page, ghi):
     ket = []
     for i in range(n):
         t = the.nth(i)
-        ten = await t.locator(".device-top strong").inner_text()
-        trang_thai = await t.locator("footer span").inner_text()
-        ngoai_tuyen = "offline" in (await t.locator("footer span").get_attribute("class") or "")
+        # Bộ chọn theo thẻ thiết bị mới (components/newui/home.tsx, 09/10/2026).
+        ten = await t.locator(".dname").inner_text()
+        trang_thai = await t.locator(".dline").inner_text()
+        hit = t.locator(".switch-hit")
+        ngoai_tuyen = (await hit.count() > 0 and await hit.is_disabled()) or "offline" in trang_thai.lower()
         ket.append({"ten": ten, "trang_thai": trang_thai, "ngoai_tuyen": ngoai_tuyen})
     ghi(bai="thiet_bi_ngoai_tuyen", the=ket,
         nhan_xet="Kiểm tra bằng mắt: thẻ ngoại tuyến có bị khoá điều khiển không")
@@ -231,6 +309,8 @@ async def main_async(a):
         await bai_5_thiet_bi_ngoai_tuyen(page, ghi)
         await bai_3_ve_het_han(page, mang, ghi)
         await bai_4_luong_chet_am_tham(page, mang, ghi)
+        await bai_6_nhip_hoi_vong(page, mang, ghi)
+        await bai_7_tab_nen(page, mang, ghi)
         if a.cho_phep_bat_tat:
             await bai_1_bam_dup(page, mang, ghi)
             await bai_2_mat_mang_giua_chung(page, mang, ghi)
@@ -261,7 +341,7 @@ def main():
     if not EMAIL or not PASSWORD:
         print("Thiếu IOTX_EMAIL / IOTX_PASSWORD.")
         return 2
-    print("App: %s   (bài 4 mất 70 giây, kiên nhẫn)" % APP)
+    print("App: %s   (bài 4 mất 70 giây, bài nhịp hỏi vòng ~60 giây, bài tab nền ~30 giây)" % APP)
     return asyncio.run(main_async(a))
 
 

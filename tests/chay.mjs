@@ -4,14 +4,18 @@
  *   node tests/chay.mjs            — chạy tất cả
  *   node tests/chay.mjs giao-dien  — chỉ nhóm giao diện
  *   node tests/chay.mjs api        — chỉ nhóm nối API
+ *   node tests/chay.mjs kich-ban   — Phần A của kich-ban-test.md, chạy trên bản PRODUCTION,
+ *                                    ra bảng tests/kich-ban/KET-QUA.md (không nằm trong "tất cả":
+ *                                    kịch bản ghi cả lỗi thật của app, không phải cổng chặn CI)
  *
  * Hai nhóm cần hai cấu hình khác nhau, và `NEXT_PUBLIC_*` được nhúng lúc biên dịch nên
  * không đổi được khi máy chủ đã chạy — vì vậy mỗi nhóm khởi động lại `next dev` một lần.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
-import { CONG_APP, GOC, GOC_GIA, THU_MUC } from './chung.mjs';
+import { CONG_APP, GOC, GOC_GIA, THU_MUC, TAM } from './chung.mjs';
 
 const GOC_DA = path.resolve(THU_MUC, '..');
 const conCai = [];
@@ -61,10 +65,14 @@ function dungHet() {
 
 const NHOM = {
   'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'a11y-toi.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs', 'dang-nhap.mjs', 'menu.mjs', 'an-thiet-bi.mjs'] },
+  // Tài liệu kịch bản đòi chạy trên bản production: bản dev bật StrictMode, effect chạy hai
+  // lần nên mọi phép đếm request (đúng 1 lượt refresh, nhịp hỏi vòng…) bị nhân đôi.
+  'kich-ban':  { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  banProduction: true, rieng: true,
+    bai: ['a1-dang-nhap', 'a2-danh-sach', 'a3-dieu-khien', 'a4-thoi-gian-thuc', 'a5-chia-se', 'a6-luat-thong-bao', 'a7-them-thiet-bi', 'a8-giao-dien', 'a9-bao-mat', 'a10-tai-khoan', 'bao-cao'].map(x => `kich-ban/${x}.mjs`) },
   'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
 };
 
-const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM);
+const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM).filter(k => !NHOM[k].rieng);
 const ketQua = [];
 
 try {
@@ -79,8 +87,16 @@ try {
       if (!await doiSong(`${GOC_GIA}/v1/products`, 20)) throw new Error('máy chủ giả không lên');
     }
     await congTrong(GOC, 'cổng app');
-    chay('node', ['node_modules/next/dist/bin/next', 'dev', '-p', String(CONG_APP)], n.moiTruong);
-    if (!await doiSong(GOC, 90)) throw new Error('next dev không lên');
+    if (n.banProduction) {
+      console.log('next build (bản production)…');
+      const build = spawnSync('node', ['node_modules/next/dist/bin/next', 'build'], { cwd: GOC_DA, env: { ...process.env, ...n.moiTruong }, stdio: 'ignore' });
+      if (build.status !== 0) throw new Error('next build hỏng — chạy "npm run build" để xem lỗi');
+      fs.rmSync(path.join(TAM, 'kich-ban'), { recursive: true, force: true });
+      chay('node', ['node_modules/next/dist/bin/next', 'start', '-p', String(CONG_APP)], n.moiTruong);
+    } else {
+      chay('node', ['node_modules/next/dist/bin/next', 'dev', '-p', String(CONG_APP)], n.moiTruong);
+    }
+    if (!await doiSong(GOC, 90)) throw new Error('máy chủ app không lên');
     await cho(1500);
 
     for (const b of n.bai) ketQua.push(await bai(b));

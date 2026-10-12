@@ -1,0 +1,6 @@
+# Kết quả chạy, khoá và chứng thư máy phát — không bao giờ commit
+ketqua/
+mqtt/chung-thu/
+*.json.gz
+# Tài khoản test của chay.sh — chỉ nằm trên máy người chạy
+.tai-khoan

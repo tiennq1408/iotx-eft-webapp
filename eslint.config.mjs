@@ -5,5 +5,6 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  // loadtest/.venv là môi trường Python cục bộ (đã .gitignore) — có bản Playwright JS bên trong.
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "loadtest/.venv/**"]),
 ]);

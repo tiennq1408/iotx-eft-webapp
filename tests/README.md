@@ -37,6 +37,40 @@ khởi động lại máy chủ một lần — đó là lý do chạy đủ m�
 | `anh-dai-dien.mjs` | 8 phép ảnh đại diện: `product.icon` khi là URL thì vẽ ảnh, khi là emoji thì vẽ chữ, thẻ và màn chi tiết phải ra cùng một thứ |
 | `bo-cuc.mjs` | 61 phép lưới `ui.boCuc`: ô nằm đúng cột/hàng catalog khai, `moiHang` chia chip đúng số, `gtIco` hiện theo từng giá trị, `skin` đổi màu nhấn, chạm gửi đúng lệnh, vùng chạm 44px, sản phẩm không khai lưới vẫn đi đường khuôn. Có nhóm phép ghim theo bản tham chiếu web.dev: chuỗi `d` của cung tròn phải khớp **từng ký tự** với DOM thật đọc được ở đó |
 
+## Bộ kiểm theo kịch bản — Phần A của `kich-ban-test.md`
+
+```bash
+node tests/chay.mjs kich-ban
+```
+
+Chạy riêng, **không** nằm trong `node tests/chay.mjs`: kịch bản ghi cả lỗi thật của app, nó là
+bảng ghi kết quả chứ không phải cổng chặn. Bộ chạy tự `next build` + `next start` (tài liệu
+đòi bản production — bản dev chạy effect hai lần, mọi phép đếm request bị nhân đôi), dựng máy
+chủ giả, chạy mười nhóm `tests/kich-ban/a1…a10`, rồi ghi bảng **`tests/kich-ban/KET-QUA.md`**.
+
+Mỗi ca in đúng mã của tài liệu (A1-01…A10-07, đủ 91 ca) với một trong sáu trạng thái:
+
+| In ra | Nghĩa |
+|---|---|
+| `PASS` | Đạt — đo tự động được trên webapp |
+| `FAIL` | Hỏng — app làm khác kết quả mong đợi; ghi chú nói rõ khác chỗ nào |
+| `TAY` | Test tay — cần phần cứng, điện thoại, Safari, tài khoản thứ hai hay IBS thật |
+| `KHAC` | Phủ bởi bài khác — ghi tên bài (vd. `hen-gio.mjs`) |
+| `CHUA-CO` | Chưa có tính năng — vd. deep-link mã ② |
+| `DA-BIET` | Lỗi đã biết — ghi nhận theo tài liệu, không tính là hỏng |
+
+Bộ này đo **hành vi webapp trên máy chủ giả**, không đo IBS thật. Ba cách dựng đáng biết:
+
+- **Vé hết hạn** dựng bằng `page.route` trả 401 cho vé cũ và vé mới ở `/auth/refresh` — thay
+  cho chờ 6 phút. Bản chờ thật vẫn nên làm tay một lần trên DEV.
+- **Tab chạy nền** dựng bằng cách đổi `document.visibilityState` — rút 10 phút còn 25 giây.
+- **Nhịp hỏi vòng** bỏ qua lượt đồng bộ đi kèm việc nối lại SSE: máy chủ giả không gửi nhịp giữ
+  kết nối nên ~35 s app nối lại một lần (IBS thật gửi mỗi 25 s).
+
+Chạy lẻ một nhóm khi máy chủ giả (cổng 3200) và app (`IOTX_API_UPSTREAM=http://localhost:3200
+next start -p 3111`) đang chạy: `node tests/kich-ban/a3-dieu-khien.mjs`, rồi
+`node tests/kich-ban/bao-cao.mjs` để ghi lại bảng.
+
 ## Vì sao bài a11y đo tương phản bằng điểm ảnh
 
 Cách thường làm là đi ngược cây DOM tìm màu nền. Cách đó **không thấy `background-image`**,
