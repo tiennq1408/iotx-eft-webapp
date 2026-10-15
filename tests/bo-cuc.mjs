@@ -126,9 +126,12 @@ const pw = { lop: await tile('ac_power_status').getAttribute('class'), b: await 
   d: await bien('ac_power_status', '--brand-deep'), s: await bien('ac_power_status', '--brand-soft') };
 ok(`[2] mauCtl #fb6559 → mauo, --brand ${pw.b}, --brand-deep ${pw.d}, --brand-soft ${pw.s}`,
   /\bmauo\b/.test(pw.lop) && pw.b === '#fb6559' && pw.d === '#c44f45' && pw.s === '#fee9e8');
-const chuPw = await tile('ac_power_status').locator('.bc-srow b').evaluate(n => {
+// web.dev đo lại 15/10/2026: trong ô `mauo` chữ nhãn (`.bc-lb-chu`) màu mực, chỉ nút ⏻ đỏ.
+const chuPw = await tile('ac_power_status').locator('.bc-srow .bc-lb-chu').evaluate(n => {
   const s = getComputedStyle(n); return `${s.color} ${s.fontSize}/${s.fontWeight}`; });
-ok(`[2] chữ nút nguồn đỏ 20px/600 (${chuPw})`, chuPw === 'rgb(251, 101, 89) 20px/600');
+ok(`[2] chữ nút nguồn màu mực 20px/600 (${chuPw})`, chuPw === 'rgb(14, 43, 39) 20px/600');
+const nutPw = await tile('ac_power_status').locator('.bc-pwr').evaluate(n => getComputedStyle(n).getPropertyValue('--brand').trim());
+ok(`[2] nút nguồn vẫn lấy màu nhấn đỏ của mauCtl (${nutPw})`, nutPw === '#fb6559');
 const tm = { lop: await tile('ac_temp_setting').getAttribute('class'), b: await bien('ac_temp_setting', '--brand'),
   d: await bien('ac_temp_setting', '--brand-deep'), s: await bien('ac_temp_setting', '--brand-soft') };
 ok(`[3] mauCtl #ffffff → --brand-deep ${tm.d}, --brand-soft ${tm.s}`,

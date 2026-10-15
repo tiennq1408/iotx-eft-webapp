@@ -57,6 +57,19 @@ CSS kèm theo:
 
 Hiệu quả thấy được: ô Power có `mauCtl:#fb6559` → chữ "Power" đỏ `rgb(251,101,89)`, cỡ 20px/600.
 
+> **Đo lại 15/10/2026 — web.dev đã đổi:** nhãn của ô giờ luôn dựng
+> `span.bc-lb > i.bc-lico + span.bc-lb-chu`, và thêm hai luật:
+>
+> ```css
+> .bc-tile.mauo .bc-lb-chu { color: var(--ink); }   /* chữ màu mực */
+> .bc-tile.mauo .bc-lico   { color: var(--brand); } /* icon mang màu nhấn */
+> ```
+>
+> Nên ô Power với `mauCtl:#fb6559` nay là **nút ⏻ đỏ, chữ "Power" màu mực** 20px/600.
+> `nhan.mau` (nếu khai) đặt thẳng lên `.bc-lb-chu` nên vẫn thắng. Áp cho `power01`,
+> `switch01`, `step01` và tiêu đề có `o.ico`. Hàng `power01` căn ngang theo `canN`
+> (mặc định giữa) thay vì luôn căn giữa.
+
 ### 2. `o.vien: "skin"` — viền đậm theo màu nhấn
 
 Ô nhận class `vien`:

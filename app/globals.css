@@ -821,6 +821,9 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .bc-tile.mauo .bc-chip:not(.on){color:var(--brand);}
 .bc-tile.mauo .bc-pwr{color:#fff;}
 .bc-tile.mauo .bc-big small{color:inherit;opacity:.75;}
+/* Nhãn trong ô có `mauCtl`: chữ màu mực, icon cố định mới mang màu nhấn (web.dev 15/10/2026). */
+.bc-tile.mauo .bc-lb-chu{color:var(--ink);}
+.bc-tile.mauo .bc-lico{color:var(--brand);}
 /* `o.vien: "skin"`: viền 2px màu nhấn. */
 .bc-tile.vien,.bc-khung.vien{border:2px solid var(--brand);}
 /* `o.nenAnh`: ảnh nền của riêng ô. */

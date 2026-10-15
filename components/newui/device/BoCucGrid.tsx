@@ -61,18 +61,17 @@ function mauNhan(o: OdaDung): string | undefined {
 }
 
 /**
- * Nhãn của ô. Có `o.ico` (icon CỐ ĐỊNH, khác `gtIco`) thì dựng như bản tham chiếu:
- * `span.bc-lb > i.bc-lico > img.bc-icoimg` rồi tới chữ — icon mặc định nằm bên trái.
+ * Nhãn của ô, dựng như bản tham chiếu (đo lại 15/10/2026): `span.bc-lb > i.bc-lico + span.bc-lb-chu`.
+ * Icon cố định (`o.ico`) mặc định nằm bên trái. Chữ đứng trong `.bc-lb-chu` riêng để ô có
+ * `mauCtl` tô chữ màu mực, chỉ icon/nút mang màu nhấn; `nhan.mau` đặt thẳng lên chữ thì thắng.
  */
-function NhanO({ o, ten, style }: { o: OdaDung; ten: string; style?: React.CSSProperties }) {
-  const lop = lopNhan(o);
-  const kieu = { ...style, color: mauNhan(o) };
+function NhanO({ o, ten, style, dam }: { o: OdaDung; ten: string; style?: React.CSSProperties; dam?: boolean }) {
   const ico = diaChiIcon(o.ico);
-  if (!ico) return <span className={lop} style={kieu}>{ten}</span>;
   return (
-    <span className={`bc-lb ${lopViTri(o.vtIco) || "vt-trai"}`} style={kieu}>
-      <i className="bc-lico" aria-hidden="true"><Ico ico={ico} /></i>
-      <span className={lop}>{ten}</span>
+    <span className={`bc-lb ${lopViTri(o.vtIco) || "vt-trai"}`}>
+      {ico && <i className="bc-lico" aria-hidden="true"><Ico ico={ico} /></i>}
+      <span className={["bc-lb-chu", lopNhan(o)].filter(Boolean).join(" ")}
+        style={{ ...style, fontWeight: dam ? 600 : undefined, color: mauNhan(o) }}>{ten}</span>
     </span>
   );
 }
@@ -102,12 +101,20 @@ function cungTron(t: number) {
 
 const CUNG_NEN = cungTron(1);
 
+/* Dưới nửa độ thì điểm đầu và điểm cuối gần như trùng nhau: SVG bỏ cung, còn đầu tròn của
+   một đoạn dài 0 thì trình duyệt tự đoán hướng nên vẽ thành vệt lệch khỏi rãnh. Ở mức đó
+   vẽ thẳng một chấm tròn bằng đúng bề dày nét, đặt tại điểm đầu cung. */
+const QUET_TOI_THIEU = 0.5 / GOC_QUET;
+const [DAU_X, DAU_Y] = diemTren(GOC_DAU).split(" ");
+
 function Dial({ v, min, max, chu }: { v: number; min: number; max: number; chu: string }) {
+  const t = max > min ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0;
   return (
     <svg viewBox="0 0 120 120" role="img" aria-label={chu}>
       <path d={CUNG_NEN} stroke="var(--line)" strokeWidth="10" fill="none" strokeLinecap="round" />
-      <path d={cungTron(max > min ? (v - min) / (max - min) : 0)}
-        stroke="var(--brand)" strokeWidth="10" fill="none" strokeLinecap="round" />
+      {t < QUET_TOI_THIEU
+        ? <circle cx={DAU_X} cy={DAU_Y} r="5" fill="var(--brand)" />
+        : <path d={cungTron(t)} stroke="var(--brand)" strokeWidth="10" fill="none" strokeLinecap="round" />}
       {/* Màu chữ theo ô (`currentColor`), để ô `mauCtl` trắng trên ảnh nền có chữ trắng. */}
       <text x="60" y="66" textAnchor="middle" fontSize="22" fontWeight="600" fill="currentColor">{chu}</text>
     </svg>
@@ -124,7 +131,6 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
   const cap = o.cap;
   const v = device.lastValues?.[cap.key];
   const ten = nhanCap(cap, t);
-  const lopN = lopNhan(o);
   // Cùng luật với khuôn chi tiết: thiếu quyền hoặc catalog không khai lệnh thì khóa.
   const khoa = chan || !cap.rpc;
 
@@ -132,10 +138,10 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
     const bat = laBat(v);
     if (o.variant === "power01") {
       return (
-        <div className="bc-srow" style={{ justifyContent: "center", gap: 10 }}>
+        <div className="bc-srow" style={{ justifyContent: CAN_NGANG[o.canN || "giua"], gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
             aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
-          {o.w >= 2 && <b className={lopN} style={{ fontWeight: 600, color: mauNhan(o) }}>{ten}</b>}
+          {o.w >= 2 && <NhanO o={o} ten={ten} dam />}
         </div>
       );
     }

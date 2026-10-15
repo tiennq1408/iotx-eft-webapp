@@ -722,3 +722,32 @@ màn đăng nhập và banner trang chủ (nền gradient), không có cái nào
 
 Mock đã chuyển sang đúng hình dạng thật (`archetype`, `skin`, `uuTien`, `slots` với
 `dial01`/`chips01`/`power01`, `co` 1–3) nên bản mock và bản nối IBS đi chung một đường mã.
+
+# Vòng 11 — vòng xoay `dial01` lệch ở mức min (15/10/2026)
+
+## Lỗi
+
+Trên lưới `ui.boCuc` (`components/newui/device/BoCucGrid.tsx`), khi giá trị bằng `min`
+(vd. điều hòa 16°C) cung chạy biến thành một vệt chéo lệch khỏi rãnh ở đầu trái vòng.
+
+Nguyên nhân: cung chạy được vẽ bằng lệnh `A` với điểm cuối tính theo tỉ lệ. Ở `t = 0` điểm
+đầu trùng điểm cuối → theo luật SVG lệnh cung bị bỏ, còn lại một đoạn dài 0 mang
+`stroke-linecap="round"`. Hướng của đầu tròn trên đoạn dài 0 không được định nghĩa: Chromium
+vẽ ra chấm, Safari/WebKit vẽ ra vệt xiên.
+
+## Hợp đồng vòng xoay (bổ sung)
+
+| Giá trị | Vẽ cung chạy |
+|---|---|
+| `t = (v − min) / (max − min)` kẹp về `[0, 1]`; `max ≤ min` → `t = 0` | — |
+| quét `t × 270° < 0,5°` (gồm đúng `min`) | **một chấm tròn** `r = 5` (= nửa bề dày nét 10) tô `--brand`, tâm đặt ở điểm đầu cung (góc 135°) |
+| còn lại | cung `A` từ 135° quét `t × 270°`, nét 10, đầu tròn — như cũ |
+
+Không bao giờ vẽ một `path` có điểm đầu trùng điểm cuối. Vòng `dial01` khi không có lưới
+(`VeO.tsx`, `stroke-dasharray` trên `circle`) không mắc lỗi này: nét gạch dài 0 vẫn có hướng
+tiếp tuyến của đường tròn nên đầu tròn ra đúng chấm.
+
+## Kiểm chứng
+
+Dựng riêng ba SVG (`t = 0` dạng `path` cũ, `t = 0` dạng chấm mới, `t = 0,02`) chụp bằng
+Playwright Chromium: chấm mới nằm đúng tâm rãnh, khớp với đầu cung khi `t` vừa lớn hơn 0.
