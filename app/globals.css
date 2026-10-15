@@ -32,6 +32,9 @@
   --shadow-sm:0 2px 10px rgba(20,40,36,0.06);
   --nen-san:#E6ECEF;   /* sân xám quanh cột — đo từ devktv */
   --vien-san:#D5DFE4;  /* nét viền hai bên cột */
+  /* Nền các màn trong app: cùng dải màu đào → hồng → xanh ngọc của màn đăng nhập, nhưng
+     nhạt hẳn để thẻ và chữ nổi lên trên. Màn chi tiết thiết bị có nền riêng, không dùng. */
+  --nen-anh:linear-gradient(180deg,rgba(251,217,184,.30) 0%,rgba(243,166,160,.20) 45%,rgba(14,156,142,.14) 100%);
   /* tên cũ, giữ để các component kế thừa không phải sửa */
   --line:var(--border);
   --ink:var(--text);
@@ -73,7 +76,7 @@ input, select, textarea{font-family:inherit;}
 .stage{min-height:100dvh;display:flex;justify-content:center;}
 .app-shell{
   position:relative;width:100%;height:100dvh;
-  background:var(--bg);
+  background:var(--nen-anh),var(--bg);
   overflow:hidden;
   display:flex;flex-direction:column;
 }
@@ -92,7 +95,7 @@ input, select, textarea{font-family:inherit;}
 }
 
 /* ---------- thanh trên ---------- */
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:var(--bg);flex-shrink:0;}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:transparent;flex-shrink:0;}
 .profile-chip{display:flex;align-items:center;gap:8px;min-height:44px;border:0;background:transparent;padding:0;}
 .avatar-circle{width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
 .avatar-circle img{width:100%;height:100%;object-fit:cover;}
@@ -398,7 +401,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
    Giữ nguyên tên class mà các component cũ đang dùng, chỉ đổi
    màu/bán kính theo tông mới.
    ============================================================= */
-.full-panel{position:absolute;inset:0;z-index:65;background:var(--bg);overflow:hidden;}
+.full-panel{position:absolute;inset:0;z-index:65;background:var(--nen-anh),var(--bg);overflow:hidden;}
 .panel-head{min-height:60px;display:grid;grid-template-columns:48px 1fr 72px;align-items:center;gap:6px;border-bottom:1px solid var(--border);background:var(--card);padding:6px 8px;}
 .panel-head h2{margin:0;text-align:center;font-size:16px;font-weight:800;}
 .panel-head>span, .panel-head>.text-button{text-align:right;font-size:12px;color:var(--muted);}
@@ -881,6 +884,7 @@ html[data-giao-dien="toi"]{color-scheme:dark;}
 html[data-giao-dien="toi"] body{
   --nen-san:#080F0E;
   --vien-san:#2B3A36;
+  --nen-anh:linear-gradient(180deg,rgba(251,217,184,.07) 0%,rgba(243,166,160,.05) 45%,rgba(14,156,142,.12) 100%);
   --bg:#0E1614;
   --card:#17211E;
   --text:#E3ECE9;
