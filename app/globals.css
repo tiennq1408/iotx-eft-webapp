@@ -30,6 +30,8 @@
   --r-sm:10px;
   --shadow:0 18px 40px -18px rgba(20,40,36,0.28);
   --shadow-sm:0 2px 10px rgba(20,40,36,0.06);
+  --nen-san:#E6ECEF;   /* sân xám quanh cột — đo từ devktv */
+  --vien-san:#D5DFE4;  /* nét viền hai bên cột */
   /* tên cũ, giữ để các component kế thừa không phải sửa */
   --line:var(--border);
   --ink:var(--text);
@@ -53,7 +55,7 @@
 html, body{margin:0;padding:0;}
 body{
   font-family:Calibri,'Segoe UI',Carlito,Arial,sans-serif;
-  background:#0c1a17;
+  background:var(--nen-san);
   color:var(--text);
   min-height:100dvh;
   -webkit-tap-highlight-color:transparent;
@@ -62,22 +64,32 @@ button{font-family:inherit;color:inherit;cursor:pointer;}
 button:disabled{cursor:not-allowed;}
 input, select, textarea{font-family:inherit;}
 
-/* ---------- khung máy ---------- */
-.app-shell{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:26px 12px;}
-.phone{
-  position:relative;width:100%;max-width:400px;
-  height:min(800px,calc(100dvh - 52px));min-height:600px;
-  background:var(--bg);border:12px solid #111;border-radius:44px;
-  overflow:hidden;box-shadow:var(--shadow);
+/* ---------- khung ứng dụng ----------
+   Dựng theo devktv.happinno.com: một CỘT cao hết màn hình, không bo góc, hai nét viền mảnh
+   hai bên, quầng sáng đều bốn phía, đặt giữa sân xám. Dưới 560px cột trải hết bề ngang.
+   `height:100dvh` (không phải min-height như bản gốc) vì `.bottom-nav`, `.sheet.devpage`,
+   `.full-panel`, `.tk-overlay`, `.toast-loi`, `.login-screen` đều `position:absolute` neo vào
+   đây — bỏ chiều cao cố định là cả loạt tấm phủ đó neo sai. Nhìn ra ngoài không khác. */
+.stage{min-height:100dvh;display:flex;justify-content:center;}
+.app-shell{
+  position:relative;width:100%;height:100dvh;
+  background:var(--bg);
+  overflow:hidden;
   display:flex;flex-direction:column;
 }
-.splash{min-height:100dvh;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;color:#B7CAC6;}
+.splash{min-height:100dvh;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:var(--nen-san);color:var(--muted);}
 .splash .brand-mark{width:64px;height:64px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,#12b7a7,var(--teal-dark));color:#fff;}
 .splash .brand-mark svg{width:32px;height:32px;}
 
-@media (max-width:460px){
-  .app-shell{padding:0;}
-  .phone{max-width:none;height:100dvh;min-height:100dvh;border:0;border-radius:0;box-shadow:none;}}
+@media (min-width:560px){
+  .stage{background:var(--nen-san);}
+  .app-shell{
+    width:448px;max-width:100%;margin:0 auto;
+    border-width:0 1px;border-style:none solid;border-color:var(--vien-san);
+    border-radius:0;
+    box-shadow:0 0 48px rgba(10,35,45,.08);
+  }
+}
 
 /* ---------- thanh trên ---------- */
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 10px;background:var(--bg);flex-shrink:0;}
@@ -582,7 +594,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 
 /* Nằm TRONG khung máy, không phải đè lên cả cửa sổ: `position:fixed` neo theo khung nhìn
    nên màn chi tiết từng rộng 480px vuông góc trong khi màn chủ chỉ 400px bo 44px — nhìn
-   như nhảy sang một app khác. `absolute` để `.phone` (relative + overflow:hidden) ôm lấy
+   như nhảy sang một app khác. `absolute` để `.app-shell` (relative + overflow:hidden) ôm lấy
    và bo góc giúp, đúng như các tấm `.full-panel` khác. */
 .sheet.devpage{
   position:absolute; inset:0; z-index:35; display:flex; flex-direction:column;
@@ -647,6 +659,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
   background:var(--brand-deep); color:#fff; font:inherit; font-size:.85rem; font-weight:500; cursor:pointer;
 }
 .devpage .btn.gh{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+/* Icon (lucide) trong nút: cùng cỡ chữ nút, nằm ngay hàng chữ. */
+.devpage .btn svg{width:1.1em; height:1.1em; vertical-align:-.2em; margin-right:.15em;}
 .devpage .btn:disabled{opacity:.45; cursor:not-allowed;}
 
 /* Lựa chọn dạng chip — ô chạm cao 44px như bản tham chiếu. */
@@ -707,6 +721,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 }
 .devpage .hg-ghim b{display:block; font-size:.9rem; font-weight:500;}
 .devpage .hg-ghim i{display:block; margin-top:2px; font-style:normal; font-size:.72rem; opacity:.92; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* Hẹn giờ đứng trên hàng Ẩn/Đóng: chừa khe giữa hai khối. */
+.devpage .hg-ghim + .frow{margin-top:.4rem;}
 
 .devpage .form-message{font-size:.78rem; color:#8c2f22;}
 .devpage .ctl-gauge{text-align:center; padding:.6rem .5rem;}
@@ -841,23 +857,21 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 
 /* Cỡ chữ: phóng cả khung máy (chữ, khoảng cách, vùng chạm cùng to lên) rồi bù kích thước để
    khung vẫn vừa màn hình. Không có cỡ nhỏ hơn mặc định — thu nhỏ là kéo vùng chạm < 44px. */
-html[data-co-chu="lon"] .phone{zoom:1.1;height:calc(min(800px, 100dvh - 52px) / 1.1);min-height:calc(600px / 1.1);}
-html[data-co-chu="ratLon"] .phone{zoom:1.2;height:calc(min(800px, 100dvh - 52px) / 1.2);min-height:calc(600px / 1.2);}
+html[data-co-chu="lon"] .app-shell{zoom:1.1;height:calc(100dvh / 1.1);}
+html[data-co-chu="ratLon"] .app-shell{zoom:1.2;height:calc(100dvh / 1.2);}
 /* Chữ to thì tên thiết bị ở đầu màn chi tiết được xuống hai dòng, không bị cắt còn một chữ;
    ảnh nhỏ cạnh tên chỉ để trang trí (aria-hidden) nên ẩn đi nhường chỗ cho tên. */
 html[data-co-chu="lon"] .devpage .dev-ico,html[data-co-chu="ratLon"] .devpage .dev-ico{display:none;}
 html[data-co-chu="lon"] .devpage .dev-ten,html[data-co-chu="ratLon"] .devpage .dev-ten{
   white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25;}
-@media (max-width:460px){
-  html[data-co-chu="lon"] .phone{height:calc(100dvh / 1.1);min-height:calc(100dvh / 1.1);}
-  html[data-co-chu="ratLon"] .phone{height:calc(100dvh / 1.2);min-height:calc(100dvh / 1.2);}
-}
 
 /* Giao diện tối. Biến đặt trên <body> chứ không trên <html>: `apDungTheme` ghi màu hãng
    thẳng vào style của <html>, đặt cùng chỗ thì style nội dòng thắng và nền nhạt của hãng
    (`--teal-soft`) lọt vào giao diện tối. */
 html[data-giao-dien="toi"]{color-scheme:dark;}
 html[data-giao-dien="toi"] body{
+  --nen-san:#080F0E;
+  --vien-san:#2B3A36;
   --bg:#0E1614;
   --card:#17211E;
   --text:#E3ECE9;

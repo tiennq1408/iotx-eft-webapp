@@ -8,7 +8,7 @@ const b = await moTrinhDuyet();
 const tranNgang = p => p.evaluate(() => {
   const ra = [];
   if (document.documentElement.scrollWidth > innerWidth + 1) ra.push(`trang ${document.documentElement.scrollWidth}>${innerWidth}`);
-  for (const n of document.querySelectorAll('.phone, .app-scroll, .devbody, .drawer, .tk-popup, .modal-sheet, .panel-body, .login-content')) {
+  for (const n of document.querySelectorAll('.app-shell, .app-scroll, .devbody, .drawer, .tk-popup, .modal-sheet, .panel-body, .login-content')) {
     const r = n.getBoundingClientRect();
     if (r.width > 0 && n.scrollWidth > n.clientWidth + 1) ra.push(`${n.className.split(' ')[0]} ${n.scrollWidth}>${n.clientWidth}`);
   }

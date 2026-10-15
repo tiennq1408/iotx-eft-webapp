@@ -124,7 +124,7 @@ try {
     (await p.locator('.chon-ds .radio-list-row').allInnerTexts()).map(x => x.trim()).join('|') === 'Vừa|Lớn|Rất lớn' && await p.locator('.chu-xem-truoc').count() === 1);
   await chon('Rất lớn');
   ok('chọn Rất lớn → gắn lên <html>, về popup tài khoản', (await html(p)).coChu === 'ratLon' && await popup.count() === 1);
-  const vua = await p.evaluate(() => { const r = document.querySelector('.phone').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth; });
+  const vua = await p.evaluate(() => { const r = document.querySelector('.app-shell').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth; });
   ok('chữ Rất lớn: khung máy vẫn vừa màn hình, không tràn ngang', vua);
   ok('dòng Cỡ chữ hiện giá trị "Rất lớn"', /Rất lớn/.test(await popup.locator('.menu-dong-chon', { hasText: 'Cỡ chữ' }).locator('.menu-gia-tri').innerText()));
   await moDong('Cỡ chữ'); await chon('Vừa');

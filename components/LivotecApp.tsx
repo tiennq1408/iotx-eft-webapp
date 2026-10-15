@@ -408,7 +408,7 @@ export default function LivotecApp() {
   return (
     <ChuProvider lang={lang} boChu={boChu}>
         {!signedIn ? (
-          <div className="app-shell"><div className="phone">
+          <div className="stage"><div className="app-shell">
             <LoginScreen
               onDone={xongDangNhap}
               logoUrl={theme?.logoUrl ?? null}
@@ -418,7 +418,7 @@ export default function LivotecApp() {
             />
           </div></div>
         ) : (
-          <div className="app-shell"><div className="phone">
+          <div className="stage"><div className="app-shell">
             <TopBar
               ten={tenHienThi(profile)}
               chuaDoc={caiDat.thongBao ? chuaDoc : 0}

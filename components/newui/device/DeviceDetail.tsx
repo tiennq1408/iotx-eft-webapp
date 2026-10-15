@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
@@ -276,19 +277,19 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
         {/* Máy đang ngoại tuyến: nhắc để biết lệnh có thể chưa tới ngay, nhưng vẫn bấm được. */}
         {choDieuKhien && !device.online && <p className="small dim">{t("nhac_offline")}</p>}
 
-        <div className="frow">
-          {choXoa && (device.hidden
-            ? <button className="btn gh" onClick={onHienLai}>👁 {t("show_device")}</button>
-            : <button className="btn gh" onClick={onAn}>🙈 {t("hide_device")}</button>)}
-          <button className="btn gh" onClick={onClose}>{t("close")}</button>
-        </div>
-
         {hienGhim && device.product?.henGio?.bat !== false && (
           <button className="hg-ghim" onClick={onHenGio}>
             <b>⏱ {t("hg_open")}</b>
             <i>{loiHenGio && !hg ? loiHenGio : tomTatHenGio(hg, t)}</i>
           </button>
         )}
+
+        <div className="frow">
+          {choXoa && (device.hidden
+            ? <button className="btn gh" onClick={onHienLai}>👁 {t("show_device")}</button>
+            : <button className="btn gh" onClick={onAn}>🙈 {t("hide_device")}</button>)}
+          <button className="btn gh" onClick={onClose}><X aria-hidden="true" /> {t("close")}</button>
+        </div>
       </div>
     </div>
   );
