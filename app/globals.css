@@ -742,7 +742,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .bc-wrap{display:flex;flex-direction:column;gap:10px;width:100%;margin:.2rem 0;}
 .bc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .bc-tile{z-index:1;background:var(--card);border:1px solid color-mix(in srgb, var(--line) 70%, transparent);border-radius:14px;display:flex;flex-direction:column;min-width:0;min-height:0;padding:8px 10px;position:relative;overflow:hidden;}
-.bc-tile .bc-pl{color:var(--dim);white-space:nowrap;text-overflow:ellipsis;padding-right:4px;font-size:12px;overflow:hidden;}
+.bc-tile .bc-pl{color:var(--dim);white-space:nowrap;text-overflow:ellipsis;margin-bottom:8px;padding-right:4px;font-size:12px;overflow:hidden;}
 .bc-tile .bc-pl.nh-nho{font-size:10px;}
 .bc-tile .bc-pl.nh-lon{font-size:15px;line-height:1.15;}
 .bc-tile .nh-nho{font-size:.85em;}
@@ -756,13 +756,17 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .bc-alarmstrip ul{margin:0 0 0 22px;padding:0;font-weight:600;}
 .bc-alarmstrip li{margin:2px 0;}
 
-.bc-chips{display:grid;grid-auto-rows:minmax(0,1fr);align-content:stretch;gap:6px;width:100%;height:100%;overflow:hidden;}
+/* Khối chip là flex-wrap như web.dev; bề rộng mỗi chip đặt nội tuyến theo `moiHang` (BoCucGrid). */
+.bc-chips{display:flex;flex-wrap:wrap;align-content:stretch;gap:6px;width:100%;height:100%;overflow:hidden;}
+.bc-chips .bc-chip{align-self:stretch;min-width:0;height:auto;}
 .bc-chips.co-nho .bc-chip{gap:1px;padding:2px 4px;font-size:10.5px;}
 .bc-chips.co-nho .bc-chip i{min-height:14px;font-size:14px;}
 .bc-chips.co-lon .bc-chip{gap:3px;padding:6px 8px;font-size:14px;}
 .bc-chips.co-lon .bc-chip i{min-height:24px;font-size:24px;}
 .bc-chip{border:1px solid var(--line);background:var(--bg,#f6f8f8);min-width:0;height:100%;min-height:44px;color:var(--ink);cursor:pointer;white-space:nowrap;border-radius:12px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;padding:4px 6px;font-size:12px;font-weight:500;}
-.bc-chip span{text-overflow:ellipsis;max-width:100%;line-height:1.15;overflow:hidden;}
+/* Chữ chip XUỐNG DÒNG như bản tham chiếu, không cắt "…": khi icon nằm ngang (`vt-trai`) chỗ
+   cho chữ hẹp đi, cắt thì "Tự động" thành "Tự đ…". */
+.bc-chip span{text-align:center;white-space:normal;overflow-wrap:anywhere;max-width:100%;line-height:1.15;overflow:hidden;}
 .bc-chip i{background:0 0;flex:none;min-height:18px;font-size:18px;font-style:normal;line-height:1;}
 .bc-chip i .bc-icoimg{object-fit:contain;width:1em;height:1em;display:block;}
 .bc-chip.on{background:var(--brand);border-color:var(--brand);color:#fff;}
@@ -794,6 +798,40 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Khóa theo quyền (chia sẻ chỉ-xem) hoặc catalog không khai lệnh — cùng cách khuôn chi tiết báo. */
 .bc-pwr:disabled,.bc-stp button:disabled,.bc-dialbtn:disabled,.bc-sl:disabled,.bc-srow .switch-hit:disabled{opacity:.45;cursor:not-allowed;}
 .bc-chip[aria-disabled="true"]{opacity:.5;cursor:not-allowed;}
+
+/* ---- `ui.boCuc` bản mới của sadmin — số đo trên web.dev 15/10/2026 (docs/viec-bocuc-v2.md) ---- */
+/* `o.mauCtl`: ô đè ba biến màu nội tuyến; `.bc-body` là chỗ màu đổ vào. */
+.bc-tile.mauo .bc-body{color:var(--brand);}
+.bc-tile.mauo .bc-chip:not(.on){color:var(--brand);}
+.bc-tile.mauo .bc-pwr{color:#fff;}
+.bc-tile.mauo .bc-big small{color:inherit;opacity:.75;}
+/* `o.vien: "skin"`: viền 2px màu nhấn. */
+.bc-tile.vien,.bc-khung.vien{border:2px solid var(--brand);}
+/* `o.nenAnh`: ảnh nền của riêng ô. */
+.bc-tile.nen{background-position:50% center;background-repeat:no-repeat;background-size:cover;}
+/* `o.hlChon: "vien"`: mục đang chọn tô viền trong thay vì nền đặc. */
+.bc-chips.hl-vien .bc-chip.on{background:var(--bg,#f6f8f8);border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand);color:var(--brand);}
+/* `o.vtIco`: vị trí icon cho CẢ khối chip. */
+.bc-chips.vt-duoi .bc-chip{flex-direction:column-reverse;}
+.bc-chips.vt-trai .bc-chip{flex-direction:row;gap:6px;}
+.bc-chips.vt-phai .bc-chip{flex-direction:row-reverse;gap:6px;}
+/* `o.gtVt`: vị trí icon riêng một giá trị — đứng SAU luật cả khối để thắng khi cùng độ đặc hiệu. */
+.bc-chips .bc-chip.vt-tren{flex-direction:column;gap:2px;}
+.bc-chips .bc-chip.vt-duoi{flex-direction:column-reverse;gap:2px;}
+.bc-chips .bc-chip.vt-trai{flex-direction:row;gap:6px;}
+.bc-chips .bc-chip.vt-phai{flex-direction:row-reverse;gap:6px;}
+/* `gond`: chip cao cố định dồn lên trên / xuống dưới (khi `canD` là tren/duoi). */
+.bc-chips.gond{align-content:flex-start;}
+.bc-chips.gond-duoi{align-content:flex-end;}
+.bc-chips.gond .bc-chip{height:52px;}
+/* `o.ico`: icon cố định của ô, đứng cạnh nhãn. */
+.bc-lb{display:inline-flex;align-items:center;gap:6px;min-width:0;}
+.bc-lb>span{overflow-wrap:anywhere;white-space:normal;min-width:0;overflow:hidden;}
+.bc-lb.vt-tren{flex-direction:column;gap:2px;}
+.bc-lb.vt-duoi{flex-direction:column-reverse;gap:2px;}
+.bc-lb.vt-phai{flex-direction:row-reverse;}
+.bc-lico{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:18px;font-style:normal;line-height:1;}
+.bc-icoimg{object-fit:contain;width:1em;height:1em;}
 
 
 /* ==================================================================== */

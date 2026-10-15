@@ -23,6 +23,7 @@
 #                      thư <TIEN_TO><số đầu nhóm>.crt/.key do tao_chung_thu.sh sinh
 #   MQTT_TOKEN         access token (token)
 #   MQTT_PREFIX        tiền tố clientId, mặc định lt  ⇒ clientId = serial = CN = lt<số>
+#   MQTT_PHIEN_BAN     4 = MQTT 3.1.1 (mặc định, như mạch thật) · 5 = MQTT 5
 #   MQTT_KEEPALIVE     giây, mặc định 120 (mặc định ESP-IDF; tài liệu câu 1 — VẪN PHẢI hỏi firmware)
 #   NHIP_TELEMETRY_S   0 = chỉ giữ kết nối (conn); >0 = gửi telemetry mỗi N giây (pub)
 #   MQTT_TOPIC         mặc định v1/devices/me/telemetry
@@ -39,6 +40,7 @@ DAU=${DAU:-$(date +%Y%m%d_%H%M)}
 : "${MQTT_XAC_THUC:=mtls}"
 : "${MQTT_PREFIX:=lt}"
 : "${MQTT_KEEPALIVE:=120}"
+: "${MQTT_PHIEN_BAN:=4}"
 : "${NHIP_TELEMETRY_S:=0}"
 : "${MQTT_TOPIC:=v1/devices/me/telemetry}"
 [ -z "${MQTT_PAYLOAD:-}" ] && MQTT_PAYLOAD='{"lt":1}'
@@ -172,6 +174,9 @@ exec_nhom() {
   fi
   [ -n "$ip" ] && co_them+=(--ifaddr "$ip")
   co_co --shortids && co_them+=(--shortids)
+  # MQTT 3.1.1 như mạch thật (ESP-IDF). Đo 12/10/2026: ThingsBoard DEV từ chối kết nối MQTT 5
+  # mặc định của emqtt-bench (client_identifier_not_valid) mà nhận đúng clientId ở -V 4.
+  co_them+=(-V "${MQTT_PHIEN_BAN:-4}")
   echo "$(date +%s),$nhan,bat_dau,$n,$dau,$ip" >> "$KQ/su_kien.csv"
   # shellcheck disable=SC2086
   exec emqtt_bench $lenh -h "$MQTT_HOST" -p "$MQTT_PORT" -c "$n" -n "$dau" -i "$khoang" \

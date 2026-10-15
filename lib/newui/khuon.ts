@@ -91,7 +91,38 @@ const SKIN: Record<string, { brand: string; deep: string; soft: string }> = {
   graphite: { brand: "#475569", deep: "#334155", soft: "#e2e8f0" },
 };
 
-export const mauSkin = (ma: unknown) => (typeof ma === "string" && SKIN[ma]) || null;
+/**
+ * Sadmin bản mới gửi `skin` (và `o.mauCtl`) là MÃ MÀU — `"#2ea5fc"` — thay vì tên. Nhận dạng
+ * đúng biểu thức của tài liệu; độ dài 5/7 chữ số khớp biểu thức nhưng không phải màu CSS,
+ * `mauTuHex` trả null cho chúng nên vẫn rơi về mặc định thay vì in ra một biến hỏng.
+ */
+export const LA_MA_MAU = /^#[0-9a-f]{3,8}$/i;
+
+const kenh = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+
+/**
+ * Ba biến màu từ một mã hex, theo cách web.dev tính (đo 15/10/2026 trên hai mẫu thật):
+ *   deep = từng kênh × 0,78
+ *   soft = trộn với trắng 86%   (85% lệch một đơn vị ở kênh G của `#fb6559`)
+ * Hai mẫu `#fb6559` và `#ffffff` là bài kiểm nghiệm thu trong `tests/bo-cuc.mjs`.
+ * Kênh alpha (mã 4/8 chữ số) không đi vào deep/soft.
+ */
+export function mauTuHex(ma: string): { brand: string; deep: string; soft: string } | null {
+  if (!LA_MA_MAU.test(ma)) return null;
+  let h = ma.slice(1).toLowerCase();
+  if (h.length === 3 || h.length === 4) h = [...h].map(c => c + c).join("");
+  if (h.length !== 6 && h.length !== 8) return null;
+  const rgb = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  return {
+    brand: ma.toLowerCase(),
+    deep: "#" + rgb.map(c => kenh(c * 0.78)).join(""),
+    soft: "#" + rgb.map(c => kenh(c + (255 - c) * 0.86)).join(""),
+  };
+}
+
+/** Tên cũ (`ocean`/`sunset`/`graphite`) VẪN giữ — sản phẩm khác có thể còn dùng. */
+export const mauSkin = (ma: unknown) =>
+  typeof ma !== "string" ? null : LA_MA_MAU.test(ma.trim()) ? mauTuHex(ma.trim()) : SKIN[ma] || null;
 
 /* ------------------------------------------------------------------ */
 /* Gán nhóm mặc định khi `slots` không nói                             */

@@ -4,13 +4,13 @@ import { useMemo } from "react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
-import { capNguonCua } from "@/lib/newui/khuon";
+import { LA_MA_MAU, capNguonCua, mauTuHex } from "@/lib/newui/khuon";
 import { diaChiIcon, laDuongDan } from "@/lib/newui/assets";
 import { phimKichHoat } from "@/lib/newui/phim";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
 import {
-  CAN_CHU, CAN_DOC, CAN_NGANG, cotChip, cotChipTuDong, danhSachLoi, dayNgang,
+  CAN_CHU, CAN_DOC, CAN_NGANG, RONG_NUT, cotChipTuDong, danhSachLoi, dayNgang, lopViTri,
   phanGiaiBoCuc, tuCoNhan, type BoCuc, type OdaDung,
 } from "@/lib/newui/boCuc";
 import type { IotxCapability } from "@/lib/iotx/contracts";
@@ -52,6 +52,37 @@ function lopNhan(o: OdaDung): string | undefined {
   return lop.length ? lop.join(" ") : undefined;
 }
 
+/** `nhan.mau`: `"skin"` → màu nhấn của ô; mã hex → dùng thẳng. Giá trị khác bị bỏ — chuỗi này
+    đến từ máy chủ và đi vào `style`, đừng để nó chèn được khai báo CSS lạ. */
+function mauNhan(o: OdaDung): string | undefined {
+  const m = o.nhan?.mau?.trim();
+  if (m === "skin") return "var(--brand)";
+  return m && LA_MA_MAU.test(m) ? m : undefined;
+}
+
+/**
+ * Nhãn của ô. Có `o.ico` (icon CỐ ĐỊNH, khác `gtIco`) thì dựng như bản tham chiếu:
+ * `span.bc-lb > i.bc-lico > img.bc-icoimg` rồi tới chữ — icon mặc định nằm bên trái.
+ */
+function NhanO({ o, ten, style }: { o: OdaDung; ten: string; style?: React.CSSProperties }) {
+  const lop = lopNhan(o);
+  const kieu = { ...style, color: mauNhan(o) };
+  const ico = diaChiIcon(o.ico);
+  if (!ico) return <span className={lop} style={kieu}>{ten}</span>;
+  return (
+    <span className={`bc-lb ${lopViTri(o.vtIco) || "vt-trai"}`} style={kieu}>
+      <i className="bc-lico" aria-hidden="true"><Ico ico={ico} /></i>
+      <span className={lop}>{ten}</span>
+    </span>
+  );
+}
+
+/** Ảnh nền của ô: chỉ nhận địa chỉ ảnh, và bọc chuỗi để dấu nháy trong URL không phá `url()`. */
+function nenAnhO(o: OdaDung): string | undefined {
+  const v = o.nenAnh?.trim();
+  return v && /^(https?:\/\/|\/)/i.test(v) ? `url(${JSON.stringify(v)})` : undefined;
+}
+
 /* Vòng xoay — dựng đúng như bản tham chiếu web.dev: hai CUNG TRÒN trên viewBox 120, tâm
    (60,60) bán kính 46, quét 270° bắt đầu từ 135° (mở xuống dưới). Cung chạy được vẽ bằng
    cách tính ĐIỂM CUỐI theo tỉ lệ, không dùng stroke-dasharray, nên không cần xoay cả thẻ
@@ -77,7 +108,8 @@ function Dial({ v, min, max, chu }: { v: number; min: number; max: number; chu: 
       <path d={CUNG_NEN} stroke="var(--line)" strokeWidth="10" fill="none" strokeLinecap="round" />
       <path d={cungTron(max > min ? (v - min) / (max - min) : 0)}
         stroke="var(--brand)" strokeWidth="10" fill="none" strokeLinecap="round" />
-      <text x="60" y="66" textAnchor="middle" fontSize="22" fontWeight="600" fill="var(--ink)">{chu}</text>
+      {/* Màu chữ theo ô (`currentColor`), để ô `mauCtl` trắng trên ảnh nền có chữ trắng. */}
+      <text x="60" y="66" textAnchor="middle" fontSize="22" fontWeight="600" fill="currentColor">{chu}</text>
     </svg>
   );
 }
@@ -103,13 +135,13 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
         <div className="bc-srow" style={{ justifyContent: "center", gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
             aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
-          {o.w >= 2 && <b className={lopN} style={{ fontWeight: 600 }}>{ten}</b>}
+          {o.w >= 2 && <b className={lopN} style={{ fontWeight: 600, color: mauNhan(o) }}>{ten}</b>}
         </div>
       );
     }
     return (
       <div className="bc-srow">
-        <span className={lopN}>{ten}</span>
+        <NhanO o={o} ten={ten} />
         <button className="switch-hit" role="switch" aria-checked={bat}
           aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
           <span className={`switch${bat ? " on" : ""}`} />
@@ -134,7 +166,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
     if (o.variant === "step01") {
       return (
         <div className="bc-srow">
-          <span className={lopN} style={{ fontSize: 15 }}>{ten}</span>
+          <NhanO o={o} ten={ten} style={{ fontSize: 15 }} />
           <div className="bc-stp">
             <button disabled={khoa} onClick={() => doi(-1)} aria-label={`${ten} −`}>−</button>
             <span>{chuSoCap(cap, v)}</span>
@@ -151,11 +183,15 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
 
   if (cap.kind === "enum") {
     const ds = cap.values ?? [];
-    const cot = o.moiHang && o.moiHang > 0 ? Math.min(ds.length, o.moiHang) : cotChipTuDong(ds.length, o.w);
+    const cot = Math.max(1, o.moiHang && o.moiHang > 0 ? Math.min(ds.length, o.moiHang) : cotChipTuDong(ds.length, o.w));
+    // Như web.dev: khối chip là flex-wrap, mỗi chip chiếm 1/cot hàng nhưng ĐƯỢC GIÃN (grow 1),
+    // nên hàng cuối thiếu chip thì các chip còn lại tự kéo kín cả hàng.
+    const coChip: React.CSSProperties = { flex: `1 0 calc((100% - ${6 * (cot - 1)}px) / ${cot})` };
+    if (o.rongNut && RONG_NUT[o.rongNut]) coChip.minWidth = RONG_NUT[o.rongNut];
+    const gond = o.canD === "tren" || o.canD === "duoi" ? `gond gond-${o.canD}` : "";
     return (
-      <div className={`bc-chips co-${o.coNut || "vua"}`}
-        style={{ gridTemplateColumns: `repeat(${2 * Math.max(1, cot)}, minmax(0, 1fr))` }}>
-        {ds.map((gt, i) => {
+      <div className={[`bc-chips co-${o.coNut || "vua"}`, lopViTri(o.vtIco) || "vt-tren", gond, o.hlChon === "vien" ? "hl-vien" : ""].filter(Boolean).join(" ")}>
+        {ds.map(gt => {
           const chon = String(gt) === String(v);
           const chu = nhanGiaTriCap(cap, String(gt), t);
           // Không có icon thì KHÔNG dựng thẻ bọc. `.bc-chip i` có `min-height:18px`, nên một
@@ -165,8 +201,8 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
           return (
             // Vẫn gọi `gui` khi bị khóa: chính nó nói lý do, thay vì nuốt cú bấm im lặng.
             <span key={String(gt)} role="button" tabIndex={khoa ? -1 : 0} aria-pressed={chon} aria-disabled={khoa} title={chu}
-              className={`bc-chip${chon ? " on" : ""}`}
-              style={{ gridColumn: cotChip(ds.length, Math.max(1, cot), i) }}
+              className={["bc-chip", chon ? "on" : "", lopViTri(o.gtVt?.[String(gt)])].filter(Boolean).join(" ")}
+              style={coChip}
               onClick={() => gui(cap, gt)}
               onKeyDown={e => phimKichHoat(e, () => gui(cap, gt))}>
               {ico && <i aria-hidden="true"><Ico ico={ico} /></i>}
@@ -191,6 +227,16 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
     return <span className="bc-big" style={{ fontSize: 15 }}>{chu}</span>;
   }
   return <span className="bc-big">{chuSoCap(cap, v)}</span>;
+}
+
+/** `mauCtl`: ba biến màu nội tuyến đè lên biến gốc, chỉ trong ô này. Mã hỏng thì bỏ qua. */
+function bienMauO(o: OdaDung): React.CSSProperties | undefined {
+  const m = o.mauCtl ? mauTuHex(o.mauCtl.trim()) : null;
+  return m ? ({ "--brand": m.brand, "--brand-deep": m.deep, "--brand-soft": m.soft } as React.CSSProperties) : undefined;
+}
+
+function lopO(o: OdaDung): string {
+  return ["bc-tile", bienMauO(o) ? "mauo" : "", o.vien === "skin" ? "vien" : "", nenAnhO(o) ? "nen" : ""].filter(Boolean).join(" ");
 }
 
 export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
@@ -225,14 +271,16 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
             ? { flexDirection: "column" as const, justifyContent: CAN_DOC[o.canD || "giua"], alignItems: CAN_NGANG[o.canN || "giua"] }
             : { flexDirection: "row" as const, justifyContent: CAN_NGANG[o.canN || "giua"], alignItems: CAN_DOC[o.canD || "giua"] };
           return (
-            <div key={o.key} className="bc-tile" data-k={o.key} data-v={o.variant} style={{
+            <div key={o.key} className={lopO(o)} data-k={o.key} data-v={o.variant} style={{
               gridColumn: `${o.col} / ${o.col + o.w}`,
               gridRow: `${kq.map[o.row]} / ${kq.map[o.row + o.h - 1] + 1}`,
+              ...bienMauO(o),
+              backgroundImage: nenAnhO(o),
             }}>
               {!tuCoNhan(o.variant) && (
                 <div className={["bc-pl", lopNhan(o)].filter(Boolean).join(" ")}
-                  style={{ textAlign: (CAN_CHU[o.nhan?.can ?? ""] || CAN_CHU[o.canN || "giua"] || "center") as "left" | "center" | "right" }}>
-                  {nhanCap(o.cap, t)}
+                  style={{ textAlign: (CAN_CHU[o.nhan?.can ?? ""] || CAN_CHU[o.canN || "giua"] || "center") as "left" | "center" | "right", color: mauNhan(o) }}>
+                  {o.ico ? <NhanO o={o} ten={nhanCap(o.cap, t)} /> : nhanCap(o.cap, t)}
                 </div>
               )}
               <div className="bc-body" style={than}>

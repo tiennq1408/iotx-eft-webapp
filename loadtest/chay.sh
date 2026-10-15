@@ -14,8 +14,10 @@
 #   ./loadtest/chay.sh b7         B7 cao điểm: nền + 3 lần 15.000 người mở app cùng lúc (B7_CACH=rps: k6 bơm req/s)
 #   ./loadtest/chay.sh b8         B8 hai nhánh cùng lúc — in hướng dẫn
 #   ./loadtest/chay.sh b9         B9 trình duyệt thật (app production ở cổng 3000)
+#   ./loadtest/chay.sh vm [--ngay YYYYMMDD]  hiệu suất trên mỗi VM / mỗi vCPU (CPU từ Cloud Monitoring)
 #
 # Nhánh THIẾT BỊ (MQTT/TLS vào ThingsBoard — cần emqtt-bench, MQTT_HOST):
+#   ./loadtest/chay.sh mqtt-tao --so N   tạo N thiết bị test ltb0… (clientId) trên ThingsBoard · mqtt-dem · mqtt-don
 #   ./loadtest/chay.sh mqtt-ca    sinh CA TEST + lô chứng thư client (không gửi gì đi đâu)
 #   ./loadtest/chay.sh mqtt-b1    B1-01 chi phí bắt tay + B1-02 trần một máy phát
 #   ./loadtest/chay.sh mqtt-b2    B2 thang bậc kết nối 1.000 → 1.000.000
@@ -297,6 +299,16 @@ HD
     echo
     echo "Thêm --cho-phep-bat-tat để chạy cả hai bài gửi lệnh thật (quạt sẽ bật tắt)."
     ;;
+  mqtt-tao|mqtt-dem|mqtt-don)
+    # Thiết bị test xác thực bằng clientId trên ThingsBoard (tên ltb<số>, nhãn loadtest).
+    python3 "$TD/mqtt/tb_thiet_bi.py" "${LENH#mqtt-}" "$@"
+    ;;
+  vm)
+    # Hiệu suất trên mỗi VM / mỗi vCPU: CPU thật của iotx-dev-* từ Cloud Monitoring, ghép với tải
+    # từng phút. Mặc định lấy mọi kết quả hôm nay. Cần gcloud đã đăng nhập (xem do_vm.py).
+    [ $# -eq 0 ] && set -- --ngay "$(date +%Y%m%d)"
+    python3 "$TD/do_vm.py" "$@"
+    ;;
   mqtt-ca)
     "$TD/mqtt/tao_chung_thu.sh" "$@"
     ;;
@@ -346,7 +358,7 @@ HD
     echo "Muốn dừng sớm: kill $!   (file kết quả vẫn dùng được)"
     ;;
   *)
-    sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac

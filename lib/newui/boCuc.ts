@@ -28,6 +28,8 @@ const TU_CO_NHAN = ["switch01", "step01", "power01"];
 export const CAN_NGANG: Record<string, string> = { trai: "flex-start", giua: "center", phai: "flex-end" };
 export const CAN_DOC: Record<string, string> = { tren: "flex-start", giua: "center", duoi: "flex-end" };
 export const CAN_CHU: Record<string, string> = { trai: "left", giua: "center", phai: "right" };
+/** `o.rongNut`: bề rộng tối thiểu của chip (px), đúng bảng của bản tham chiếu. */
+export const RONG_NUT: Record<string, number> = { nho: 64, vua: 80, lon: 96 };
 
 export type OBoCuc = {
   key: string;
@@ -36,10 +38,27 @@ export type OBoCuc = {
   canN?: string; canD?: string;
   moiHang?: number;
   coNut?: string; rongNut?: string;
-  nhan?: { can?: string; co?: string; dam?: boolean; nghieng?: boolean };
+  /** `mau`: `"skin"` (màu nhấn) hoặc mã hex. */
+  nhan?: { can?: string; co?: string; dam?: boolean; nghieng?: boolean; mau?: string };
   gtIco?: Record<string, string>;
+  /** Icon CỐ ĐỊNH của ô (`@eco`…), khác `gtIco` theo từng giá trị. */
+  ico?: string;
+  /** Vị trí icon trong chip, áp cho cả khối: `tren` | `duoi` | `trai` | `phai`. */
+  vtIco?: string;
+  /** Vị trí icon riêng cho một giá trị, đè `vtIco`: `{ "Auto": "trai" }`. */
+  gtVt?: Record<string, string>;
+  /** Màu nhấn riêng của ô (mã hex) — đè `--brand`, `--brand-deep`, `--brand-soft`. */
+  mauCtl?: string;
+  /** `"skin"`: viền 2px màu nhấn. */
+  vien?: string;
+  /** `"vien"`: mục đang chọn tô viền thay vì nền đặc. */
+  hlChon?: string;
   nenAnh?: string;
 };
+
+/** Bốn vị trí icon bản tham chiếu biết; giá trị lạ bị bỏ, không thành class rác. */
+export const VI_TRI_ICO = ["tren", "duoi", "trai", "phai"];
+export const lopViTri = (vt?: string) => (vt && VI_TRI_ICO.includes(vt) ? `vt-${vt}` : "");
 
 export type BoCuc = {
   cot?: number;
@@ -78,20 +97,6 @@ export function cotChipTuDong(soGiaTri: number, rongO: number): number {
   const toiDa = rongO >= 4 ? 4 : rongO >= 3 ? 3 : 2;
   const soHang = Math.max(1, Math.ceil(soGiaTri / toiDa));
   return Math.max(1, Math.ceil(soGiaTri / soHang));
-}
-
-/**
- * Vị trí cột của một chip trong lưới `2 × số cột`.
- *
- * Nhân đôi số cột để hàng cuối thiếu chip vẫn căn giữa được: hàng đầy thì mỗi chip
- * `span 2`, hàng cuối lệch đi nửa ô cho cân.
- */
-export function cotChip(soGiaTri: number, soCot: number, i: number): string {
-  const cot = Math.max(1, soCot | 0);
-  const du = soGiaTri % cot;
-  const hetHangDay = soGiaTri - du;
-  if (du === 0 || i < hetHangDay) return "span 2";
-  return `${cot - du + 2 * (i - hetHangDay) + 1} / span 2`;
 }
 
 /**

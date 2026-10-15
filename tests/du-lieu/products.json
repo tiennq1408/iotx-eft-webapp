@@ -141,57 +141,104 @@
  },
  "ac_1": {
   "ui": {
-   "slots": {
-    "ac_ope_mode": {
-     "co": 2,
-     "nhom": "secondary",
-     "variant": "chips01"
-    },
-    "ac_fan_speed": {
-     "nhom": "secondary"
-    },
-    "ac_swing_mode": {
-     "nhom": "secondary"
-    },
-    "ac_power_status": {
-     "co": 1,
-     "nhom": "secondary",
-     "variant": "power01"
-    },
-    "ac_temp_setting": {
-     "co": 3,
-     "nhom": "hero",
-     "variant": "dial01"
-    }
-   },
-   "archetype": "ac",
-   "skin": "ocean",
-   "uuTien": [
-    "ac_temp_setting",
-    "ac_swing_mode",
-    "ac_ope_mode",
-    "ac_fan_speed",
-    "ac_power_status"
-   ],
    "boCuc": {
     "cot": 4,
     "o": [
      {
+      "key": "ac_eco_mode",
+      "col": 3,
+      "row": 11,
+      "w": 2,
+      "h": 1,
+      "canN": "giua",
+      "ico": "@eco",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
       "key": "ac_fan_speed",
       "col": 1,
-      "row": 6,
+      "row": 7,
       "w": 4,
       "h": 2,
-      "moiHang": 3,
+      "moiHang": 4,
+      "hlChon": "vien",
+      "vtIco": "trai",
       "nhan": {
-       "dam": true
+       "dam": true,
+       "mau": "skin"
       },
       "gtIco": {
-       "Nhẹ": "1️⃣",
-       "Trung bình": "2️⃣",
-       "Tự động": "🔄",
-       "Mạnh": "3️⃣",
-       "Cực mạnh": "🌀"
+       "Low": "@fan-low",
+       "Mid": "@fan-mid",
+       "Auto": "@fan-auto",
+       "High": "@fan-high",
+       "Turbo": "@fan-turbo"
+      },
+      "gtVt": {
+       "Auto": "trai"
+      }
+     },
+     {
+      "key": "ac_ifeel_mode",
+      "col": 3,
+      "row": 13,
+      "w": 2,
+      "h": 1,
+      "ico": "@ifeel",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_is_iclean",
+      "col": 1,
+      "row": 12,
+      "w": 2,
+      "h": 1,
+      "ico": "@iclean",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_is_sleep_mode",
+      "col": 3,
+      "row": 12,
+      "w": 2,
+      "h": 1,
+      "ico": "@sleep",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_mil_mode",
+      "col": 1,
+      "row": 13,
+      "w": 2,
+      "h": 1,
+      "ico": "@mildew",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_mute_mode",
+      "col": 1,
+      "row": 11,
+      "w": 2,
+      "h": 1,
+      "ico": "@mute",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
       }
      },
      {
@@ -203,84 +250,303 @@
       "canN": "giua",
       "canD": "giua",
       "moiHang": 4,
+      "hlChon": "vien",
+      "vtIco": "duoi",
       "nhan": {
        "can": "giua",
-       "dam": true
+       "dam": true,
+       "mau": "skin"
       },
       "gtIco": {
-       "Hút ẩm": "💧",
-       "Quạt gió": "🌀",
-       "Tự động": "🔄",
-       "Làm lạnh": "❄️",
-       "Sưởi ấm": "☀️"
+       "Dry": "@mode-dry",
+       "Fan": "@mode-fan",
+       "Auto": "@mode-auto",
+       "Cool": "@mode-cool",
+       "Heat": "@mode-heat"
+      },
+      "gtVt": {
+       "Auto": "trai"
       }
      },
      {
       "key": "ac_power_status",
-      "col": 4,
-      "row": 1,
-      "w": 1,
-      "h": 3,
+      "col": 1,
+      "row": 6,
+      "w": 4,
+      "h": 1,
       "variant": "power01",
-      "canN": "giua",
       "canD": "giua",
+      "mauCtl": "#fb6559",
       "nhan": {
        "co": "lon"
       }
      },
      {
+      "key": "ac_room_temp",
+      "col": 1,
+      "row": 14,
+      "w": 4,
+      "h": 1,
+      "nhan": {
+       "dam": true
+      }
+     },
+     {
       "key": "ac_swing_mode",
       "col": 1,
-      "row": 8,
+      "row": 9,
       "w": 4,
       "h": 2,
-      "moiHang": 3
+      "moiHang": 3,
+      "hlChon": "vien",
+      "nhan": {
+       "dam": true,
+       "mau": "skin"
+      }
      },
      {
       "key": "ac_temp_setting",
       "col": 1,
       "row": 1,
-      "w": 3,
+      "w": 4,
       "h": 3,
       "variant": "dial01",
       "canN": "giua",
       "canD": "tren",
+      "mauCtl": "#ffffff",
       "nhan": {
        "can": "giua",
-       "dam": true
-      }
+       "dam": true,
+       "mau": "#ffffff"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_temp_setting-cd5e3e097ec6.jpg"
      }
     ],
-    "skin": "sunset"
+    "skin": "#2ea5fc",
+    "alarm": {
+     "key": "ac_error_catalog"
+    }
    }
   },
-  "icon": "📦",
+  "icon": "https://media.dev.happibot.net/media/san-pham/ac_1/dai-dien-f9a39ef2a682.png",
   "henGio": {
    "bat": true,
    "tatCap": []
   },
-  "nameVi": "Air Conditioner (L1)",
+  "nameEn": "Air Conditioner (L1)",
+  "nameVi": "Điều Hòa (L1)",
   "category": "other",
+  "telemetry": [
+   "ac_IoT_status",
+   "ac_coil_temp",
+   "ac_com_temp",
+   "ac_current",
+   "ac_dk_firmware_version",
+   "ac_dk_status",
+   "ac_eco_mode",
+   "ac_error_catalog",
+   "ac_fan_speed",
+   "ac_frequency",
+   "ac_heater_temp",
+   "ac_hot_temp",
+   "ac_idu_speed",
+   "ac_ifeel_mode",
+   "ac_is_iclean",
+   "ac_is_sleep_mode",
+   "ac_mil_mode",
+   "ac_mute_mode",
+   "ac_odu_speed",
+   "ac_ope_mode",
+   "ac_power_status",
+   "ac_room_temp",
+   "ac_swing_mode",
+   "ac_temp_setting",
+   "ac_temp_setting_max",
+   "ac_temp_setting_min",
+   "ac_timer_control",
+   "ac_voltage"
+  ],
   "capabilities": [
+   {
+    "key": "ac_IoT_status",
+    "kind": "sensor",
+    "label": "IoT Status"
+   },
+   {
+    "key": "ac_coil_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ giàn"
+   },
+   {
+    "key": "ac_com_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ đầu đẩy máy nén"
+   },
+   {
+    "key": "ac_current",
+    "kind": "sensor",
+    "label": "Giá trị dòng điện"
+   },
+   {
+    "key": "ac_dk_firmware_version",
+    "kind": "sensor",
+    "label": "DK Firmware version"
+   },
+   {
+    "key": "ac_dk_status",
+    "kind": "sensor",
+    "label": "DK Status"
+   },
+   {
+    "key": "ac_eco_mode",
+    "rpc": "setEcoMode",
+    "kind": "onoff",
+    "label": "Tiết kiệm điện"
+   },
+   {
+    "key": "ac_error_catalog",
+    "kind": "sensor",
+    "label": "Danh sách lỗi",
+    "values": [
+     "C3",
+     "C5",
+     "E3",
+     "E2",
+     "E4",
+     "U0",
+     "E1",
+     "E0",
+     "C2",
+     "L6",
+     "L1",
+     "L4",
+     "L0",
+     "L8",
+     "L9",
+     "U8",
+     "U9",
+     "U7",
+     "L2",
+     "E5",
+     "L5",
+     "U3",
+     "E6",
+     "E7",
+     "U2",
+     "512"
+    ],
+    "labels": {
+     "512": "512 Test",
+     "C3": "Lỗi giao tiếp giữa dàn lạnh (IDU) và dàn nóng (ODU)",
+     "C5": "Lỗi EEPROM của dàn lạnh (nếu có)",
+     "E3": "Cảm biến nhiệt độ ống dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "E2": "Cảm biến nhiệt độ môi trường dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "E4": "Cảm biến nhiệt độ đầu đẩy dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "U0": "Lỗi EEPROM của dàn nóng (nếu có)",
+     "E1": "Cảm biến nhiệt độ ống dàn lạnh bị đứt mạch hoặc ngắn mạch",
+     "E0": "Cảm biến nhiệt độ môi trường dàn lạnh bị đứt mạch hoặc ngắn mạch",
+     "C2": "Lỗi động cơ quạt dàn lạnh",
+     "L6": "Bảo vệ do lỗi mạch đo dòng điện máy nén",
+     "L1": "Bảo vệ do máy nén khởi động thất bại hoặc mất pha",
+     "L4": "Bảo vệ mô-đun công suất IPM của máy nén",
+     "L0": "Bảo vệ do máy nén mất đồng bộ",
+     "L8": "Lỗi động cơ quạt DC dàn nóng",
+     "L9": "Bảo vệ do lỗi mạch đo dòng điện động cơ quạt DC dàn nóng",
+     "U8": "Bảo vệ do lỗi mạch đo dòng điện PFC dàn nóng",
+     "U9": "Bảo vệ mạch hiệu chỉnh hệ số công suất (PFC)",
+     "U7": "Bảo vệ do dòng điện AC hiệu dụng đầu vào dàn nóng quá cao",
+     "L2": "Bảo vệ do dòng điện đỉnh máy nén quá cao",
+     "E5": "Bảo vệ do nhiệt độ đầu đẩy máy nén quá cao",
+     "L5": "Bảo vệ do IPM máy nén quá nhiệt",
+     "U3": "Bảo vệ do điện áp DC dàn nóng quá cao hoặc quá thấp",
+     "E6": "Bảo vệ chống đóng băng dàn lạnh",
+     "E7": "Bảo vệ quá tải hệ thống (nhiệt độ dàn ngưng tụ dàn nóng quá cao)",
+     "U2": "Bảo vệ do điện áp AC cấp vào dàn nóng bất thường"
+    }
+   },
    {
     "key": "ac_fan_speed",
     "rpc": "setSpeed",
     "kind": "enum",
     "label": "Tốc độ gió",
     "values": [
-     "Tự động",
-     "Nhẹ",
-     "Trung bình",
-     "Mạnh",
-     "Cực mạnh"
+     "Low",
+     "Mid",
+     "High",
+     "Turbo",
+     "Auto"
     ],
     "labels": {
-     "Tự động": "Tự động",
-     "Nhẹ": "Nhẹ",
-     "Trung bình": "Trung bình",
-     "Mạnh": "Mạnh",
-     "Cực mạnh": "Cực mạnh"
+     "Low": "Nhẹ",
+     "Mid": "Trung bình",
+     "High": "Mạnh",
+     "Turbo": "Cực Mạnh",
+     "Auto": "Tự động"
     }
+   },
+   {
+    "key": "ac_frequency",
+    "kind": "sensor",
+    "unit": "Hz",
+    "label": "Nhận giá trị tần số máy nén"
+   },
+   {
+    "key": "ac_heater_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ giàn cục nóng"
+   },
+   {
+    "key": "ac_hot_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt dộ môi trường cục nóng"
+   },
+   {
+    "key": "ac_idu_speed",
+    "kind": "sensor",
+    "unit": "V/phút",
+    "label": "Tốc độ quay của quạt cục lạnh",
+    "unitSpace": true
+   },
+   {
+    "key": "ac_ifeel_mode",
+    "rpc": "setIfeelMode",
+    "kind": "onoff",
+    "label": "Màn hình hiển thị"
+   },
+   {
+    "key": "ac_is_iclean",
+    "rpc": "setIclean",
+    "kind": "onoff",
+    "label": "Tự động làm sạch"
+   },
+   {
+    "key": "ac_is_sleep_mode",
+    "rpc": "setSleepMode",
+    "kind": "onoff",
+    "label": "Chế độ ngủ"
+   },
+   {
+    "key": "ac_mil_mode",
+    "rpc": "setMildewMode",
+    "kind": "onoff",
+    "label": "Chống nấm mốc"
+   },
+   {
+    "key": "ac_mute_mode",
+    "rpc": "setMuteMode",
+    "kind": "onoff",
+    "label": "Im lặng"
+   },
+   {
+    "key": "ac_odu_speed",
+    "kind": "sensor",
+    "unit": "V/phút",
+    "label": "Nhận tốc độ quay quạt cục nóng",
+    "unitSpace": true
    },
    {
     "key": "ac_ope_mode",
@@ -288,25 +554,31 @@
     "kind": "enum",
     "label": "Chế độ hoạt động",
     "values": [
-     "Tự động",
-     "Sưởi ấm",
-     "Làm lạnh",
-     "Hút ẩm",
-     "Quạt gió"
+     "Heat",
+     "Cool",
+     "Dry",
+     "Fan",
+     "Auto"
     ],
     "labels": {
-     "Tự động": "Tự động",
-     "Sưởi ấm": "Sưởi ấm",
-     "Làm lạnh": "Làm lạnh",
-     "Hút ẩm": "Hút ẩm",
-     "Quạt gió": "Quạt gió"
+     "Heat": "Sưởi ấm",
+     "Cool": "Làm lạnh",
+     "Dry": "Hút ẩm",
+     "Fan": "Quạt",
+     "Auto": "Tự động"
     }
    },
    {
     "key": "ac_power_status",
     "rpc": "setPower",
     "kind": "onoff",
-    "label": "Bật/Tắt điều hòa"
+    "label": "Bật/Tắt"
+   },
+   {
+    "key": "ac_room_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ phòng"
    },
    {
     "key": "ac_swing_mode",
@@ -314,27 +586,63 @@
     "kind": "enum",
     "label": "Hướng gió",
     "values": [
-     "Đảo gió dọc",
-     "Đảo gió ngang"
+     "r20",
+     "r35",
+     "r55",
+     "r70",
+     "r80"
     ],
     "labels": {
-     "Đảo gió dọc": "Đảo gió dọc",
-     "Đảo gió ngang": "Đảo gió ngang"
+     "r20": "Rộng 20 độ",
+     "r35": "Rộng 35 độ",
+     "r55": "Rộng 55 độ",
+     "r70": "Rộng 70 độ",
+     "r80": "Rộng 80 độ"
     }
    },
    {
     "key": "ac_temp_setting",
-    "max": 30,
+    "max": 31,
     "min": 16,
     "rpc": "setTempTarget",
     "kind": "level",
     "step": 1,
     "unit": "°C",
     "label": "Nhiệt độ"
+   },
+   {
+    "key": "ac_temp_setting_max",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ tối đa"
+   },
+   {
+    "key": "ac_temp_setting_min",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ tối thiểu"
+   },
+   {
+    "key": "ac_timer_control",
+    "max": 100,
+    "min": 0,
+    "rpc": "setTimer",
+    "kind": "level",
+    "step": 15,
+    "unit": "phút",
+    "label": "Hẹn giờ",
+    "unitSpace": true
+   },
+   {
+    "key": "ac_voltage",
+    "kind": "sensor",
+    "unit": "W",
+    "label": "Voltage",
+    "unitSpace": true
    }
   ],
   "productGroup": "ac",
-  "version": 9
+  "version": 159
  },
  "fan": {
   "icon": "🌀",
