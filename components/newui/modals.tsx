@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
-import { Camera } from "lucide-react";
-import Icon from "./Icon";
+import { Camera, Pencil } from "lucide-react";
+import Icon, { type TenIcon } from "./Icon";
 import { Sheet } from "./shell";
 import { useChu } from "./chu";
 import { IMG } from "@/lib/newui/assets";
-import { coNgonNgu, MAT_KHAU_TOI_THIEU, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import { anhCoNgonNgu, MAT_KHAU_TOI_THIEU, tenNgonNgu } from "@/lib/newui/ngonNgu";
 import type { CaiDat, CoChu, GiaoDien } from "@/lib/newui/caiDat";
 import { DOI_MAT_KHAU_CHUA_BAT, HO_SO_CHUA_BAT, IotxApiError, iotxClient, moTaLoi } from "@/lib/iotx";
 import type { UiNotification } from "@/lib/types";
@@ -22,6 +22,16 @@ export const NHAN_CO_CHU: Record<CoChu, string> = { vua: "co_vua", lon: "co_lon"
 /** Ba mục trong cụm Tài khoản mở popup chọn: cùng một kiểu dòng, cùng một kiểu popup. */
 export type MucChon = "ngonNgu" | "coChu" | "giaoDien";
 
+/**
+ * Cờ đứng trước tên ngôn ngữ. Ảnh PNG chứ không phải emoji cờ — Windows không vẽ được emoji
+ * cờ, chỉ hiện hai chữ "VN", "US". Ngôn ngữ chưa có ảnh (`anh` null) thì vẽ quả cầu.
+ */
+export function CoNgonNgu({ anh }: { anh: string | null }) {
+  return anh
+    ? <Image unoptimized className="co-ngon-ngu" src={anh} alt="" width={20} height={14} />
+    : <span className="co-ngon-ngu-tron" aria-hidden="true"><Icon name="globe" /></span>;
+}
+
 /** Menu góc phải: đúng năm mục quản lý và dòng phiên bản. */
 export function MenuDrawer({ phienBan, onClose, onChon }: {
   phienBan: string;
@@ -29,12 +39,13 @@ export function MenuDrawer({ phienBan, onClose, onChon }: {
   onChon: (muc: MucMenu) => void;
 }) {
   const { t } = useChu();
-  const items: Array<{ emo: string; nhan: string; muc: MucMenu }> = [
-    { emo: "🏠", nhan: "menu_spaces", muc: "spaces" },
-    { emo: "👥", nhan: "menu_members", muc: "members" },
-    { emo: "🔲", nhan: "menu_devices", muc: "devices" },
-    { emo: "📶", nhan: "menu_add", muc: "add" },
-    { emo: "☀️", nhan: "menu_virtual", muc: "virtual" },
+  // Icon một nét chứ không phải emoji: Apple và Windows vẽ emoji bằng hai bộ tranh khác nhau.
+  const items: Array<{ ico: TenIcon; nhan: string; muc: MucMenu }> = [
+    { ico: "home2", nhan: "menu_spaces", muc: "spaces" },
+    { ico: "users", nhan: "menu_members", muc: "members" },
+    { ico: "devices2", nhan: "menu_devices", muc: "devices" },
+    { ico: "wifi", nhan: "menu_add", muc: "add" },
+    { ico: "sun", nhan: "menu_virtual", muc: "virtual" },
   ];
   return (
     <div className="drawer-overlay" role="dialog" aria-modal="true" aria-label={t("menu_title")}>
@@ -44,7 +55,7 @@ export function MenuDrawer({ phienBan, onClose, onChon }: {
         <h3><Icon name="menu" /> {t("menu_title")}</h3>
         {items.map(muc => (
           <button key={muc.muc} className="drawer-item" onClick={() => onChon(muc.muc)}>
-            <span className="emo" aria-hidden="true">{muc.emo}</span>{t(muc.nhan)}
+            <span className="emo" aria-hidden="true"><Icon name={muc.ico} /></span>{t(muc.nhan)}
           </button>
         ))}
         <p className="drawer-foot">{t("version_line", { ban: phienBan })}</p>
@@ -74,10 +85,10 @@ export function TaiKhoanPopup({ ten, email, lang, caiDat, onCaiDat, onClose, onD
   onDangXuat: () => void;
 }) {
   const { t } = useChu();
-  const dongChon: Array<{ muc: MucChon; emo: string; nhan: string; giaTri: string }> = [
-    { muc: "ngonNgu", emo: "🌐", nhan: "menu_ngon_ngu", giaTri: `${coNgonNgu(lang)} ${tenNgonNgu(lang)}` },
-    { muc: "coChu", emo: "🔤", nhan: "chu_co", giaTri: t(NHAN_CO_CHU[caiDat.coChu]) },
-    { muc: "giaoDien", emo: "🌓", nhan: "menu_giao_dien", giaTri: t(NHAN_GIAO_DIEN[caiDat.giaoDien]) },
+  const dongChon: Array<{ muc: MucChon; ico: TenIcon; nhan: string; giaTri: string }> = [
+    { muc: "ngonNgu", ico: "globe", nhan: "menu_ngon_ngu", giaTri: tenNgonNgu(lang) },
+    { muc: "coChu", ico: "grid", nhan: "chu_co", giaTri: t(NHAN_CO_CHU[caiDat.coChu]) },
+    { muc: "giaoDien", ico: "moon", nhan: "menu_giao_dien", giaTri: t(NHAN_GIAO_DIEN[caiDat.giaoDien]) },
   ];
   return (
     <div className="tk-overlay" role="dialog" aria-modal="true" aria-label={t("menu_tai_khoan")}>
@@ -98,25 +109,25 @@ export function TaiKhoanPopup({ ten, email, lang, caiDat, onCaiDat, onClose, onD
         <div className="menu-cum" role="group" aria-labelledby="menu-cum-tai-khoan">
           <h3 id="menu-cum-tai-khoan">{t("menu_tai_khoan")}</h3>
           <button className="drawer-item" onClick={onDoiTen}>
-            <span className="emo" aria-hidden="true">✏️</span>
+            <span className="emo" aria-hidden="true"><Pencil /></span>
             <span className="menu-nhan">{t("menu_doi_ten")}</span>
             <span className="menu-mui" aria-hidden="true"><Icon name="chevRight" /></span>
           </button>
           <button className="drawer-item" onClick={onDoiMatKhau}>
-            <span className="emo" aria-hidden="true">🔑</span>
+            <span className="emo" aria-hidden="true"><Icon name="lock" /></span>
             <span className="menu-nhan">{t("menu_doi_mk")}</span>
             <span className="menu-mui" aria-hidden="true"><Icon name="chevRight" /></span>
           </button>
           {dongChon.map(d => (
             <button key={d.muc} className="drawer-item menu-dong-chon" aria-haspopup="dialog" onClick={() => onMoChon(d.muc)}>
-              <span className="emo" aria-hidden="true">{d.emo}</span>
+              <span className="emo" aria-hidden="true"><Icon name={d.ico} /></span>
               <span className="menu-nhan">{t(d.nhan)}</span>
-              <span className="menu-gia-tri">{d.giaTri}</span>
+              <span className="menu-gia-tri">{d.muc === "ngonNgu" && <CoNgonNgu anh={anhCoNgonNgu(lang)} />}{d.giaTri}</span>
               <span className="menu-mui" aria-hidden="true"><Icon name="chevRight" /></span>
             </button>
           ))}
           <button className="drawer-item" role="switch" aria-checked={caiDat.thongBao} onClick={() => onCaiDat({ thongBao: !caiDat.thongBao })}>
-            <span className="emo" aria-hidden="true">🔔</span>
+            <span className="emo" aria-hidden="true"><Icon name="bell" /></span>
             <span className="menu-nhan">
               {t("menu_thong_bao")}
               <small>{t("menu_thong_bao_mo_ta")}</small>
@@ -145,7 +156,7 @@ export function ChonModal({ khoaTieuDe, luaChon, dangChon, onChon, onClose, phuL
   /** Khóa chữ — hộp nằm trong `ChuProvider` nên tự dịch, kể cả chữ máy chủ `/i18n` trả. */
   khoaTieuDe: string;
   /** `khoa`: khóa chữ để dịch; `nhan`: chữ sẵn (tên ngôn ngữ viết bằng chính nó). */
-  luaChon: Array<{ giaTri: string; khoa?: string; nhan?: string }>;
+  luaChon: Array<{ giaTri: string; khoa?: string; nhan?: string; anh?: string | null }>;
   dangChon: string;
   onChon: (giaTri: string) => void;
   onClose: () => void;
@@ -159,7 +170,7 @@ export function ChonModal({ khoaTieuDe, luaChon, dangChon, onChon, onClose, phuL
       <div className="chon-ds">
         {luaChon.map(l => (
           <button key={l.giaTri} className={`radio-list-row${dangChon === l.giaTri ? " sel" : ""}`} aria-pressed={dangChon === l.giaTri} onClick={() => onChon(l.giaTri)}>
-            <span className="rc" />{l.khoa ? t(l.khoa) : l.nhan}
+            <span className="rc" />{l.anh !== undefined && <CoNgonNgu anh={l.anh} />}{l.khoa ? t(l.khoa) : l.nhan}
           </button>
         ))}
       </div>

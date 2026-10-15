@@ -23,7 +23,7 @@ async function vaoThem(ctx) {
   await p.locator('#dn-pw').fill('x');
   await p.locator('button.login-btn').click(); await cho(2200);
   await p.locator('.top-actions .icon-btn').last().click(); await cho(300);
-  await p.locator('.drawer-item').filter({ has: p.locator('.emo:text("📶")') }).click(); await cho(500);
+  await p.locator('.drawer-item').filter({ hasText: /Thêm thiết bị|Add device/ }).click(); await cho(500);
   return { p, loi };
 }
 
@@ -48,7 +48,7 @@ try {
   // nhánh serial cũng quét được
   await p.locator('.add-flow .panel-head .icon-button').click(); await cho(300);
   await p.locator('.top-actions .icon-btn').last().click(); await cho(300);
-  await p.locator('.drawer-item').filter({ has: p.locator('.emo:text("📶")') }).click(); await cho(500);
+  await p.locator('.drawer-item').filter({ hasText: /Thêm thiết bị|Add device/ }).click(); await cho(500);
   await p.locator('.method-card').nth(1).click(); await cho(300);
   ok('nhánh serial: cũng có nút mở camera', /camera/i.test(await p.locator('.add-flow button.secondary.full').innerText()));
   ok(`không lỗi JS (${loi.length})`, loi.length === 0);

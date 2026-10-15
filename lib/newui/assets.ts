@@ -55,6 +55,25 @@ export function anhDaiDienSanPham(
 }
 
 /**
+ * Emoji của catalog → tên icon trong bộ một nét.
+ *
+ * Vì sao cần: `product.icon` của sadmin hay là emoji, mà Apple Color Emoji và Segoe UI Emoji
+ * là hai bộ tranh khác hẳn nhau — `♨️` và `🌬️` còn ra đen trắng trên Windows vì là codepoint
+ * mặc định kiểu chữ. Vẽ bằng icon của mình thì máy nào cũng như nhau.
+ *
+ * Emoji lạ không có trong bảng thì vẫn vẽ nguyên emoji — thà hơi khác còn hơn mất biểu tượng.
+ */
+export const EMOJI_SANG_ICON: Record<string, string> = {
+  "❄️": "snow", "❄": "snow",
+  "💧": "drop", "🚿": "drop",
+  "🍳": "pot",  "🍚": "pot",
+  "🌬️": "wind", "🌬": "wind", "🌀": "fanIcn",
+  "♨️": "heat", "♨": "heat",
+  "🍃": "leaf",
+  "📦": "box",
+};
+
+/**
  * Icon do catalog chỉ định, dùng trong `gtIco` của lưới `ui.boCuc`.
  *
  * Ba dạng sadmin có thể trả, phân loại theo NỘI DUNG chứ không theo trường:

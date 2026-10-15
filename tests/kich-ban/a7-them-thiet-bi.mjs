@@ -24,7 +24,7 @@ for (const [ma, viec] of TAY_A7A) ghi(ma, 'TAY', `${viec} — trang portal chạ
 
 const moThem = async p => {
   await p.locator('.top-actions .icon-btn').last().click(); await cho(300);
-  await p.locator('.drawer-item').filter({ has: p.locator('.emo:text("📶")') }).click(); await cho(500);
+  await p.locator('.drawer-item').filter({ hasText: /Thêm thiết bị|Add device/ }).click(); await cho(500);
 };
 const tiep = p => p.locator('.add-flow button.primary.full');
 async function nhanQuaTem(p, ten, ma, tenHienThi = '') {

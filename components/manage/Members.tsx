@@ -7,6 +7,7 @@ import type { IotxPermission } from "@/lib/iotx/contracts";
 import { IotxApiError, iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import { useChu, type HamChu } from "@/components/newui/chu";
 import { Modal } from "./chung";
+import Icon from "@/components/newui/Icon";
 
 /** Quyền vắng trường nào coi như true (hợp đồng), nên đọc từ rộng xuống hẹp. */
 function moTaQuyen(perms: IotxPermission | undefined, t: HamChu) {
@@ -121,7 +122,7 @@ export function Members({ data, daCap, nhanDuoc, onReload, onClose }: { data: Ap
         {moNangCao && <label className="o-tick"><input type="checkbox" checked={khongChoXoa} onChange={e => setKhongChoXoa(e.target.checked)} /><span>{t("share.blockDelete")}</span></label>}
         <button className="primary" disabled={dangGui}><Share2 /> {dangGui ? t("common.working") : t("share.doShare")}</button>
         {loi && <p className="form-message">{loi}</p>}
-        {bao && !loi && <p className="hint">{bao}</p>}
+        {bao && !loi && <p className="hint">{bao}{bao === t("share.shared") && <> <Icon name="check" className="ic-dong" /></>}</p>}
       </form>}
     </section>
 

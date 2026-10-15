@@ -26,7 +26,7 @@ await p.locator('button.login-btn').click(); await p.waitForTimeout(2200);
 
 const moThem = async () => {
   await p.locator('.top-actions .icon-btn').last().click(); await p.waitForTimeout(300);
-  await p.locator('.drawer-item').filter({ has: p.locator('.emo:text("📶")') }).click(); await p.waitForTimeout(500);
+  await p.locator('.drawer-item').filter({ hasText: /Thêm thiết bị|Add device/ }).click(); await p.waitForTimeout(500);
 };
 const dongThem = async () => { await p.locator('.add-flow .panel-head .icon-button').click(); await p.waitForTimeout(400); };
 const buoc = () => p.locator('.add-flow .panel-head span').innerText();

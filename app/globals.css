@@ -7,6 +7,40 @@
    Khối 5: các panel kế thừa (thành viên, hẹn giờ, kịch bản, luật, thiết bị ảo)
    ============================================================= */
 
+/* ====================================================================
+   Phông: Carlito, tự đóng gói.
+
+   Trước đây dãy phông là `Calibri, 'Segoe UI', Carlito, Arial` — không đóng gói gì, nên
+   Windows dùng Calibri còn macOS không cài Office thì rơi xuống Arial. Hai phông này rộng
+   hẹp khác nhau, làm 118 chỗ khai font-size trong file này hiện ra hai cỡ khác nhau.
+
+   Carlito tương thích số đo với Calibri, nên bản Windows giữ nguyên còn các máy khác khớp
+   theo. Giấy phép SIL OFL 1.1 (public/fonts/CARLITO-LICENSE.txt).
+
+   Hai dải `unicode-range` chép đúng từ gói @fontsource/carlito@5.3.0 — trình duyệt chỉ tải
+   tệp `vietnamese` khi trên màn có chữ thuộc dải đó.
+   ==================================================================== */
+@font-face{
+  font-family:'Carlito';font-style:normal;font-weight:400;font-display:swap;
+  src:url('/fonts/carlito-latin-400-normal.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:'Carlito';font-style:normal;font-weight:400;font-display:swap;
+  src:url('/fonts/carlito-vietnamese-400-normal.woff2') format('woff2');
+  unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;
+}
+@font-face{
+  font-family:'Carlito';font-style:normal;font-weight:700;font-display:swap;
+  src:url('/fonts/carlito-latin-700-normal.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:'Carlito';font-style:normal;font-weight:700;font-display:swap;
+  src:url('/fonts/carlito-vietnamese-700-normal.woff2') format('woff2');
+  unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;
+}
+
 :root{
   --bg:#EEF3F1;
   --card:#FFFFFF;
@@ -57,7 +91,7 @@
 *{box-sizing:border-box;}
 html, body{margin:0;padding:0;}
 body{
-  font-family:Calibri,'Segoe UI',Carlito,Arial,sans-serif;
+  font-family:'Carlito',Calibri,'Segoe UI',Arial,sans-serif;
   background:var(--nen-san);
   color:var(--text);
   min-height:100dvh;
@@ -92,6 +126,43 @@ input, select, textarea{font-family:inherit;}
     border-radius:0;
     box-shadow:0 0 48px rgba(10,35,45,.08);
   }
+}
+
+/* ----------  thanh cuộn ----------
+   macOS để thanh cuộn nổi đè (chiếm 0px bố cục), Windows để thanh cuộn cổ điển (chiếm ~16px).
+   Không khai gì thì vùng nội dung trên Windows hẹp hơn Mac 16px, chữ xuống dòng khác chỗ.
+   Khai kiểu dáng ở đây buộc cả hai hệ dùng cùng một bề rộng 10px.
+   Hai thuộc tính chuẩn chỉ dành cho Firefox: từ Chrome 121, phần tử nào có `scrollbar-width`
+   hay `scrollbar-color` thì Chrome bỏ qua hết `::-webkit-scrollbar` bên dưới. */
+@supports not selector(::-webkit-scrollbar){
+  .app-scroll, .devbody, .panel-body, .login-content, .drawer, .tk-popup, .modal-sheet{
+    scrollbar-width:thin;
+    scrollbar-color:var(--ray) transparent;
+  }
+}
+.app-scroll::-webkit-scrollbar,
+.devbody::-webkit-scrollbar,
+.panel-body::-webkit-scrollbar,
+.login-content::-webkit-scrollbar,
+.drawer::-webkit-scrollbar,
+.tk-popup::-webkit-scrollbar,
+.modal-sheet::-webkit-scrollbar{width:10px;height:10px;}
+.app-scroll::-webkit-scrollbar-track,
+.devbody::-webkit-scrollbar-track,
+.panel-body::-webkit-scrollbar-track,
+.login-content::-webkit-scrollbar-track,
+.drawer::-webkit-scrollbar-track,
+.tk-popup::-webkit-scrollbar-track,
+.modal-sheet::-webkit-scrollbar-track{background:transparent;}
+.app-scroll::-webkit-scrollbar-thumb,
+.devbody::-webkit-scrollbar-thumb,
+.panel-body::-webkit-scrollbar-thumb,
+.login-content::-webkit-scrollbar-thumb,
+.drawer::-webkit-scrollbar-thumb,
+.tk-popup::-webkit-scrollbar-thumb,
+.modal-sheet::-webkit-scrollbar-thumb{
+  background:var(--ray);border-radius:999px;
+  border:3px solid transparent;background-clip:content-box;   /* nhìn mảnh 4px, vẫn dễ bấm */
 }
 
 /* ---------- thanh trên ---------- */
@@ -162,6 +233,7 @@ input, select, textarea{font-family:inherit;}
   width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;
   background:var(--teal-soft);font-size:28px;line-height:1;
 }
+.dvisual .dvisual-bt svg{width:30px;height:30px;color:var(--teal-chu);}
 .dcard-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .dline{font-size:11.5px;color:var(--muted);font-weight:500;line-height:1.4;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -238,7 +310,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .drawer h3{font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;}
 .drawer h3 svg{width:18px;height:18px;}
 .drawer-item{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:13px 4px;font-size:13.5px;font-weight:600;color:var(--text);border:0;border-bottom:1px solid var(--border);background:var(--card);text-align:left;}
-.drawer-item .emo{font-size:18px;width:22px;text-align:center;flex-shrink:0;}
+.drawer-item .emo{display:flex;align-items:center;justify-content:center;width:22px;flex-shrink:0;}
+.drawer-item .emo svg{width:18px;height:18px;}
 .drawer-item.danger{color:var(--danger);}
 /* Popup tài khoản: thả xuống ngay dưới avatar + tên ở góc trái trên. */
 .tk-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,0.35);overflow:hidden;}
@@ -328,6 +401,12 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .dn-brand{display:flex;align-items:center;gap:10px;min-width:0;}
 .dn-back{width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--text);display:flex;align-items:center;justify-content:center;}
 .dn-back svg{width:20px;height:20px;}
+/* Cờ ngôn ngữ: ảnh PNG đứng trước tên, vì Windows không vẽ được emoji cờ. */
+.co-ngon-ngu{width:20px;height:14px;object-fit:cover;border-radius:2px;flex-shrink:0;}
+.co-ngon-ngu-tron{width:20px;height:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.co-ngon-ngu-tron svg{width:14px;height:14px;}
+.menu-gia-tri .co-ngon-ngu,.menu-gia-tri .co-ngon-ngu-tron{display:inline-flex;vertical-align:-2px;margin-right:6px;}
+.login-lang{display:flex;align-items:center;gap:8px;}
 .login-lang select{height:44px;padding:0 8px 0 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:14px;color:var(--text);}
 .dn-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 /* Khung: mẫu đặt chữ tối trên nền phẳng; local giữ ảnh nền nên chữ đặt trên lớp tối mờ cùng kiểu
@@ -572,6 +651,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .ao-row>button:not(.nut-bam):not(.switch):not(.go-that){width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--faint);padding:12px;flex-shrink:0;}
 .ao-row>button:not(.nut-bam):not(.switch):not(.go-that) svg{width:100%;height:100%;}
 .space-icon svg{width:18px;height:18px;}
+/* Icon một nét nằm giữa dòng chữ, thay cho emoji (Windows và macOS vẽ emoji khác nhau). */
+.ic-dong{width:1.1em;height:1.1em;vertical-align:-.2em;flex-shrink:0;}
 .ao-chu strong{font-size:13px;}
 .ao-chu small{color:var(--muted);font-size:10.5px;overflow-wrap:anywhere;}
 .ao-chu input{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;}
@@ -622,7 +703,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
    Số đo chép từ bản tham chiếu web.dev (đọc 07/10/2026), trừ chiều cao ô chọn: bản đó để
    30px, dự án đòi vùng chạm 44px nên nâng lên và tăng cỡ chữ cho cân. */
 .devpage .dev-but{
-  flex:0 0 auto; width:44px; height:44px; padding:6px; border:0; border-radius:10px;
+  flex:0 0 auto; display:grid; place-items:center; width:44px; height:44px; padding:6px; border:0; border-radius:10px;
   background:transparent; color:var(--dim); font-size:.9rem; cursor:pointer; line-height:1;
 }
 .devpage .dev-but:hover{background:var(--brand-soft);}
@@ -650,6 +731,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
   background:var(--brand-soft); border-radius:12px; font-size:1.5rem; overflow:hidden;
 }
 .devpage .dev-ico img{width:100%; height:100%; object-fit:contain; padding:3px;}
+.devpage .dev-ico svg{width:24px; height:24px; color:var(--teal-chu);}
 .devpage .dev-giua{flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:1px;}
 .devpage .dev-tenhang{display:flex; align-items:center; gap:.35rem; min-width:0;}
 .devpage .dev-ten{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:1rem; font-weight:600;}

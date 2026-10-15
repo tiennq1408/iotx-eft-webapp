@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { EyeOff, Pencil, X } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
+import Icon from "../Icon";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
 import VeO, { type Ngu } from "./VeO";
@@ -10,7 +11,7 @@ import { boCucCua } from "@/lib/newui/boCuc";
 import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/newui/khuon";
 import { moTaLoi } from "@/lib/iotx/errors";
 import { isIotxMode } from "@/lib/iotx";
-import { anhDaiDienSanPham } from "@/lib/newui/assets";
+import { EMOJI_SANG_ICON, anhDaiDienSanPham } from "@/lib/newui/assets";
 import { nhanCap } from "@/lib/newui/nhanCap";
 import { tenChuongTrinhDangDung } from "@/lib/newui/henGio";
 import { dinhDangLuc } from "@/lib/newui/thoiGian";
@@ -207,7 +208,9 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
             {anhDaiDien.kieu === "anh"
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={anhDaiDien.src} alt="" />
-              : anhDaiDien.chu}
+              : EMOJI_SANG_ICON[anhDaiDien.chu]
+                ? <Icon name={EMOJI_SANG_ICON[anhDaiDien.chu]} />
+                : anhDaiDien.chu}
           </span>
           <div className="dev-giua">
             <div className="dev-tenhang">
@@ -222,7 +225,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
                   <span className="dev-ten">{device.name}</span>
                   {choSua && (
                     <button className="dev-but" aria-label={t("dev_rename")}
-                      onClick={() => { setTenMoi(device.name); setDoiTen(true); }}>✏️</button>
+                      onClick={() => { setTenMoi(device.name); setDoiTen(true); }}><Pencil className="ic-dong" aria-hidden="true" /></button>
                   )}
                 </>
               )}
@@ -230,7 +233,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
             <div className={`dev-st small${device.online ? "" : " dim"}`}>
               <i className={`dev-dot${device.online ? " on" : ""}`} />
               {device.online ? t("online") : t("offline")}
-              {device.shared ? ` · 👥 ${t("dev_shared")}` : ""}
+              {device.shared && <> · <Icon name="users" className="ic-dong" /> {t("dev_shared")}</>}
             </div>
           </div>
           <button className={`fav-lon${device.fav ? " on" : ""}`} aria-pressed={Boolean(device.fav)}
@@ -279,15 +282,15 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
 
         {hienGhim && device.product?.henGio?.bat !== false && (
           <button className="hg-ghim" onClick={onHenGio}>
-            <b>⏱ {t("hg_open")}</b>
+            <b><Icon name="clock" className="ic-dong" /> {t("hg_open")}</b>
             <i>{loiHenGio && !hg ? loiHenGio : tomTatHenGio(hg, t)}</i>
           </button>
         )}
 
         <div className="frow">
           {choXoa && (device.hidden
-            ? <button className="btn gh" onClick={onHienLai}>👁 {t("show_device")}</button>
-            : <button className="btn gh" onClick={onAn}>🙈 {t("hide_device")}</button>)}
+            ? <button className="btn gh" onClick={onHienLai}><Icon name="eye" /> {t("show_device")}</button>
+            : <button className="btn gh" onClick={onAn}><EyeOff aria-hidden="true" /> {t("hide_device")}</button>)}
           <button className="btn gh" onClick={onClose}><X aria-hidden="true" /> {t("close")}</button>
         </div>
       </div>

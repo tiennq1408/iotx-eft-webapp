@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { CircleDot, DoorOpen, House, Plus, Trash2 } from "lucide-react";
 import type { AppData } from "@/lib/types";
 import { iotxClient, isIotxMode } from "@/lib/iotx";
 import { useTacVu } from "@/hooks/useTacVu";
@@ -12,7 +12,9 @@ type LoaiKhongGian = keyof AppData["spaces"];
 
 const KHOA_NHAN: Record<LoaiKhongGian, string> = { houses: "loc_nha", rooms: "loc_phong", groups: "loc_nhom" };
 const LOAI_API = { houses: "house", rooms: "room", groups: "grp" } as const;
-const BIEU_TUONG: Record<LoaiKhongGian, string> = { houses: "🏠", rooms: "🚪", groups: "◉" };
+const BIEU_TUONG: Record<LoaiKhongGian, ReactNode> = {
+  houses: <House aria-hidden="true" />, rooms: <DoorOpen aria-hidden="true" />, groups: <CircleDot aria-hidden="true" />,
+};
 
 /** Quản lý Nhà / Phòng / Nhóm — `POST/DELETE /categories`. */
 export function Spaces({ data, setData, onClose }: { data: AppData; setData: Dispatch<SetStateAction<AppData>>; onClose: () => void }) {

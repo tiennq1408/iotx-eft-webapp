@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, Lock } from "lucide-react";
 import { useChu } from "./chu";
+import { CoNgonNgu } from "./modals";
 import { IMG } from "@/lib/newui/assets";
-import { MAT_KHAU_TOI_THIEU, coNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import { MAT_KHAU_TOI_THIEU, anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
 import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
 
 /**
@@ -231,8 +232,11 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
           {coChonLang && (
             <label className="login-lang">
               <span className="dn-sr">{t("login_lang")}</span>
+              {/* <option> không chứa được <img>, mà emoji cờ thì Windows không vẽ được. Nên cờ đứng
+                  ngoài ô chọn, hiện ngôn ngữ đang dùng; trong danh sách chỉ còn tên. */}
+              <CoNgonNgu anh={lang ? anhCoNgonNgu(lang) : null} />
               <select value={lang} onChange={event => onLang?.(event.target.value)}>
-                {dsLang.map(ma => <option key={ma} value={ma}>{coNgonNgu(ma)} {tenNgonNgu(ma)}</option>)}
+                {dsLang.map(ma => <option key={ma} value={ma}>{tenNgonNgu(ma)}</option>)}
               </select>
             </label>
           )}

@@ -102,7 +102,7 @@ export default function VirtualPanel({ onClose, onThayDoi }: { onClose: () => vo
       <div className="space-list">
         {ds.length === 0 && <p className="hint">{t("virtual.empty")}</p>}
         {ds.map(muc => <article className="ao-row" key={muc.id}>
-          <span className="space-icon">{muc.kind === "external" ? "🌤️" : muc.kind === "button" ? "🔘" : "🏠"}</span>
+          <span className="space-icon">{muc.kind === "external" ? <CloudSun aria-hidden="true" /> : muc.kind === "button" ? <Hand aria-hidden="true" /> : <Home aria-hidden="true" />}</span>
           <div className="ao-chu">
             {dangSuaId === muc.id
               ? <input autoFocus value={tenSua} maxLength={40} onChange={e => setTenSua(e.target.value)}

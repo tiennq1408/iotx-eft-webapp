@@ -95,7 +95,10 @@ try {
   /* ---------- ngôn ngữ ---------- */
   await moDong('Ngôn ngữ');
   const dsLang = await p.locator('.chon-ds .radio-list-row').allInnerTexts();
-  ok(`popup Ngôn ngữ có ${dsLang.length} mục, mỗi mục có cờ, đánh dấu mục đang chọn`, dsLang.length >= 2 && dsLang.every(x => /^\S+ \S/.test(x.trim()))
+  // Cờ là ảnh PNG (hoặc quả cầu khi chưa có ảnh), không phải emoji: Windows không vẽ được emoji cờ.
+  const soCo = await p.locator('.chon-ds .radio-list-row').evaluateAll(ds => ds.filter(d => d.querySelector('img.co-ngon-ngu, .co-ngon-ngu-tron')).length);
+  ok(`popup Ngôn ngữ có ${dsLang.length} mục, mỗi mục có cờ, đánh dấu mục đang chọn`, dsLang.length >= 2 && soCo === dsLang.length
+    && dsLang.every(x => !/[\u{1F1E6}-\u{1F1FF}]/u.test(x))
     && /Tiếng Việt/.test(await p.locator('.chon-ds .radio-list-row[aria-pressed="true"]').innerText()));
   await chon('English');
   ok('chọn English → popup chọn đóng, về popup tài khoản, chữ đổi ngay', await p.locator('.chon-ds').count() === 0 && await popup.count() === 1 && /account/i.test(await popup.locator('.menu-cum h3').innerText()));

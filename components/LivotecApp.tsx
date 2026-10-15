@@ -28,7 +28,7 @@ import HenGioPanel from "@/components/newui/device/HenGioPanel";
 import LoginScreen from "@/components/newui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
 import { DS_CO_CHU, DS_GIAO_DIEN, useCaiDat, type CoChu, type GiaoDien } from "@/lib/newui/caiDat";
-import { coNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import { anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
 
 /**
  * Tấm đang mở. Thứ chỉ có nghĩa với một loại tấm nằm ngay trong nó — id thiết bị của màn
@@ -380,7 +380,7 @@ export default function LivotecApp() {
     if (muc === "ngonNgu") {
       return (
         <ChonModal khoaTieuDe="menu_ngon_ngu" dangChon={lang} onClose={veMenu}
-          luaChon={dsNgonNgu(lang, boChu.langs).map(ma => ({ giaTri: ma, nhan: `${coNgonNgu(ma)} ${tenNgonNgu(ma)}` }))}
+          luaChon={dsNgonNgu(lang, boChu.langs).map(ma => ({ giaTri: ma, nhan: tenNgonNgu(ma), anh: anhCoNgonNgu(ma) }))}
           onChon={ma => { doiNgonNgu(ma); veMenu(); }} />
       );
     }

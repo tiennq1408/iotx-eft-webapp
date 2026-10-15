@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { TriangleAlert } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
@@ -262,7 +263,7 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
     <div className="bc-wrap">
       {loi.length > 0 && kq.capBao && (
         <div className="bc-alarmstrip" role="alert">
-          <div className="bc-alarmhead"><span aria-hidden="true">⚠</span><span>{nhanCap(kq.capBao, t)}</span></div>
+          <div className="bc-alarmhead"><TriangleAlert className="ic-dong" aria-hidden="true" /><span>{nhanCap(kq.capBao, t)}</span></div>
           <ul>{loi.map(x => <li key={x.ma}>{x.chu}</li>)}</ul>
         </div>
       )}

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 import Icon from "./Icon";
 import { useChu, type HamChu } from "./chu";
-import { IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
+import { EMOJI_SANG_ICON, IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
 import { capNguonCua, phanGiaiSanPham } from "@/lib/newui/khuon";
 import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
 import { laBat, rong } from "@/lib/iotx/giaTri";
@@ -196,7 +196,9 @@ export const DeviceCard = memo(function DeviceCard({ device, hanhDong }: {
         {anh.kieu === "anh"
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={anh.src} alt="" />
-          : <span className="dvisual-bt" aria-hidden="true">{anh.chu}</span>}
+          : <span className="dvisual-bt" aria-hidden="true">
+              {EMOJI_SANG_ICON[anh.chu] ? <Icon name={EMOJI_SANG_ICON[anh.chu]} /> : anh.chu}
+            </span>}
       </div>
       <div className="dcard-bottom">
         <span className="dline">{dongTrangThai(device, t)}</span>

@@ -30,7 +30,7 @@ async function buoiDung() {
   await p.locator('.device-card .switch-hit[role="switch"]').first().click(); await cho(600);
   await moChiTiet(p, 'fan63903'); await dongChiTiet(p);
   await p.locator('.top-actions .icon-btn').last().click(); await cho(300);
-  await p.locator('.drawer .drawer-item').filter({ has: p.locator('.emo:text("📶")') }).click(); await cho(500);
+  await p.locator('.drawer .drawer-item').filter({ hasText: /Thêm thiết bị|Add device/ }).click(); await cho(500);
   await p.locator('.method-card').first().click(); await cho(300);
   await p.getByPlaceholder(/fan81029/).fill('tem-kich-ban'); await p.getByPlaceholder(/5 số/).fill('54321');
   await p.locator('.add-flow .panel-head .icon-button').click(); await cho(400);

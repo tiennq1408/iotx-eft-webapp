@@ -1,6 +1,10 @@
 # Việc: Giao diện giống nhau trên Windows và macOS
 
-- Trạng thái: **chưa làm**
+- Trạng thái: **đã làm** (15/10/2026). Hai chỗ lệch khỏi doc, có lý do:
+  - Thanh cuộn: `scrollbar-width`/`scrollbar-color` bọc trong `@supports not selector(::-webkit-scrollbar)`
+    — từ Chrome 121, có hai thuộc tính chuẩn là Chrome bỏ qua hết `::-webkit-scrollbar`, không ra được 10px.
+  - Preload phông dùng `preload()` của `react-dom` thay cho `<link>` viết tay (viết tay thì bị khai hai lần).
+  - Dòng ✏️ 🔑 🔔 của popup tài khoản và năm mục menu góc phải cũng đổi sang icon một nét.
 - Phạm vi: `IOT App - New UI`
 - Làm ở đâu: **tab Code**
 - Viết: 15/10/2026 — đo trên mã nguồn thật, phông Carlito kiểm bằng gói npm thật

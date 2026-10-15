@@ -35,12 +35,13 @@ ok('Màn chi tiết cũng vẽ ảnh', await p.locator('.devdau .dev-ico img').c
 ok('Ảnh hai nơi cùng một địa chỉ', await p.locator('.devdau .dev-ico img').getAttribute('src')===srcThe);
 await p.locator('.devback').click(); await p.waitForTimeout(600);
 
-// Thẻ chỉ có emoji → màn chi tiết cũng emoji, cùng ký tự
+// Thẻ chỉ có emoji → màn chi tiết cũng cùng biểu tượng. Emoji quen được đổi sang icon một
+// nét (EMOJI_SANG_ICON) nên so cả mã vẽ, không chỉ chữ.
 const theChu=p.locator('.device-card').filter({has:p.locator('.dvisual-bt')}).first();
-const chuThe=(await theChu.locator('.dvisual-bt').textContent()).trim();
+const chuThe=(await theChu.locator('.dvisual-bt').innerHTML()).trim();
 await theChu.locator('.card-hit').click(); await p.waitForTimeout(900);
-const chuMan=(await p.locator('.devdau .dev-ico').textContent()).trim();
-ok(`Emoji hai nơi khớp nhau ("${chuThe}")`, chuThe===chuMan && chuThe.length>0);
+const chuMan=(await p.locator('.devdau .dev-ico').innerHTML()).trim();
+ok(`Biểu tượng hai nơi khớp nhau (${/<svg/.test(chuThe)?'icon':`"${chuThe}"`})`, chuThe===chuMan && chuThe.length>0);
 
 console.log(R.join('\n'));
 console.log('Lỗi JS:', loi.length?[...new Set(loi)].join(' | '):'không có');
