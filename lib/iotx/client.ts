@@ -92,6 +92,24 @@ function choDocCoHanGio<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, hanGio]).finally(() => clearTimeout(timer));
 }
 
+/**
+ * UUID v4 dùng được cả ngoài secure context.
+ *
+ * `crypto.randomUUID()` chỉ tồn tại trên https/localhost. Mở app bằng IP LAN (http://192.168.x.x)
+ * trên điện thoại thì nó là `undefined`, ném TypeError, và `moTaLoi` dịch TypeError thành
+ * "Không kết nối được máy chủ" — báo sai hoàn toàn, mạng không hề hỏng.
+ * `crypto.getRandomValues` thì có ở mọi ngữ cảnh, nên dựng tay v4 từ nó.
+ */
+function khoaMotLan(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40;  // phiên bản 4
+  b[8] = (b[8] & 0x3f) | 0x80;  // biến thể RFC 4122
+  const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export class IotxClient {
   constructor(
     private readonly baseUrl = iotxConfig.apiBase,
@@ -167,6 +185,14 @@ export class IotxClient {
       ...init,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+    }).catch((loi: unknown) => {
+      // Máy MẤT MẠNG thì `fetch` cũng ném TypeError — nhưng đó là lỗi đường truyền, không phải
+      // lỗi trình duyệt. Quy về status 0 để `moTaLoi` nói "Không kết nối được máy chủ" thay vì
+      // khuyên đổi sang https. Còn mạng mà vẫn hỏng thì giữ nguyên TypeError cho nhánh trình duyệt.
+      if (loi instanceof TypeError && typeof navigator !== "undefined" && navigator.onLine === false) {
+        throw new IotxApiError(0, "offline");
+      }
+      throw loi;
     });
     this.kiemTheHe(theHe);
 
@@ -272,7 +298,7 @@ export class IotxClient {
     return this.request<Ok>(`/devices/${encodeURIComponent(id)}`, { method: "PATCH", body: patch });
   }
 
-  rpc(id: string, method: string, params: Record<string, unknown>, idempotencyKey = crypto.randomUUID()) {
+  rpc(id: string, method: string, params: Record<string, unknown>, idempotencyKey = khoaMotLan()) {
     return this.request<{ ok: boolean; replayed?: boolean }>(`/devices/${encodeURIComponent(id)}/rpc`, {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },

@@ -65,8 +65,13 @@ async function chuyenTiep(request: NextRequest, path: string[]) {
     // Next trả 500 và trông như lỗi máy chủ — client sẽ chẩn đoán sai hoàn toàn.
     // 502 nói đúng bản chất: cửa trung gian không tới được nơi cần tới.
     if (request.signal.aborted) return new Response(null, { status: 499 });
-    // Chi tiết lỗi chứa tên máy và cổng nội bộ — chỉ trả ra khi đang phát triển.
-    const chiTiet = process.env.NODE_ENV === "production" ? undefined : (loi instanceof Error ? loi.message : String(loi));
+    // Chi tiết lỗi chứa tên máy và cổng nội bộ. `NODE_ENV` không dùng được làm điều kiện ở
+    // đây: `next build` luôn đặt nó là "production", kể cả bản dựng để thử trên máy nội bộ —
+    // thành ra đúng lúc cần chẩn đoán nhất thì nguyên nhân thật bị giấu. Cờ riêng, mặc định
+    // TẮT: bật tay khi cần soi, không bao giờ bật ở thật.
+    const chiTiet = process.env.IOTX_HIEN_LOI_PROXY === "1"
+      ? (loi instanceof Error ? loi.message : String(loi))
+      : undefined;
     return Response.json(
       { message: "Không kết nối được máy chủ IoTX. Kiểm tra đường truyền rồi thử lại.", ...(chiTiet ? { chiTiet } : {}) },
       { status: 502 },

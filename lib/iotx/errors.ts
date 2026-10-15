@@ -7,6 +7,12 @@ export class IotxApiError extends Error {
 
 const CAU_CHUNG = "Không tìm thấy, hoặc bạn không có quyền với mục này.";
 const CAU_MANG = "Không kết nối được máy chủ. Kiểm tra đường truyền rồi thử lại.";
+/**
+ * TypeError nghĩa là yêu cầu KHÔNG rời được trình duyệt (API thiếu ngoài secure context, fetch
+ * bị chặn…) — khác hẳn 502/503/504 là yêu cầu đã đi nhưng máy chủ không với tới. Gộp hai câu
+ * làm một là dẫn sai hướng chẩn đoán trong đúng một nửa số lần.
+ */
+const CAU_TRINH_DUYET = "Trình duyệt không gửi được yêu cầu. Nếu đang mở bằng http:// trên máy khác, hãy thử https:// hoặc localhost.";
 const CAU_HET_PHIEN = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
 
 /**
@@ -23,7 +29,11 @@ export function moTaLoi(error: unknown): string {
     if (error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504) return CAU_MANG;
     return error.message;
   }
-  if (error instanceof TypeError) return CAU_MANG;
+  if (error instanceof TypeError) {
+    // Câu hiện ra cho người dùng cố tình chung chung; người phát triển cần biết lỗi thật.
+    console.error("[iotx] yêu cầu không rời được trình duyệt:", error);
+    return CAU_TRINH_DUYET;
+  }
   if (error instanceof Error && error.message) return error.message;
   return CAU_MANG;
 }
