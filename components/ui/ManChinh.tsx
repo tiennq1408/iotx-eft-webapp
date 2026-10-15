@@ -8,7 +8,7 @@ import { useChu } from "./chu";
 import { BannerCarousel, DeviceCard, type HanhDongThietBi } from "./home";
 
 export type { HanhDongThietBi };
-import { IMG } from "@/lib/newui/assets";
+import { IMG } from "@/lib/ui/assets";
 import type { IotxRule, IotxRules } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 

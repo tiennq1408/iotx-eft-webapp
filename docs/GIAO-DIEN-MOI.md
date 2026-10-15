@@ -8,25 +8,25 @@ cách ánh xạ, những chỗ cố ý làm khác prototype, và các lỗi đã
 | Việc | Tệp |
 |---|---|
 | Vỏ ứng dụng, 5 màn chính, modal, SSE, bootstrap | `components/LivotecApp.tsx` |
-| Thanh trên, nav dưới, tấm trượt, hàng cờ | `components/newui/shell.tsx` |
-| Banner, hàng lọc, thẻ thiết bị, dòng trạng thái | `components/newui/home.tsx` |
-| Màn chào / đăng nhập | `components/newui/LoginScreen.tsx` |
-| Drawer menu, hồ sơ, thông báo, chọn phòng, thêm thiết bị | `components/newui/modals.tsx` |
-| Bộ icon một nét | `components/newui/Icon.tsx` |
-| Bảng chữ 3 ngôn ngữ (dự phòng cho `/i18n`) | `lib/newui/strings.ts` + `components/newui/chu.tsx` |
-| Chọn màn điều khiển theo sản phẩm | `lib/newui/uiType.ts` |
-| Màn điều hòa (dial, đặc biệt, 114 tính năng) | `components/newui/device/AirconDetail.tsx` |
-| Lọc nước / quạt / bếp từ / nồi cơm / bình nóng lạnh | `components/newui/device/DeviceDetail.tsx` |
+| Thanh trên, nav dưới, tấm trượt, hàng cờ | `components/ui/shell.tsx` |
+| Banner, hàng lọc, thẻ thiết bị, dòng trạng thái | `components/ui/home.tsx` |
+| Màn chào / đăng nhập | `components/ui/LoginScreen.tsx` |
+| Drawer menu, hồ sơ, thông báo, chọn phòng, thêm thiết bị | `components/ui/modals.tsx` |
+| Bộ icon một nét | `components/ui/Icon.tsx` |
+| Bảng chữ 3 ngôn ngữ (dự phòng cho `/i18n`) | `lib/ui/strings.ts` + `components/ui/chu.tsx` |
+| Chọn màn điều khiển theo sản phẩm | `lib/ui/uiType.ts` |
+| Màn điều hòa (dial, đặc biệt, 114 tính năng) | `components/ui/device/AirconDetail.tsx` |
+| Lọc nước / quạt / bếp từ / nồi cơm / bình nóng lạnh | `components/ui/device/DeviceDetail.tsx` |
 | Sản phẩm lạ → màn chung theo capability | `components/device/DynamicDevicePanel.tsx` |
 | Nhà/Phòng/Nhóm, Thành viên, Hẹn giờ, Kịch bản, wizard thêm thiết bị | `components/legacy/panels.tsx` |
-| Catalog giả cho chế độ mock | `lib/newui/mockCatalog.ts` |
+| Catalog giả cho chế độ mock | `lib/ui/mockCatalog.ts` |
 
 ## Dữ liệu: prototype → API thật
 
 Prototype cắm cứng 6 thiết bị với `uiType` cố định. Bản này **không** cắm cứng:
 
 1. Thiết bị đến từ `GET /bootstrap` (và `GET /devices` sau khi SSE nối lại).
-2. `lib/newui/uiType.ts` chọn màn điều khiển theo thứ tự
+2. `lib/ui/uiType.ts` chọn màn điều khiển theo thứ tự
    `product.ui.renderer` → `product.ui.archetype` → `product.category` → `type/model` → tên.
 3. Mỗi khối điều khiển tra capability theo danh sách tên khóa có thể gặp
    (`temp` / `setTemp` / `nhietDo`…). **Không tìm thấy capability thì ẩn hẳn khối đó**,
@@ -37,16 +37,16 @@ Prototype cắm cứng 6 thiết bị với `uiType` cố định. Bản này **
    `lib/iotx/client.ts`), có optimistic UI và rollback khi máy chủ từ chối.
 6. `perms.control === false` hoặc thiết bị ngoại tuyến → control bị khoá, không ẩn.
 
-Chế độ `NEXT_PUBLIC_IOTX_MODE=mock` dùng `lib/newui/mockCatalog.ts`: đúng 6 thiết bị của
+Chế độ `NEXT_PUBLIC_IOTX_MODE=mock` dùng `lib/ui/mockCatalog.ts`: đúng 6 thiết bị của
 prototype, **kèm capabilities đầy đủ**, nên bản mock và bản nối IBS chạy cùng một đường mã.
 
 ## Tài sản
 
 Prototype nhúng ~700KB ảnh base64 và 97KB JSON vào mã chạy. Đã tách:
 
-- ảnh → `public/images/livotec/*` (21 tệp), tham chiếu qua `lib/newui/assets.ts`;
+- ảnh → `public/images/livotec/*` (21 tệp), tham chiếu qua `lib/ui/assets.ts`;
 - 114 tính năng điều hòa × 3 ngôn ngữ → `public/data/ac-features.<lang>.json`,
-  **chỉ tải khi mở màn "Tính năng nâng cao"** (`lib/newui/acFeatures.ts`).
+  **chỉ tải khi mở màn "Tính năng nâng cao"** (`lib/ui/acFeatures.ts`).
 
 ## Cố ý làm khác prototype
 
@@ -159,7 +159,7 @@ thái màn hình (kể cả các panel kế thừa).
   `/bootstrap` so nhãn `phienBan.theme`, khớp thì thôi tải lại. Cache ở
   `lib/iotx/cache.ts` (`docTheme`/`ghiTheme`).
 - `colorPrimary` áp vào `--teal`. **Không** dùng thẳng màu đó cho nút có chữ trắng: màu
-  Livotec `#02b6ac` chỉ đạt 2,6:1. `lib/newui/theme.ts` làm đậm dần màu chính cho tới khi
+  Livotec `#02b6ac` chỉ đạt 2,6:1. `lib/ui/theme.ts` làm đậm dần màu chính cho tới khi
   chữ trắng đạt 4,5:1 rồi mới gán vào `--teal-dark`, và trộn với trắng để ra `--teal-soft`.
 - `logoUrl` thay wordmark ở màn chào và logo ở hero Khám phá. Địa chỉ đến lúc chạy nên
   dùng `<img>` chứ không khai trước được cho `next/image`.
@@ -175,7 +175,7 @@ lại **không kèm** `If-None-Match` — trả `undefined` ra ngoài là app tr
 
 ## 3. Capability kiểu `list` — `POST /devices/{id}/muc/{cap}`
 
-`components/newui/device/VatTu.tsx` dựng khối vật tư cho **mọi** capability `kind: "list"`,
+`components/ui/device/VatTu.tsx` dựng khối vật tư cho **mọi** capability `kind: "list"`,
 dùng được ở cả màn chuyên biệt lẫn màn chung. Bốn lệnh của hợp đồng: `them` (tên tự do hoặc
 serial chính hãng), `thay` (đặt lại đồng hồ), `tuoi` (sửa tuổi thọ ngày), `bo` (ngừng theo
 dõi). Mỗi mục đọc phòng thủ (`ten|name|sanPham|serial`, `phanTram` hoặc `conLai/tuoiTho`)
@@ -187,7 +187,7 @@ catalog thật; màn lọc nước tự bỏ ba thanh cảm biến khi đã có 
 ## 4. Mô phỏng, lịch sử chạy và dừng luật
 
 - `POST /rules/simulate` vốn đã có trong trình soạn Nếu–Thì — giữ nguyên.
-- Thẻ luật (`components/newui/RuleCard.tsx`) mở được **20 lần chạy gần nhất**
+- Thẻ luật (`components/ui/RuleCard.tsx`) mở được **20 lần chạy gần nhất**
   (`GET /rules/{id}/runs`), có nhãn *chạy thử* cho lần chạy shadow.
 - Luật `kind: "sched"` có thêm nút **Dừng chương trình** (`POST /rules/{id}/stop`).
 
@@ -195,7 +195,7 @@ catalog thật; màn lọc nước tự bỏ ba thanh cảm biến khi đã có 
 
 Hai màn cũ chỉ ghi `localStorage` đã **bị gỡ hẳn** (`Timers`, `SmartPrograms`), cùng với
 `timers`/`smartPrograms`/`ifPrograms` trong `lib/storage.ts` và các kiểu tương ứng. Bản
-thật là `components/newui/device/HenGioPanel.tsx`:
+thật là `components/ui/device/HenGioPanel.tsx`:
 
 - `GET /hen-gio` đọc `batDuoc` — sản phẩm tắt hẹn giờ thì màn này không hiện gì để thao tác.
 - **Hẹn bật/tắt**: `PUT /hen-gio/hen` với `bat` + đúng một trong `phut` (1–720) hoặc
@@ -234,7 +234,7 @@ màn Tự động (chọn thiết bị trước, vì hẹn giờ là chuyện c�
 
 ## 1. Chín loại giao diện thay vì sáu
 
-`lib/newui/uiType.ts` tách hai họ máy mà bản trước gộp làm một, và thêm máy hút mùi:
+`lib/ui/uiType.ts` tách hai họ máy mà bản trước gộp làm một, và thêm máy hút mùi:
 
 | Loại | Vì sao tách riêng |
 |---|---|
@@ -253,11 +253,11 @@ của thiết bị, cuối cùng mới suy từ loại giao diện — hãng đ�
 
 ## 2. Một khung, chín thân
 
-- `components/newui/device/ManThietBi.tsx` giữ toàn bộ phần chung: thanh tiêu đề và nút
+- `components/ui/device/ManThietBi.tsx` giữ toàn bộ phần chung: thanh tiêu đề và nút
   quay lại ba cấp, màn **tính năng nâng cao** (danh sách theo nhóm → chi tiết có prev/next),
   khối vật tư, nút Hẹn giờ, nút Ẩn thiết bị, hàng cờ ngôn ngữ, chỗ hiện lỗi lệnh và câu
   "chỉ có quyền xem". Mỗi màn chỉ khai phần thân của nó qua một hàm con.
-- `components/newui/device/parts.tsx` là bộ phần tử dùng lại: `Dial`, `DialControl`,
+- `components/ui/device/parts.tsx` là bộ phần tử dùng lại: `Dial`, `DialControl`,
   `Steppers`, `OptionGrid`, `DotScale`, `SpeedDial`, `SwitchCard`, `SwitchRow`, `TimerRow`,
   `Bar`, `StatCards`, `Banner`, `PowerButton`, `Hero`, và `tuCap()` — hàm dựng danh sách
   lựa chọn **thẳng từ `values`/`labels` của catalog**.
@@ -296,11 +296,11 @@ kết quả rỗng vẫn hiện khối hướng dẫn thay vì trắng màn.
 
 ## 5. Dữ liệu mẫu và tệp tính năng
 
-- `lib/newui/mockCatalog.ts`: 9 sản phẩm khai đủ capability + `values`/`labels`, 9 thiết bị
+- `lib/ui/mockCatalog.ts`: 9 sản phẩm khai đủ capability + `values`/`labels`, 9 thiết bị
   trải trên 2 nhà. Khóa `localStorage` lên `livotec-home-v5`.
 - 27 tệp `public/data/<loai>-features.<vi|en|fil>.json` (aircon 114 mục, bếp từ 54, bình
   gián tiếp 44, bình trực tiếp 43, lọc nước 39, nồi cơm 30, quạt BLDC 27, quạt AC 25, hút
-  mùi 24). `lib/newui/features.ts` chỉ tải tệp của đúng loại đang mở, đúng ngôn ngữ đang
+  mùi 24). `lib/ui/features.ts` chỉ tải tệp của đúng loại đang mở, đúng ngôn ngữ đang
   dùng — mở trang chủ không phải trả phí cho 340KB dữ liệu tra cứu.
 
 ## Kiểm tra vòng 4
@@ -336,14 +336,14 @@ product.ui = {
 
 ## 2. Cách làm
 
-- **`lib/newui/layout.ts`** — bộ giải bố cục, thuần logic, không React. Nhận `product.ui` +
+- **`lib/ui/layout.ts`** — bộ giải bố cục, thuần logic, không React. Nhận `product.ui` +
   `capabilities`, trả về danh sách nhóm đã xếp thứ tự, mỗi khối đã chốt `variant` và `co`.
-- **`components/newui/device/LayoutRenderer.tsx`** — vẽ danh sách đó bằng bộ phần tử ở
+- **`components/ui/device/LayoutRenderer.tsx`** — vẽ danh sách đó bằng bộ phần tử ở
   `parts.tsx`. **Không có một dòng nào biết đây là điều hòa hay bếp từ.**
 - **`DeviceDetail.tsx`** còn đúng 45 dòng: dựng bố cục, giao cho bộ dựng, thêm nút nguồn.
 
 Đã xóa: `AirconDetail.tsx`, cả thư mục `device/screens/` (7 tệp), `DynamicDevicePanel.tsx`,
-và phần lớn `lib/newui/uiType.ts` (bảng `KHOA`, `AC_SPECIAL_KEYS`, kiểu `UiType`).
+và phần lớn `lib/ui/uiType.ts` (bảng `KHOA`, `AC_SPECIAL_KEYS`, kiểu `UiType`).
 
 ### Bộ từ vựng `variant` mà app hiểu
 
@@ -417,7 +417,7 @@ khác, kể cả nút nguồn.
 
 Màn chi tiết nay chỉ đẹp bằng mức catalog mô tả. Để bản chạy thật giống bản mock, catalog
 cần khai `ui.skin`, `ui.controls`, `ui.gauges` và `ui.slots` cho từng sản phẩm —
-`lib/newui/mockCatalog.ts` khai đủ chín sản phẩm, dùng làm mẫu được ngay.
+`lib/ui/mockCatalog.ts` khai đủ chín sản phẩm, dùng làm mẫu được ngay.
 
 ---
 
@@ -485,7 +485,7 @@ từ API, không từ dữ liệu tĩnh.**
 
 ## Còn lại gì
 
-`components/newui/device/DeviceDetail.tsx` — 46 dòng, chỉ có thanh tiêu đề và nút quay lại.
+`components/ui/device/DeviceDetail.tsx` — 46 dòng, chỉ có thanh tiêu đề và nút quay lại.
 Giữ nút quay lại vì không có nó thì mở thiết bị là mắc kẹt, không thoát ra được.
 
 Chữ ký props giữ nguyên (`onCommand`, `onVatTu`, `onHenGio`, `onAn`, `onLang`) nên
@@ -500,7 +500,7 @@ Chữ ký props giữ nguyên (`onCommand`, `onVatTu`, `onHenGio`, `onAn`, `onLa
 | `device/ManThietBi.tsx` | khung màn, màn tính năng nâng cao hai cấp, nút hẹn giờ |
 | `device/parts.tsx` | toàn bộ phần tử giao diện dùng chung |
 | `device/NutAn.tsx` | nút ẩn thiết bị |
-| `lib/newui/features.ts` | đọc danh mục tính năng nâng cao |
+| `lib/ui/features.ts` | đọc danh mục tính năng nâng cao |
 | `device/VatTu.tsx` → `VatTuBlock` | khối vật tư (giữ lại `GuiVatTu`, `danhSachMuc`, `docSo`, `ngayConLai` vì `LivotecApp` còn dùng) |
 
 Bản lưu sáu tệp đã gửi vào cuộc trò chuyện (`man-chi-tiet-da-go.tar.gz`) — dự án không có
@@ -508,7 +508,7 @@ git nên không khôi phục lại được từ repo.
 
 ## Cố ý KHÔNG đụng tới
 
-- `lib/newui/layout.ts` — trang chủ vẫn dùng `dungBoCuc` cho dòng trạng thái trên thẻ và để
+- `lib/ui/layout.ts` — trang chủ vẫn dùng `dungBoCuc` cho dòng trạng thái trên thẻ và để
   biết capability nào là nguồn điện.
 - `device/HenGioPanel.tsx` — vẫn vào được từ màn Tự động, không phải chỉ từ màn chi tiết.
 - CSS trong `app/globals.css` — các lớp `.ds-*` và `.ac2-*` nay không có markup nào dùng,
@@ -532,7 +532,7 @@ và mở màn Tự động. `lint` / `tsc` / `build` sạch.
 Sau khi gỡ sạch ở vòng 7, lớp view được **viết lại từ đầu** (không khôi phục bản cũ). Kết
 quả gọn hơn hẳn: **2 tệp** thay cho 6, và ranh giới rõ ràng — một tệp *đọc* API, một tệp *vẽ*.
 
-## `lib/newui/manHinh.ts` — đọc
+## `lib/ui/manHinh.ts` — đọc
 
 `docManHinh(device, lang)` là **nơi duy nhất ra quyết định** về màn chi tiết. Nó nhận dữ liệu
 máy chủ và trả về đúng một mô tả màn hình:
@@ -545,7 +545,7 @@ máy chủ và trả về đúng một mô tả màn hình:
 `ui.skin`, `ui.image`, `product.henGio.bat`, `product.tinhNang`, `device.lastValues`,
 `device.perms`. Muốn biết "vì sao màn hiện thế này" thì đọc đúng một tệp.
 
-## `components/newui/device/DeviceDetail.tsx` — vẽ
+## `components/ui/device/DeviceDetail.tsx` — vẽ
 
 Đổi mô tả đó thành DOM, hết. Không tra cứu, không đoán, không có một dòng nào biết đây là
 điều hòa hay bếp từ. Mọi phần tử (`VeO`) là một `switch` trên `kieu` mà bộ đọc đã chốt.
@@ -554,7 +554,7 @@ Khác bản cũ: gộp `ManThietBi` + `LayoutRenderer` + `parts` + `NutAn` vào 
 chỉ có một nơi dùng; tách ra chỉ tạo thêm đường vòng. Màn tính năng nâng cao thành một
 component con ngay trong tệp thay vì một cấp điều hướng riêng.
 
-`lib/newui/layout.ts` đã xoá — `manHinh.ts` thay thế, và trang chủ dùng chung nó nên thẻ
+`lib/ui/layout.ts` đã xoá — `manHinh.ts` thay thế, và trang chủ dùng chung nó nên thẻ
 thiết bị với màn chi tiết luôn ưu tiên giống nhau.
 
 ## Quy tắc giữ nguyên từ vòng 5–6
@@ -675,7 +675,7 @@ Thêm hai thứ chưa có: **`archetype`** (khuôn: fan / light / ac / heater / 
 waterfilter / sensor) quyết định gán nhóm mặc định, và **`skin`** (ocean / sunset /
 graphite) là bộ ba màu, không phải tên lớp CSS.
 
-## `lib/newui/khuon.ts` — chép nguyên mô hình `phanGiai`
+## `lib/ui/khuon.ts` — chép nguyên mô hình `phanGiai`
 
 Năm nhóm có **sức chứa cố định**: `alarm` 2, `status` 2, `hero` **1**, `secondary` 3. Vượt
 thì phần thừa rơi xuống "xem thêm" chứ không nén lại — nhờ vậy màn không bao giờ dài vô tận
@@ -727,7 +727,7 @@ Mock đã chuyển sang đúng hình dạng thật (`archetype`, `skin`, `uuTien
 
 ## Lỗi
 
-Trên lưới `ui.boCuc` (`components/newui/device/BoCucGrid.tsx`), khi giá trị bằng `min`
+Trên lưới `ui.boCuc` (`components/ui/device/BoCucGrid.tsx`), khi giá trị bằng `min`
 (vd. điều hòa 16°C) cung chạy biến thành một vệt chéo lệch khỏi rãnh ở đầu trái vòng.
 
 Nguyên nhân: cung chạy được vẽ bằng lệnh `A` với điểm cuối tính theo tỉ lệ. Ở `t = 0` điểm

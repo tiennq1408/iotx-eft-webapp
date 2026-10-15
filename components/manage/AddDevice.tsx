@@ -5,9 +5,9 @@ import { Bluetooth, ChevronRight, QrCode, Settings2, ShieldCheck, X } from "luci
 import type { AppData, Device } from "@/lib/types";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import { IconButton } from "./chung";
-import { useChu } from "@/components/newui/chu";
+import { useChu } from "@/components/ui/chu";
 import { QuetQR } from "./QuetQR";
-import { docTem } from "@/lib/newui/qrTem";
+import { docTem } from "@/lib/ui/qrTem";
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 

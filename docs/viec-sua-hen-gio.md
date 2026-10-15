@@ -22,7 +22,7 @@ và xử lý lỗi, không phải lỗi hợp đồng.
 
 ## 1. Xoá chương trình không hỏi lại
 
-**Hiện trạng** — `components/newui/device/HenGioPanel.tsx:204`:
+**Hiện trạng** — `components/ui/device/HenGioPanel.tsx:204`:
 
 ```tsx
 <button aria-label={t("auto_delete")} disabled={dangLam}
@@ -67,7 +67,7 @@ Giữ vùng chạm ≥44px cho cả hai nút, và hàng không được tràn ng
 — chương trình có tên dài 40 ký tự là trường hợp cần thử.
 
 **Lựa chọn lớn hơn, nếu muốn làm một lần cho cả app:** dựng `XacNhanModal` trong
-`components/newui/modals.tsx` rồi dùng chung. Đáng cân nhắc vì còn hai chỗ xoá
+`components/ui/modals.tsx` rồi dùng chung. Đáng cân nhắc vì còn hai chỗ xoá
 khác cũng không hỏi lại: "Xoá tất cả thông báo" và xoá bước trong trình soạn. Nhưng
 nếu chỉ muốn vá đúng chỗ nguy hiểm nhất thì cách hai nhịp ở trên là đủ.
 
@@ -116,7 +116,7 @@ try {
 } catch (error) { setLoi(moTaLoi(error)); }
 ```
 
-và `components/newui/device/DeviceDetail.tsx:73`:
+và `components/ui/device/DeviceDetail.tsx:73`:
 
 ```ts
 const hienGhim = !isIotxMode || (hg?.batDuoc === true && !loiHenGio);

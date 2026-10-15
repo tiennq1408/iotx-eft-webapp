@@ -2,7 +2,7 @@
  * Tên và cờ của một mã ngôn ngữ — dùng chung cho màn đăng nhập và menu. Danh sách mã luôn
  * lấy từ `langs` máy chủ trả, không viết cứng ở đây.
  */
-import { IMG } from "@/lib/newui/assets";
+import { IMG } from "@/lib/ui/assets";
 
 /** Tên ngôn ngữ viết bằng chính ngôn ngữ đó ("Tiếng Việt", "ไทย"); không có thì để mã. */
 export function tenNgonNgu(ma: string): string {

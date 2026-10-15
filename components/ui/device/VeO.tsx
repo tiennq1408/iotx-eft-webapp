@@ -2,17 +2,17 @@
 
 import type { HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
-import type { O } from "@/lib/newui/khuon";
+import type { O } from "@/lib/ui/khuon";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
-import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
-import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
-import { phimKichHoat } from "@/lib/newui/phim";
+import { chuSoCap, thongSoMuc } from "@/lib/ui/giaTriCap";
+import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
+import { phimKichHoat } from "@/lib/ui/phim";
 import type { IotxCapability } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 
 /**
  * Một ô điều khiển của màn chi tiết khi sản phẩm KHÔNG khai lưới `ui.boCuc` — vẽ theo
- * `variant` mà `phanGiai` (lib/newui/khuon.ts) chọn, với đúng bộ lớp CSS của bản tham chiếu.
+ * `variant` mà `phanGiai` (lib/ui/khuon.ts) chọn, với đúng bộ lớp CSS của bản tham chiếu.
  */
 
 /* ------------------------------------------------------------------ */

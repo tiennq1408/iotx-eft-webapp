@@ -10,25 +10,25 @@ import VirtualPanel from "@/components/virtual/VirtualPanel";
 import { AddDevice } from "@/components/manage/AddDevice";
 import { Members } from "@/components/manage/Members";
 import { Spaces } from "@/components/manage/Spaces";
-import { ChuProvider } from "@/components/newui/chu";
-import { BottomNav, TopBar, type ManChinh } from "@/components/newui/shell";
-import { FilterRow } from "@/components/newui/home";
+import { ChuProvider } from "@/components/ui/chu";
+import { BottomNav, TopBar, type ManChinh } from "@/components/ui/shell";
+import { FilterRow } from "@/components/ui/home";
 import {
   ManDichVu, ManKhamPha, ManThietBi, ManTrangChu, ManTuDong, type HanhDongLuat, type HanhDongThietBi,
-} from "@/components/newui/ManChinh";
-import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/newui/boLoc";
-import { capNguonCua } from "@/lib/newui/khuon";
-import { CHU, laMaNgonNgu } from "@/lib/newui/strings";
+} from "@/components/ui/ManChinh";
+import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
+import { capNguonCua } from "@/lib/ui/khuon";
+import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
   ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
   NHAN_CO_CHU, NHAN_GIAO_DIEN, type MucChon, type MucMenu,
-} from "@/components/newui/modals";
-import DeviceDetail from "@/components/newui/device/DeviceDetail";
-import HenGioPanel from "@/components/newui/device/HenGioPanel";
-import LoginScreen from "@/components/newui/LoginScreen";
+} from "@/components/ui/modals";
+import DeviceDetail from "@/components/ui/device/DeviceDetail";
+import HenGioPanel from "@/components/ui/device/HenGioPanel";
+import LoginScreen from "@/components/ui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
-import { DS_CO_CHU, DS_GIAO_DIEN, useCaiDat, type CoChu, type GiaoDien } from "@/lib/newui/caiDat";
-import { anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import { DS_CO_CHU, DS_GIAO_DIEN, useCaiDat, type CoChu, type GiaoDien } from "@/lib/ui/caiDat";
+import { anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/ui/ngonNgu";
 
 /**
  * Tấm đang mở. Thứ chỉ có nghĩa với một loại tấm nằm ngay trong nó — id thiết bị của màn

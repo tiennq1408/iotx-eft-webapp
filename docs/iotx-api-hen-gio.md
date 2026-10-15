@@ -137,7 +137,7 @@ nếu openapi khai `200` cho `dungChuongTrinhHenGio` thì spec và máy chủ đ
 ## Đối chiếu với webapp "IOT App - New UI"
 
 Đủ cả 8 lời gọi trong `lib/iotx/client.ts`, kiểu trong `lib/iotx/contracts.ts` khớp spec,
-`components/newui/device/HenGioPanel.tsx` dùng hết.
+`components/ui/device/HenGioPanel.tsx` dùng hết.
 
 Ba lỗi tìm được ngày 07/10 khi dựng bộ kiểm `tests/hen-gio.mjs` (đã sửa):
 

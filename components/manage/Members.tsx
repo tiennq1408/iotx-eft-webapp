@@ -5,9 +5,9 @@ import { Share2, Trash2 } from "lucide-react";
 import type { AppData, ChiaSeNhan } from "@/lib/types";
 import type { IotxPermission } from "@/lib/iotx/contracts";
 import { IotxApiError, iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
-import { useChu, type HamChu } from "@/components/newui/chu";
+import { useChu, type HamChu } from "@/components/ui/chu";
 import { Modal } from "./chung";
-import Icon from "@/components/newui/Icon";
+import Icon from "@/components/ui/Icon";
 
 /** Quyền vắng trường nào coi như true (hợp đồng), nên đọc từ rộng xuống hẹp. */
 function moTaQuyen(perms: IotxPermission | undefined, t: HamChu) {

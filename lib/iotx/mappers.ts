@@ -1,6 +1,6 @@
 import type { AppData, ChiaSeNhan, Device, SpaceState, UiNotification } from "@/lib/types";
-import { capNguonCua } from "@/lib/newui/khuon";
-import { dinhDangLuc } from "@/lib/newui/thoiGian";
+import { capNguonCua } from "@/lib/ui/khuon";
+import { dinhDangLuc } from "@/lib/ui/thoiGian";
 import { laBat as asBoolean } from "./giaTri";
 import type { IotxBootstrap, IotxCategory, IotxDevice, IotxNotification, IotxShare } from "./contracts";
 

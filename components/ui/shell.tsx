@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import Icon from "./Icon";
 import { useChu } from "./chu";
-import { IMG } from "@/lib/newui/assets";
+import { IMG } from "@/lib/ui/assets";
 
 /* ------------------------------------------------------------------ */
 /* Tấm trượt (modal sheet)                                             */

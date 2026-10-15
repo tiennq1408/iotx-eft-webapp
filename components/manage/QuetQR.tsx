@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import jsQR from "jsqr";
-import { useChu } from "@/components/newui/chu";
+import { useChu } from "@/components/ui/chu";
 
 /** `BarcodeDetector` chưa có trong lib DOM của TypeScript; chỉ khai đúng phần dùng tới. */
 type BoDoMa = { detect(anh: ImageBitmapSource): Promise<Array<{ rawValue: string }>> };

@@ -5,7 +5,7 @@ import Icon from "../Icon";
 import { useChu } from "../chu";
 import type { IotxCapability, IotxLenhVatTu } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
-import { danhSachMuc, docSo, phanTramConLai, tenMuc } from "@/lib/newui/vatTu";
+import { danhSachMuc, docSo, phanTramConLai, tenMuc } from "@/lib/ui/vatTu";
 
 /** Gửi một lệnh vật tư; trả `true` khi máy chủ nhận. Hỏng thì nơi gọi đã tự báo lỗi. */
 export type GuiVatTu = (cap: IotxCapability, lenh: IotxLenhVatTu) => Promise<boolean>;

@@ -7,14 +7,14 @@ import Icon from "../Icon";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
 import VeO, { type Ngu } from "./VeO";
-import { boCucCua } from "@/lib/newui/boCuc";
-import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/newui/khuon";
+import { boCucCua } from "@/lib/ui/boCuc";
+import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/ui/khuon";
 import { moTaLoi } from "@/lib/iotx/errors";
 import { isIotxMode } from "@/lib/iotx";
-import { EMOJI_SANG_ICON, anhDaiDienSanPham } from "@/lib/newui/assets";
-import { nhanCap } from "@/lib/newui/nhanCap";
-import { tenChuongTrinhDangDung } from "@/lib/newui/henGio";
-import { dinhDangLuc } from "@/lib/newui/thoiGian";
+import { EMOJI_SANG_ICON, anhDaiDienSanPham } from "@/lib/ui/assets";
+import { nhanCap } from "@/lib/ui/nhanCap";
+import { tenChuongTrinhDangDung } from "@/lib/ui/henGio";
+import { dinhDangLuc } from "@/lib/ui/thoiGian";
 import { useHenGio } from "@/hooks/useHenGio";
 import type { IotxCapability, IotxHenGioTongQuan, IotxLenhVatTu } from "@/lib/iotx/contracts";
 import type { Device, SpaceState } from "@/lib/types";
@@ -22,7 +22,7 @@ import type { Device, SpaceState } from "@/lib/types";
 /**
  * Màn chi tiết thiết bị — dựng theo đúng bản tham chiếu `web.dev.happibot.net`.
  *
- * Bố cục và cách chia nhóm nằm ở `lib/newui/khuon.ts` (`phanGiai`); tệp này chỉ đổi kết quả
+ * Bố cục và cách chia nhóm nằm ở `lib/ui/khuon.ts` (`phanGiai`); tệp này chỉ đổi kết quả
  * đó thành DOM, với đúng bộ lớp CSS của bản tham chiếu (`devpage`, `card`, `mchips`,
  * `ctl-*`) để hai app nhìn giống nhau với cùng một dữ liệu.
  *

@@ -6,7 +6,7 @@ import type { AppData } from "@/lib/types";
 import { iotxClient, isIotxMode } from "@/lib/iotx";
 import { useTacVu } from "@/hooks/useTacVu";
 import { Modal } from "./chung";
-import { useChu } from "@/components/newui/chu";
+import { useChu } from "@/components/ui/chu";
 
 type LoaiKhongGian = keyof AppData["spaces"];
 

@@ -6,12 +6,12 @@ import { Camera, Pencil } from "lucide-react";
 import Icon, { type TenIcon } from "./Icon";
 import { Sheet } from "./shell";
 import { useChu } from "./chu";
-import { IMG } from "@/lib/newui/assets";
-import { anhCoNgonNgu, MAT_KHAU_TOI_THIEU, tenNgonNgu } from "@/lib/newui/ngonNgu";
-import type { CaiDat, CoChu, GiaoDien } from "@/lib/newui/caiDat";
+import { IMG } from "@/lib/ui/assets";
+import { anhCoNgonNgu, MAT_KHAU_TOI_THIEU, tenNgonNgu } from "@/lib/ui/ngonNgu";
+import type { CaiDat, CoChu, GiaoDien } from "@/lib/ui/caiDat";
 import { DOI_MAT_KHAU_CHUA_BAT, HO_SO_CHUA_BAT, IotxApiError, iotxClient, moTaLoi } from "@/lib/iotx";
 import type { UiNotification } from "@/lib/types";
-import { TAT_CA } from "@/lib/newui/boLoc";
+import { TAT_CA } from "@/lib/ui/boLoc";
 
 export type MucMenu = "spaces" | "members" | "add" | "virtual" | "timers" | "devices";
 

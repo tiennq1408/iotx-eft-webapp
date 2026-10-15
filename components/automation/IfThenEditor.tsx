@@ -5,8 +5,8 @@ import { ArrowLeft, Plus, Trash2, X } from "lucide-react";
 import type { Device } from "@/lib/types";
 import type { IotxCapability, IotxMoPhong, IotxRuleAction, IotxRuleCondition, IotxRuleInput } from "@/lib/iotx/contracts";
 import { iotxClient, moTaLoi } from "@/lib/iotx";
-import { useChu, type HamChu } from "@/components/newui/chu";
-import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
+import { useChu, type HamChu } from "@/components/ui/chu";
+import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
 
 /** Trần cứng của hợp đồng. Chặn ngay trên client để người dùng biết sớm, server vẫn kiểm lại. */
 const TRAN = { conds: 10, gates: 5, exclusions: 5, actions: 20 };

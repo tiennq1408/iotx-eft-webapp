@@ -6,8 +6,8 @@ import {
 } from "@/lib/iotx";
 import type { BoChu } from "@/lib/iotx";
 import type { IotxTheme } from "@/lib/iotx/contracts";
-import { apDungTheme } from "@/lib/newui/theme";
-import { CHU } from "@/lib/newui/strings";
+import { apDungTheme } from "@/lib/ui/theme";
+import { CHU } from "@/lib/ui/strings";
 
 /**
  * Ngôn ngữ đang chọn, bảng chữ `/i18n` và theme của hãng. Cả hai cửa đều công khai và có

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
-import { useChu } from "@/components/newui/chu";
+import { useChu } from "@/components/ui/chu";
 
 /**
  * Khung dùng chung của các màn quản lý (không gian, chia sẻ, thêm thiết bị). Các màn này

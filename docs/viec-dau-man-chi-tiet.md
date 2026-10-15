@@ -23,13 +23,13 @@ bản sao đó **đã lệch khỏi máy này** và **không được chép đè
 
 1. Máy này đang có hơn 20 tệp sửa chưa commit (`git status` ngày 07/10), nhiều
    hơn hẳn bản sao kia. Chép đè sẽ nuốt mất công việc mới.
-2. `lib/newui/strings.ts` trong bản sao **bị hỏng**: khoá `notif_delete` bị đổi
+2. `lib/ui/strings.ts` trong bản sao **bị hỏng**: khoá `notif_delete` bị đổi
    nhầm thành `auto_delete` ở cả ba ngôn ngữ (nhãn "Xoá thông báo này" biến mất
    và `auto_delete` bị khai hai lần). Bản trên máy này mới là bản đúng.
 3. `components/LivotecApp.tsx` trong bản sao thuộc một nhánh cũ hơn: nó nhập
    `AppData` từ `@/lib/storage`, còn `ToastModal`/`tranLuat`/`onToast`, và
    **không có** `loiDongBo`.
-4. `components/newui/device/DeviceDetail.tsx` trong bản sao có một loạt đổi tên
+4. `components/ui/device/DeviceDetail.tsx` trong bản sao có một loạt đổi tên
    vô ích (`nhanCap` → `nhanCua`, `doSo` → `so`, `nhanGiaTriCap` → `nhanGiaTri`)
    và hai prop `lang`/`onLang` không dùng tới.
 5. `app/globals.css` trong bản sao còn khối `.flag-row`/`.flag-btn` **không tệp
@@ -59,9 +59,9 @@ máy chủ giả, và một bài kiểm.
 
 | Tệp | Sửa gì |
 |---|---|
-| `lib/newui/strings.ts` | thêm 7 khoá vào **ba** từ điển vi/en/tl |
+| `lib/ui/strings.ts` | thêm 7 khoá vào **ba** từ điển vi/en/tl |
 | `app/globals.css` | thêm khối 5 quy tắc, đặt ngay sau `.devpage .frow{…}` (~dòng 533) |
-| `components/newui/device/DeviceDetail.tsx` | 2 prop mới, 1 hằng `GAN`, 3 state, 2 hàm, thay khối header |
+| `components/ui/device/DeviceDetail.tsx` | 2 prop mới, 1 hằng `GAN`, 3 state, 2 hàm, thay khối header |
 | `components/LivotecApp.tsx` | thêm `suaThietBi`, truyền 2 prop mới |
 | `tests/may-chu-gia.mjs` | thêm cửa `PATCH /devices/{id}` + ghi nhật ký |
 | `tests/dau-man.mjs` | **tệp mới** |
@@ -69,7 +69,7 @@ máy chủ giả, và một bài kiểm.
 
 ## Các bước
 
-### Bước 1 — `lib/newui/strings.ts`
+### Bước 1 — `lib/ui/strings.ts`
 
 Thêm vào **từ điển tiếng Việt** (cạnh cụm `hg_no_cap`, ~dòng 101):
 
@@ -140,7 +140,7 @@ Chèn ngay sau dòng `.devpage .frow{display:flex; gap:.4rem;}`:
 }
 ```
 
-### Bước 3 — `components/newui/device/DeviceDetail.tsx`
+### Bước 3 — `components/ui/device/DeviceDetail.tsx`
 
 **3a. Nhập thêm kiểu** (dòng 15):
 

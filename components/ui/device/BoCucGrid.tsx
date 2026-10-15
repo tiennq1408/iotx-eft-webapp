@@ -4,16 +4,16 @@ import { useMemo } from "react";
 import { TriangleAlert } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
-import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
-import { LA_MA_MAU, capNguonCua, mauTuHex } from "@/lib/newui/khuon";
-import { diaChiIcon, laDuongDan } from "@/lib/newui/assets";
-import { phimKichHoat } from "@/lib/newui/phim";
+import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
+import { LA_MA_MAU, capNguonCua, mauTuHex } from "@/lib/ui/khuon";
+import { diaChiIcon, laDuongDan } from "@/lib/ui/assets";
+import { phimKichHoat } from "@/lib/ui/phim";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
-import { chuSoCap, thongSoMuc } from "@/lib/newui/giaTriCap";
+import { chuSoCap, thongSoMuc } from "@/lib/ui/giaTriCap";
 import {
   CAN_CHU, CAN_DOC, CAN_NGANG, RONG_NUT, cotChipTuDong, danhSachLoi, dayNgang, lopViTri,
   phanGiaiBoCuc, tuCoNhan, type BoCuc, type OdaDung,
-} from "@/lib/newui/boCuc";
+} from "@/lib/ui/boCuc";
 import type { IotxCapability } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 

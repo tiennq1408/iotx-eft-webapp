@@ -219,7 +219,7 @@ Thêm vào `app/globals.css`, ngay sau khối khung ứng dụng:
 
 ### Vì sao hỏng
 
-`lib/newui/ngonNgu.ts:23` dựng cờ bằng cặp ký tự regional indicator:
+`lib/ui/ngonNgu.ts:23` dựng cờ bằng cặp ký tự regional indicator:
 
 ```ts
 return [...vung].map(c => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65)).join("");
@@ -236,17 +236,17 @@ Ba chỗ gọi `coNgonNgu`, chỉ **một** chỗ là `<select>` thật:
 
 | Chỗ | Kiểu | Chèn `<img>` được không |
 |---|---|---|
-| `components/newui/LoginScreen.tsx:235` | `<select><option>` thật | **Không** — HTML không cho |
+| `components/ui/LoginScreen.tsx:235` | `<select><option>` thật | **Không** — HTML không cho |
 | `components/LivotecApp.tsx:383` | `ChonModal`, danh sách tự dựng | Được |
-| `components/newui/modals.tsx:78` | dòng menu tự dựng | Được |
+| `components/ui/modals.tsx:78` | dòng menu tự dựng | Được |
 
 ### Làm
 
-**Bước 1.** Trong `lib/newui/ngonNgu.ts`, **giữ nguyên** `coNgonNgu` (vẫn dùng làm đường lui)
+**Bước 1.** Trong `lib/ui/ngonNgu.ts`, **giữ nguyên** `coNgonNgu` (vẫn dùng làm đường lui)
 và thêm hàm trả địa chỉ ảnh:
 
 ```ts
-import { IMG } from "@/lib/newui/assets";
+import { IMG } from "@/lib/ui/assets";
 
 /**
  * Ảnh cờ cho một mã ngôn ngữ.
@@ -264,17 +264,17 @@ export function anhCoNgonNgu(ma: string): string | null {
 }
 ```
 
-**Bước 2.** Thêm một nét icon quả cầu vào bảng `D` trong `components/newui/Icon.tsx` (bảng
+**Bước 2.** Thêm một nét icon quả cầu vào bảng `D` trong `components/ui/Icon.tsx` (bảng
 chưa có `globe`; đặt cạnh `compass`):
 
 ```ts
   globe: ["M12 3a9 9 0 100 18 9 9 0 000-18z", "M3 12h18", "M12 3c2.5 2.4 2.5 15.6 0 18", "M12 3c-2.5 2.4-2.5 15.6 0 18"],
 ```
 
-**Bước 3.** `components/LivotecApp.tsx:383` và `components/newui/modals.tsx:78` — thay chuỗi
+**Bước 3.** `components/LivotecApp.tsx:383` và `components/ui/modals.tsx:78` — thay chuỗi
 `${coNgonNgu(ma)} ${tenNgonNgu(ma)}` bằng `<img>` + tên.
 
-`ChonModal` hiện chỉ nhận chuỗi (`components/newui/modals.tsx:148`):
+`ChonModal` hiện chỉ nhận chuỗi (`components/ui/modals.tsx:148`):
 
 ```ts
 luaChon: Array<{ giaTri: string; khoa?: string; nhan?: string }>;
@@ -347,7 +347,7 @@ và `.login-lang` thêm `display:flex;align-items:center;gap:8px;`.
 
 Hai nguồn:
 
-**a) Dòng menu tài khoản** — `components/newui/modals.tsx:77-81` cắm cứng emoji:
+**a) Dòng menu tài khoản** — `components/ui/modals.tsx:77-81` cắm cứng emoji:
 
 ```ts
 { muc: "ngonNgu", emo: "🌐", ... },
@@ -356,14 +356,14 @@ Hai nguồn:
 ```
 
 **b) Biểu tượng thiết bị** — `product.icon` do sadmin trả, có thể là emoji
-(`❄️ 💧 🍳 🌬️ 🍚 ♨️ 🚿 🌀 🍃`, xem `lib/newui/mockCatalog.ts` và `assets.ts:61`), vẽ thẳng ra
+(`❄️ 💧 🍳 🌬️ 🍚 ♨️ 🚿 🌀 🍃`, xem `lib/ui/mockCatalog.ts` và `assets.ts:61`), vẽ thẳng ra
 chữ ở `home.tsx:199` và `DeviceDetail.tsx:210`.
 
 Apple Color Emoji và Segoe UI Emoji là **hai bộ tranh khác hẳn nhau**. Nặng hơn: `♨️` và `🌬️`
 là codepoint mặc định kiểu **chữ**, phải có variation selector mới thành emoji màu — Windows
 vẽ một số trong đó ra **ký hiệu đen trắng**, nhìn đúng như icon hỏng.
 
-Dự án đã có sẵn bộ icon một nét trong `components/newui/Icon.tsx` với đủ tên cần dùng:
+Dự án đã có sẵn bộ icon một nét trong `components/ui/Icon.tsx` với đủ tên cần dùng:
 `snow · wind · drop · flame · heat · pot · leaf · box · fanIcn · moon · grid`.
 
 ### Làm
@@ -384,7 +384,7 @@ và thêm `.drawer-item .emo svg{width:18px;height:18px;}`.
 
 Rà cả file: mọi trường `emo` khác trong `modals.tsx` và `shell.tsx` làm y hệt.
 
-**Bước b.** Thêm bảng đổi emoji → icon vào `lib/newui/assets.ts`, ngay dưới `anhDaiDienSanPham`:
+**Bước b.** Thêm bảng đổi emoji → icon vào `lib/ui/assets.ts`, ngay dưới `anhDaiDienSanPham`:
 
 ```ts
 /**

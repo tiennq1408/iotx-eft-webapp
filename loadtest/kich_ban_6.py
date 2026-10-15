@@ -280,7 +280,7 @@ async def bai_5_thiet_bi_ngoai_tuyen(page, ghi):
     ket = []
     for i in range(n):
         t = the.nth(i)
-        # Bộ chọn theo thẻ thiết bị mới (components/newui/home.tsx, 09/10/2026).
+        # Bộ chọn theo thẻ thiết bị mới (components/ui/home.tsx, 09/10/2026).
         ten = await t.locator(".dname").inner_text()
         trang_thai = await t.locator(".dline").inner_text()
         hit = t.locator(".switch-hit")

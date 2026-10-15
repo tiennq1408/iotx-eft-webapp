@@ -4,12 +4,12 @@ import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 import Icon from "./Icon";
 import { useChu, type HamChu } from "./chu";
-import { EMOJI_SANG_ICON, IMG, anhDaiDienSanPham } from "@/lib/newui/assets";
-import { capNguonCua, phanGiaiSanPham } from "@/lib/newui/khuon";
-import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
+import { EMOJI_SANG_ICON, IMG, anhDaiDienSanPham } from "@/lib/ui/assets";
+import { capNguonCua, phanGiaiSanPham } from "@/lib/ui/khuon";
+import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
 import { laBat, rong } from "@/lib/iotx/giaTri";
-import { donVi } from "@/lib/newui/giaTriCap";
-import { TAT_CA, type BoLoc, type LoaiLoc } from "@/lib/newui/boLoc";
+import { donVi } from "@/lib/ui/giaTriCap";
+import { TAT_CA, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import type { IotxCapability } from "@/lib/iotx/contracts";
 import type { Device } from "@/lib/types";
 

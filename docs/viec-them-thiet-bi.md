@@ -100,7 +100,7 @@ thuần tuý, không còn lẫn lộn. `claim` lấy tên tem; `updateDevice` l�
 | Tệp | Sửa gì |
 |---|---|
 | `components/manage/AddDevice.tsx` | tách ô nhập, sửa lời gọi `claim`, đổi thứ tự bước, nhánh serial đi tắt |
-| `lib/newui/strings.ts` | ~6 khoá mới × 3 ngôn ngữ, sửa vài khoá cũ |
+| `lib/ui/strings.ts` | ~6 khoá mới × 3 ngôn ngữ, sửa vài khoá cũ |
 | `app/globals.css` | chỉ nếu cần, cố gắng dùng lại lớp sẵn có |
 | `tests/them-thiet-bi.mjs` | tệp mới |
 | `tests/may-chu-gia.mjs` | thêm `POST /claim` và `POST /claim-mach-that` |
@@ -139,7 +139,7 @@ thuần tuý, không còn lẫn lộn. `claim` lấy tên tem; `updateDevice` l�
 ## Bổ sung sau khi làm xong (08/10/2026, theo yêu cầu thêm)
 
 - **Quét bằng camera** ở cả hai nhánh (`components/manage/QuetQR.tsx`): `getUserMedia` →
-  `BarcodeDetector` nếu có, không thì jsQR. Nội dung tem đọc bằng `lib/newui/qrTem.ts` theo
+  `BarcodeDetector` nếu có, không thì jsQR. Nội dung tem đọc bằng `lib/ui/qrTem.ts` theo
   §3.2 của `Ket_noi_thiet_bi_WiFi_Bluetooth.md` (mã ② `#sn=…&c=…`, mã ① `WIFI:…`, JSON, chuỗi rời).
 - **Ghép nối Bluetooth theo tên tem** ở bước 2 nhánh QR khi trình duyệt có Web Bluetooth
   (`requestDevice` lọc theo tên tem, tên `PROV_…`, tiền tố `PROV_`); không có (iPhone,

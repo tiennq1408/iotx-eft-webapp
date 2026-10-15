@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { BoChu } from "@/lib/iotx";
-import { CHU, laMaNgonNgu, type MaNgonNgu } from "@/lib/newui/strings";
+import { CHU, laMaNgonNgu, type MaNgonNgu } from "@/lib/ui/strings";
 
 export type HamChu = (khoa: string, thamSo?: Record<string, string | number>) => string;
 

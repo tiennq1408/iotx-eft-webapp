@@ -41,7 +41,7 @@ await thu('A2-02', async () => {
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.locator('.device-card').first().waitFor();
   // Bằng mã: hàm dựng dòng trạng thái không có nhánh nào theo loại máy.
-  const ma = fs.readFileSync(new URL('../../components/newui/home.tsx', import.meta.url), 'utf8');
+  const ma = fs.readFileSync(new URL('../../components/ui/home.tsx', import.meta.url), 'utf8');
   const than = ma.slice(ma.indexOf('function dongTrangThai'), ma.indexOf('export type HanhDongThietBi'));
   const cungQuat = /quạt|\bfan\b|fan_|"Tốc độ|speed/i.test(than.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''));
   // Bằng mắt: điều hoà ra °C theo đơn vị capability, không mượn chữ của quạt.

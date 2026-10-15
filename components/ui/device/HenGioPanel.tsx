@@ -9,9 +9,9 @@ import type { Device } from "@/lib/types";
 import { useHenGio } from "@/hooks/useHenGio";
 import {
   TRAN, capChoPhepCua, chuanHoaThan, doiChay, doiKieu, giaTriMacDinh, kiemChuongTrinh, thanRong,
-} from "@/lib/newui/henGio";
-import { dinhDangLuc } from "@/lib/newui/thoiGian";
-import { nhanCap, nhanGiaTriCap } from "@/lib/newui/nhanCap";
+} from "@/lib/ui/henGio";
+import { dinhDangLuc } from "@/lib/ui/thoiGian";
+import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
 
 import { KHOA_NGAY } from "@/components/automation/IfThenEditor";
 

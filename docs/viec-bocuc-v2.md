@@ -16,7 +16,7 @@ thêm tám thứ; local hiện **bỏ qua lặng lẽ** cả tám nên màn vẽ
 "skin": "#2ea5fc"
 ```
 
-Trước đây `skin` là **tên** (`ocean` / `sunset` / `graphite`) và `lib/newui/khuon.ts` ánh xạ
+Trước đây `skin` là **tên** (`ocean` / `sunset` / `graphite`) và `lib/ui/khuon.ts` ánh xạ
 tên → màu. Giờ sadmin gửi thẳng **mã hex**, không khớp tên nào, nên local rơi về mặc định —
 toàn bộ màu nhấn của màn sai.
 
@@ -218,9 +218,9 @@ Hai lớp nữa có trong bản tham chiếu nhưng `ac_1` **chưa dùng** — l
 
 | Tệp | Sửa gì |
 |---|---|
-| `lib/newui/boCuc.ts` | thêm 6 trường vào `OBoCuc`: `ico`, `vtIco`, `gtVt`, `mauCtl`, `vien`, `hlChon`; thêm `nhan.mau` |
-| `lib/newui/khuon.ts` | `mauSkin` nhận **cả mã hex** lẫn tên cũ |
-| `components/newui/device/BoCucGrid.tsx` | thêm `.bc-body`; gắn class `mauo`/`vien`/`hl-vien`/`vt-*`/`co-*`; dựng `.bc-lb` cho `ico`; tính ba biến màu từ `mauCtl` |
+| `lib/ui/boCuc.ts` | thêm 6 trường vào `OBoCuc`: `ico`, `vtIco`, `gtVt`, `mauCtl`, `vien`, `hlChon`; thêm `nhan.mau` |
+| `lib/ui/khuon.ts` | `mauSkin` nhận **cả mã hex** lẫn tên cũ |
+| `components/ui/device/BoCucGrid.tsx` | thêm `.bc-body`; gắn class `mauo`/`vien`/`hl-vien`/`vt-*`/`co-*`; dựng `.bc-lb` cho `ico`; tính ba biến màu từ `mauCtl` |
 | `app/globals.css` | toàn bộ luật CSS trong tài liệu này |
 | `tests/bo-cuc.mjs` | thêm phép cho 8 thứ mới |
 | `tests/du-lieu/products.json` | cập nhật `ac_1` theo catalog thật mới |

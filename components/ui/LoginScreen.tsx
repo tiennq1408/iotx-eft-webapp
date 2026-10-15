@@ -5,8 +5,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, Lock } from "lucide-react";
 import { useChu } from "./chu";
 import { CoNgonNgu } from "./modals";
-import { IMG } from "@/lib/newui/assets";
-import { MAT_KHAU_TOI_THIEU, anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/newui/ngonNgu";
+import { IMG } from "@/lib/ui/assets";
+import { MAT_KHAU_TOI_THIEU, anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/ui/ngonNgu";
 import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
 
 /**

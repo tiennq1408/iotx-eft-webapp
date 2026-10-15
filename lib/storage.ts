@@ -1,4 +1,4 @@
-import { MOCK_DEVICES, MOCK_SPACES } from "./newui/mockCatalog";
+import { MOCK_DEVICES, MOCK_SPACES } from "./ui/mockCatalog";
 import type { AppData } from "./types";
 
 /**

@@ -5,7 +5,7 @@ import Icon from "./Icon";
 import { useChu } from "./chu";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxLanChay, IotxRule } from "@/lib/iotx/contracts";
-import { dinhDangLuc } from "@/lib/newui/thoiGian";
+import { dinhDangLuc } from "@/lib/ui/thoiGian";
 
 /**
  * Một luật trên màn Tự động. Ngoài bật/tắt, chạy tay và xoá, thẻ này còn mở được:

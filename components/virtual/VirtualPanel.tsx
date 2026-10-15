@@ -5,7 +5,7 @@ import { useTacVu } from "@/hooks/useTacVu";
 import { ArrowLeft, CloudSun, Hand, Home, Plus, Trash2, X } from "lucide-react";
 import { iotxClient, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxKieuAo, IotxNoiChon, IotxThietBiAo } from "@/lib/iotx/contracts";
-import { useChu } from "@/components/newui/chu";
+import { useChu } from "@/components/ui/chu";
 
 const TRAN = 10;
 

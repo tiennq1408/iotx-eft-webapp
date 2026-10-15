@@ -1,5 +1,5 @@
 import type { IotxCapability } from "@/lib/iotx/contracts";
-import type { HamChu } from "@/components/newui/chu";
+import type { HamChu } from "@/components/ui/chu";
 
 /**
  * Nhãn hiển thị của một capability — nguồn duy nhất cho cả app.
