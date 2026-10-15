@@ -862,6 +862,12 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
    khung vẫn vừa màn hình. Không có cỡ nhỏ hơn mặc định — thu nhỏ là kéo vùng chạm < 44px. */
 html[data-co-chu="lon"] .app-shell{zoom:1.1;height:calc(100dvh / 1.1);}
 html[data-co-chu="ratLon"] .app-shell{zoom:1.2;height:calc(100dvh / 1.2);}
+/* `zoom` phóng cả bề ngang: không bù thì ở màn rộng cột 448px thành 493/538px, rộng hơn màn
+   đăng nhập (màn đó chưa áp cỡ chữ). Dưới 560px cột theo bề ngang màn nên không cần bù. */
+@media (min-width:560px){
+  html[data-co-chu="lon"] .app-shell{width:calc(448px / 1.1);}
+  html[data-co-chu="ratLon"] .app-shell{width:calc(448px / 1.2);}
+}
 /* Chữ to thì tên thiết bị ở đầu màn chi tiết được xuống hai dòng, không bị cắt còn một chữ;
    ảnh nhỏ cạnh tên chỉ để trang trí (aria-hidden) nên ẩn đi nhường chỗ cho tên. */
 html[data-co-chu="lon"] .devpage .dev-ico,html[data-co-chu="ratLon"] .devpage .dev-ico{display:none;}
