@@ -84,13 +84,40 @@ async function chuyenTiep(request: NextRequest, path: string[]) {
   });
 
   // SSE phải chảy thẳng tới trình duyệt. Bất kỳ tầng nào gom lại thành khối là hỏng realtime.
-  if (headerTra.get("content-type")?.includes("text/event-stream")) {
+  const laSse = headerTra.get("content-type")?.includes("text/event-stream") ?? false;
+  if (laSse) {
     headerTra.set("cache-control", "no-cache, no-transform");
     headerTra.set("x-accel-buffering", "no");
   }
 
   const khongCoThan = traLoi.status === 204 || traLoi.status === 304;
-  return new Response(khongCoThan ? null : traLoi.body, { status: traLoi.status, headers: headerTra });
+  const than = khongCoThan ? null : laSse && traLoi.body ? dongEm(traLoi.body) : traLoi.body;
+  return new Response(than, { status: traLoi.status, headers: headerTra });
+}
+
+/**
+ * Luồng SSE sống hàng phút; IBS, Caddy hay mạng giữa đường đều có lúc cắt nó giữa chừng
+ * (`UND_ERR_SOCKET: other side closed`). Chuyền thẳng thân thì lỗi đọc nổ ra trong Next thành
+ * "failed to pipe response" mỗi lần như vậy — ồn mà vô ích. Đóng êm luồng phía trình duyệt là
+ * đủ: client coi "luồng kết thúc" y như "luồng đứt" — chờ ngẫu nhiên, nối lại, rồi gọi lại
+ * `/bootstrap` vì SSE không phát lại sự kiện đã lỡ. Chỉ áp cho SSE: một thân JSON bị cắt cụt
+ * mà đóng êm thì client nhận JSON hỏng, nên các trả lời khác vẫn để lỗi nổ ra như cũ.
+ */
+function dongEm(nguon: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const doc = nguon.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(dieuKhien) {
+      try {
+        const { done, value } = await doc.read();
+        if (done) dieuKhien.close();
+        else dieuKhien.enqueue(value);
+      } catch {
+        dieuKhien.close();
+      }
+    },
+    // Trình duyệt bỏ đi (đóng tab, nối lại): huỷ luôn kết nối tới IBS cho khỏi treo socket.
+    cancel(lyDo) { return doc.cancel(lyDo).catch(() => undefined); },
+  });
 }
 
 type NguCanh = { params: Promise<{ path: string[] }> };
