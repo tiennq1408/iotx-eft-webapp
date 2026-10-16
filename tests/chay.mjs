@@ -69,6 +69,10 @@ const NHOM = {
   // lần nên mọi phép đếm request (đúng 1 lượt refresh, nhịp hỏi vòng…) bị nhân đôi.
   'kich-ban':  { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  banProduction: true, rieng: true,
     bai: ['a1-dang-nhap', 'a2-danh-sach', 'a3-dieu-khien', 'a4-thoi-gian-thuc', 'a5-chia-se', 'a6-luat-thong-bao', 'a7-them-thiet-bi', 'a8-giao-dien', 'a9-bao-mat', 'a10-tai-khoan', 'bao-cao'].map(x => `kich-ban/${x}.mjs`) },
+  // Gọi API DEV thật nên KHÔNG để chung nhóm nào: `npm test` phải chạy được lúc không mạng,
+  // và kết quả của nó phụ thuộc sadmin chứ không phụ thuộc mã trong repo. Không cần app
+  // (`canApp: false`) — bài chỉ đọc `/v1/products`, nên chạy được cả khi `next dev` đang mở.
+  'that':      { moiTruong: {}, canMayGia: false, canApp: false, rieng: true, bai: ['khoa-la.mjs'] },
   'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
 };
 
@@ -85,6 +89,10 @@ try {
       await congTrong(`${GOC_GIA}/v1/products`, 'cổng máy chủ giả');
       chay(process.execPath, [path.join(THU_MUC, 'may-chu-gia.mjs')], {});
       if (!await doiSong(`${GOC_GIA}/v1/products`, 20)) throw new Error('máy chủ giả không lên');
+    }
+    if (n.canApp === false) {
+      for (const b of n.bai) ketQua.push(await bai(b));
+      continue;
     }
     await congTrong(GOC, 'cổng app');
     if (n.banProduction) {

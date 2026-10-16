@@ -71,6 +71,45 @@ export type OBoCuc = {
 export const VI_TRI_ICO = ["tren", "duoi", "trai", "phai"];
 export const lopViTri = (vt?: string) => (vt && VI_TRI_ICO.includes(vt) ? `vt-${vt}` : "");
 
+/* ====================================================================
+   Bắt trường lạ của catalog.
+
+   `phanGiaiBoCuc` nhặt đúng các trường nó biết tên, nên sadmin thêm trường mới là local bỏ
+   qua LẶNG LẼ — màn vẫn vẽ, chỉ là vẽ sai, và chỉ phát hiện được bằng mắt. Đã dính ba lần:
+   `skin` đổi sang mã màu, tám trường icon/viền/màu, rồi `o.caoHang`.
+
+   Chỉ CẢNH BÁO, không bao giờ ném lỗi: trường lạ nghĩa là catalog mới hơn app, màn vẫn phải
+   vẽ được bằng những gì app hiểu. Chặn ở đây là người dùng mất luôn màn chi tiết.
+
+   Giữ ĐỒNG BỘ với `BIET` trong tests/khoa-la.mjs (docs/viec-bao-khoa-la.md).
+   ==================================================================== */
+const KHOA_BIET = {
+  boCuc: new Set(["cot", "caoHang", "donHang", "skin", "nenAnh", "alarm", "o"]),
+  o: new Set(["key", "col", "row", "w", "h", "variant", "canN", "canD", "caoHang", "moiHang",
+              "coNut", "rongNut", "nhan", "gtIco", "ico", "vtIco", "gtVt", "mauCtl",
+              "vien", "hlChon", "nenAnh"]),
+  nhan: new Set(["can", "co", "dam", "nghieng", "mau"]),
+} as const;
+
+/** Nhịp đồng bộ vẽ lại mỗi 2,5 giây; kêu mỗi lần vẽ là ngập console. Mỗi khoá kêu MỘT lần. */
+const daKeu = new Set<string>();
+
+function soatKhoaLa(bc: BoCuc): void {
+  if (process.env.NODE_ENV === "production") return;
+  const keu = (noi: keyof typeof KHOA_BIET, obj: object | undefined) => {
+    if (!obj) return;
+    for (const k of Object.keys(obj)) {
+      if (KHOA_BIET[noi].has(k)) continue;
+      const dau = `${noi}.${k}`;
+      if (daKeu.has(dau)) continue;
+      daKeu.add(dau);
+      console.warn(`[boCuc] sadmin gửi trường local CHƯA BIẾT: ${dau} — màn chi tiết đang bỏ qua nó. Xem docs/viec-bao-khoa-la.md`);
+    }
+  };
+  keu("boCuc", bc);
+  for (const o of bc.o ?? []) { keu("o", o); keu("nhan", o.nhan); }
+}
+
 export type BoCuc = {
   cot?: number;
   caoHang?: number;
@@ -140,6 +179,7 @@ export type OdaDung = OBoCuc & { cap: IotxCapability; variant: string };
  * từ chính danh sách capability.
  */
 export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[], khoaNguon: string | undefined = capNguonTrong(caps)?.key) {
+  soatKhoaLa(bc);
   const theoKhoa = new Map(caps.map(c => [c.key, c]));
   const o: OdaDung[] = [];
   for (const muc of bc.o ?? []) {
