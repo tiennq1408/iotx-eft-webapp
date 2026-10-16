@@ -69,7 +69,7 @@ const NHOM = {
   // lần nên mọi phép đếm request (đúng 1 lượt refresh, nhịp hỏi vòng…) bị nhân đôi.
   'kich-ban':  { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  banProduction: true, rieng: true,
     bai: ['a1-dang-nhap', 'a2-danh-sach', 'a3-dieu-khien', 'a4-thoi-gian-thuc', 'a5-chia-se', 'a6-luat-thong-bao', 'a7-them-thiet-bi', 'a8-giao-dien', 'a9-bao-mat', 'a10-tai-khoan', 'bao-cao'].map(x => `kich-ban/${x}.mjs`) },
-  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
+  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
 };
 
 const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM).filter(k => !NHOM[k].rieng);

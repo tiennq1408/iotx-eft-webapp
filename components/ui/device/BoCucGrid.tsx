@@ -269,7 +269,9 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
       )}
       <div className="bc-grid" style={{
         gridTemplateColumns: `repeat(${kq.soCot}, 1fr)`,
-        gridTemplateRows: `repeat(${Math.max(kq.soHang, 1)}, ${kq.caoHang}px)`,
+        // Mỗi hàng một chiều cao riêng (xem `caoMoiHang`), không phải `repeat()` một số dùng chung:
+        // sadmin khai `caoHang` cho từng ô, ô vòng xoay thấp hơn ô công tắc.
+        gridTemplateRows: (kq.caoMoiHang.length ? kq.caoMoiHang : [kq.caoHang]).map(n => `${n}px`).join(" "),
       }}>
         {kq.o.map(o => {
           // Control giãn hết ngang thì thân xếp DỌC (nhãn trên, control dưới); control gọn

@@ -12,9 +12,14 @@ import { VARIANT_THEO_KIND, capNguonTrong } from "./khuon";
  * Mọi hằng số dưới đây lấy đúng số của bản tham chiếu, không tự đặt lại.
  */
 
-/** Chiều cao một hàng; catalog chỉ được chọn một trong ba. */
-const CAO_HANG = [56, 64, 72];
 const CAO_HANG_MAC = 64;
+/** Khoảng chiều cao hàng chấp nhận được. KHÔNG chốt vào vài giá trị cố định: sadmin đang
+ *  gửi 48 cho ô vòng xoay của Smart Fan 314, và sẽ còn gửi số khác. Chỉ chặn số rác. */
+const CAO_HANG_MIN = 24, CAO_HANG_MAX = 240;
+const soCaoHang = (v: unknown): number | null => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= CAO_HANG_MIN && n <= CAO_HANG_MAX ? Math.round(n) : null;
+};
 
 /** Số cột cố định của lưới. */
 const SO_COT = 4;
@@ -54,6 +59,12 @@ export type OBoCuc = {
   /** `"vien"`: mục đang chọn tô viền thay vì nền đặc. */
   hlChon?: string;
   nenAnh?: string;
+  /**
+   * Chiều cao MỖI HÀNG mà ô này phủ lên (px), đè `caoHang` của lưới.
+   * Ô `h: 3` khai `caoHang: 48` thì ba hàng đều 48px, tổng 3×48 + 2×8 = 160px.
+   * Không khai thì hàng lấy `caoHang` của lưới.
+   */
+  caoHang?: number;
 };
 
 /** Bốn vị trí icon bản tham chiếu biết; giá trị lạ bị bỏ, không thành class rác. */
@@ -136,10 +147,35 @@ export function phanGiaiBoCuc(bc: BoCuc, caps: IotxCapability[], khoaNguon: stri
     if (!cap) continue;
     o.push({ ...muc, cap, variant: variantO(cap, cap.key === khoaNguon, muc.variant) });
   }
-  const caoHang = CAO_HANG.includes(Number(bc.caoHang)) ? Number(bc.caoHang) : CAO_HANG_MAC;
+  const caoHang = soCaoHang(bc.caoHang) ?? CAO_HANG_MAC;
   const { map, soHang } = hangHienThi(o, bc.donHang !== false);
+
+  /**
+   * Chiều cao của TỪNG hàng, không phải một số dùng chung.
+   *
+   * Luật đo được trên web.dev: hàng nào bị một ô có `o.caoHang` phủ lên thì lấy số của ô đó;
+   * hàng không có ô nào khai thì lấy `caoHang` của lưới. Số của ô ĐÈ số của lưới, kể cả khi
+   * nhỏ hơn — ô vòng xoay của Smart Fan 314 khai 48 trong khi lưới khai 72, và web.dev vẽ 48.
+   *
+   * Hai ô cùng phủ một hàng mà khai khác nhau thì lấy số LỚN hơn, để không ô nào bị cắt.
+   * Trường hợp này chưa gặp trên DEV; đặt luật trước cho khỏi vỡ.
+   */
+  const caoMoiHang: number[] = Array(soHang).fill(caoHang);
+  const daKhai: boolean[] = Array(soHang).fill(false);
+  for (const muc of o) {
+    const cao = soCaoHang(muc.caoHang);
+    if (cao === null) continue;
+    for (let h = muc.row; h < muc.row + muc.h; h++) {
+      const r = map[h];                       // số hàng thật sau khi dồn hàng trống
+      if (r === undefined) continue;
+      const i = r - 1;
+      caoMoiHang[i] = daKhai[i] ? Math.max(caoMoiHang[i], cao) : cao;
+      daKhai[i] = true;
+    }
+  }
+
   const capBao = bc.alarm?.key ? theoKhoa.get(bc.alarm.key) ?? null : null;
-  return { o, map, soHang, caoHang, soCot: Number(bc.cot) || SO_COT, capBao };
+  return { o, map, soHang, caoHang, caoMoiHang, soCot: Number(bc.cot) || SO_COT, capBao };
 }
 
 /**

@@ -1,0 +1,971 @@
+{
+ "fan_sbi314": {
+  "ui": {
+   "boCuc": {
+    "cot": 4,
+    "o": [
+     {
+      "key": "buzzer",
+      "col": 3,
+      "row": 7,
+      "w": 2,
+      "h": 1,
+      "ico": "@buzzer",
+      "nhan": {
+       "dam": true,
+       "mau": "#b7554b"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/fan_sbi314/o-buzzer-49e4943aab9e.jpg"
+     },
+     {
+      "key": "light",
+      "col": 1,
+      "row": 7,
+      "w": 2,
+      "h": 1,
+      "ico": "@light",
+      "nhan": {
+       "dam": true,
+       "mau": "#b7554b"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/fan_sbi314/o-light-49e4943aab9e.jpg"
+     },
+     {
+      "key": "mode",
+      "col": 1,
+      "row": 4,
+      "w": 4,
+      "h": 2,
+      "moiHang": 2,
+      "caoHang": 64,
+      "nhan": {
+       "can": "giua",
+       "co": "lon",
+       "dam": true,
+       "mau": "#b7554b"
+      },
+      "gtIco": {
+       "sleep": "@moon-star-gray",
+       "turbo": "@zap-gray",
+       "normal": "@wind-gray",
+       "natural": "@leaf-gray"
+      },
+      "gtVt": {
+       "sleep": "trai",
+       "turbo": "trai",
+       "normal": "trai",
+       "natural": "trai"
+      }
+     },
+     {
+      "key": "oscillate",
+      "col": 1,
+      "row": 6,
+      "w": 4,
+      "h": 1,
+      "ico": "@swing",
+      "nhan": {
+       "dam": true,
+       "mau": "#b7554b"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/fan_sbi314/o-oscillate-49e4943aab9e.jpg"
+     },
+     {
+      "key": "power",
+      "col": 1,
+      "row": 8,
+      "w": 4,
+      "h": 1,
+      "variant": "power01",
+      "nhan": {
+       "co": "lon",
+       "mau": "#b7554b"
+      }
+     },
+     {
+      "key": "speed",
+      "col": 1,
+      "row": 1,
+      "w": 4,
+      "h": 3,
+      "variant": "dial01",
+      "mauCtl": "#b7554b",
+      "caoHang": 48,
+      "nhan": {
+       "can": "giua",
+       "co": "lon",
+       "dam": true,
+       "mau": "#b7554b"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/fan_sbi314/o-speed-49e4943aab9e.jpg"
+     }
+    ],
+    "skin": "#b7554b",
+    "caoHang": 72
+   }
+  },
+  "icon": "https://media.dev.happibot.net/media/san-pham/fan_sbi314/dai-dien-1e121bfcc0a0.png",
+  "henGio": {
+   "bat": true,
+   "tatCap": []
+  },
+  "nameEn": "Smart Fan 314",
+  "nameVi": "Quạt SBI314",
+  "category": "cooling",
+  "telemetry": [
+   "buzzer",
+   "curSpeed",
+   "light",
+   "mode",
+   "oscillate",
+   "power",
+   "speed"
+  ],
+  "capabilities": [
+   {
+    "key": "buzzer",
+    "rpc": "setBuzzer",
+    "kind": "onoff",
+    "label": "Âm thanh"
+   },
+   {
+    "key": "curSpeed",
+    "kind": "sensor",
+    "label": "Tốc độ hiện tại"
+   },
+   {
+    "key": "light",
+    "rpc": "setLight",
+    "kind": "onoff",
+    "label": "Đèn"
+   },
+   {
+    "key": "mode",
+    "rpc": "setMode",
+    "kind": "enum",
+    "label": "Chế độ",
+    "values": [
+     "normal",
+     "sleep",
+     "natural",
+     "turbo"
+    ],
+    "labels": {
+     "normal": "Thường",
+     "sleep": "Ngủ",
+     "natural": "Tự nhiên",
+     "turbo": "Mạnh"
+    }
+   },
+   {
+    "key": "oscillate",
+    "rpc": "setOscillate",
+    "kind": "onoff",
+    "label": "Quay"
+   },
+   {
+    "key": "power",
+    "rpc": "setPower",
+    "kind": "onoff",
+    "label": "Bật/tắt"
+   },
+   {
+    "key": "speed",
+    "max": 12,
+    "min": 0,
+    "rpc": "setSpeed",
+    "kind": "level",
+    "step": 1,
+    "label": "Tốc độ"
+   },
+   {
+    "key": "timerOff",
+    "max": 480,
+    "min": 0,
+    "rpc": "setTimer",
+    "kind": "level",
+    "step": 15,
+    "unit": "phút",
+    "label": "Hẹn giờ tắt",
+    "unitSpace": true
+   }
+  ],
+  "productGroup": "fan",
+  "version": 46
+ },
+ "ac_1": {
+  "ui": {
+   "boCuc": {
+    "cot": 4,
+    "o": [
+     {
+      "key": "ac_eco_mode",
+      "col": 3,
+      "row": 11,
+      "w": 2,
+      "h": 1,
+      "canN": "giua",
+      "ico": "@eco",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_fan_speed",
+      "col": 1,
+      "row": 7,
+      "w": 4,
+      "h": 2,
+      "moiHang": 4,
+      "hlChon": "vien",
+      "vtIco": "trai",
+      "caoHang": 72,
+      "nhan": {
+       "dam": true,
+       "mau": "skin"
+      },
+      "gtIco": {
+       "Low": "@fan-low",
+       "Mid": "@fan-mid",
+       "Auto": "@fan-auto",
+       "High": "@fan-high",
+       "Turbo": "@fan-turbo"
+      },
+      "gtVt": {
+       "Auto": "trai"
+      }
+     },
+     {
+      "key": "ac_ifeel_mode",
+      "col": 3,
+      "row": 13,
+      "w": 2,
+      "h": 1,
+      "ico": "@ifeel",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_is_iclean",
+      "col": 1,
+      "row": 12,
+      "w": 2,
+      "h": 1,
+      "ico": "@iclean",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_is_sleep_mode",
+      "col": 3,
+      "row": 12,
+      "w": 2,
+      "h": 1,
+      "ico": "@sleep",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_mil_mode",
+      "col": 1,
+      "row": 13,
+      "w": 2,
+      "h": 1,
+      "ico": "@mildew",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_mute_mode",
+      "col": 1,
+      "row": 11,
+      "w": 2,
+      "h": 1,
+      "ico": "@mute",
+      "vien": "skin",
+      "nhan": {
+       "co": "nho"
+      }
+     },
+     {
+      "key": "ac_ope_mode",
+      "col": 1,
+      "row": 4,
+      "w": 4,
+      "h": 2,
+      "canN": "giua",
+      "canD": "giua",
+      "moiHang": 4,
+      "hlChon": "vien",
+      "vtIco": "duoi",
+      "caoHang": 72,
+      "nhan": {
+       "can": "giua",
+       "dam": true,
+       "mau": "skin"
+      },
+      "gtIco": {
+       "Dry": "@mode-dry",
+       "Fan": "@mode-fan",
+       "Auto": "@mode-auto",
+       "Cool": "@mode-cool",
+       "Heat": "@mode-heat"
+      },
+      "gtVt": {
+       "Auto": "trai"
+      }
+     },
+     {
+      "key": "ac_power_status",
+      "col": 1,
+      "row": 6,
+      "w": 4,
+      "h": 1,
+      "variant": "power01",
+      "canD": "giua",
+      "mauCtl": "#fb6559",
+      "nhan": {
+       "co": "lon"
+      }
+     },
+     {
+      "key": "ac_room_temp",
+      "col": 1,
+      "row": 14,
+      "w": 4,
+      "h": 1,
+      "nhan": {
+       "dam": true
+      }
+     },
+     {
+      "key": "ac_swing_mode",
+      "col": 1,
+      "row": 9,
+      "w": 4,
+      "h": 2,
+      "moiHang": 3,
+      "hlChon": "vien",
+      "nhan": {
+       "dam": true,
+       "mau": "skin"
+      }
+     },
+     {
+      "key": "ac_temp_setting",
+      "col": 1,
+      "row": 1,
+      "w": 4,
+      "h": 3,
+      "variant": "dial01",
+      "canN": "giua",
+      "canD": "tren",
+      "mauCtl": "#ffffff",
+      "nhan": {
+       "can": "giua",
+       "dam": true,
+       "mau": "#ffffff"
+      },
+      "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_temp_setting-cd5e3e097ec6.jpg"
+     }
+    ],
+    "skin": "#2ea5fc",
+    "alarm": {
+     "key": "ac_error_catalog"
+    }
+   }
+  },
+  "icon": "https://media.dev.happibot.net/media/san-pham/ac_1/dai-dien-f9a39ef2a682.png",
+  "henGio": {
+   "bat": true,
+   "tatCap": []
+  },
+  "nameEn": "Air Conditioner (L1)",
+  "nameVi": "Điều Hòa (L1)",
+  "category": "other",
+  "telemetry": [
+   "ac_IoT_status",
+   "ac_coil_temp",
+   "ac_com_temp",
+   "ac_current",
+   "ac_dk_firmware_version",
+   "ac_dk_status",
+   "ac_eco_mode",
+   "ac_error_catalog",
+   "ac_fan_speed",
+   "ac_frequency",
+   "ac_heater_temp",
+   "ac_hot_temp",
+   "ac_idu_speed",
+   "ac_ifeel_mode",
+   "ac_is_iclean",
+   "ac_is_sleep_mode",
+   "ac_mil_mode",
+   "ac_mute_mode",
+   "ac_odu_speed",
+   "ac_ope_mode",
+   "ac_power_status",
+   "ac_room_temp",
+   "ac_swing_mode",
+   "ac_temp_setting",
+   "ac_temp_setting_max",
+   "ac_temp_setting_min",
+   "ac_timer_control",
+   "ac_voltage"
+  ],
+  "capabilities": [
+   {
+    "key": "ac_IoT_status",
+    "kind": "sensor",
+    "label": "IoT Status"
+   },
+   {
+    "key": "ac_coil_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ giàn"
+   },
+   {
+    "key": "ac_com_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ đầu đẩy máy nén"
+   },
+   {
+    "key": "ac_current",
+    "kind": "sensor",
+    "label": "Giá trị dòng điện"
+   },
+   {
+    "key": "ac_dk_firmware_version",
+    "kind": "sensor",
+    "label": "DK Firmware version"
+   },
+   {
+    "key": "ac_dk_status",
+    "kind": "sensor",
+    "label": "DK Status"
+   },
+   {
+    "key": "ac_eco_mode",
+    "rpc": "setEcoMode",
+    "kind": "onoff",
+    "label": "Tiết kiệm điện"
+   },
+   {
+    "key": "ac_error_catalog",
+    "kind": "sensor",
+    "label": "Danh sách lỗi",
+    "values": [
+     "C3",
+     "C5",
+     "E3",
+     "E2",
+     "E4",
+     "U0",
+     "E1",
+     "E0",
+     "C2",
+     "L6",
+     "L1",
+     "L4",
+     "L0",
+     "L8",
+     "L9",
+     "U8",
+     "U9",
+     "U7",
+     "L2",
+     "E5",
+     "L5",
+     "U3",
+     "E6",
+     "E7",
+     "U2",
+     "512"
+    ],
+    "labels": {
+     "512": "512 Test",
+     "C3": "Lỗi giao tiếp giữa dàn lạnh (IDU) và dàn nóng (ODU)",
+     "C5": "Lỗi EEPROM của dàn lạnh (nếu có)",
+     "E3": "Cảm biến nhiệt độ ống dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "E2": "Cảm biến nhiệt độ môi trường dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "E4": "Cảm biến nhiệt độ đầu đẩy dàn nóng bị đứt mạch hoặc ngắn mạch",
+     "U0": "Lỗi EEPROM của dàn nóng (nếu có)",
+     "E1": "Cảm biến nhiệt độ ống dàn lạnh bị đứt mạch hoặc ngắn mạch",
+     "E0": "Cảm biến nhiệt độ môi trường dàn lạnh bị đứt mạch hoặc ngắn mạch",
+     "C2": "Lỗi động cơ quạt dàn lạnh",
+     "L6": "Bảo vệ do lỗi mạch đo dòng điện máy nén",
+     "L1": "Bảo vệ do máy nén khởi động thất bại hoặc mất pha",
+     "L4": "Bảo vệ mô-đun công suất IPM của máy nén",
+     "L0": "Bảo vệ do máy nén mất đồng bộ",
+     "L8": "Lỗi động cơ quạt DC dàn nóng",
+     "L9": "Bảo vệ do lỗi mạch đo dòng điện động cơ quạt DC dàn nóng",
+     "U8": "Bảo vệ do lỗi mạch đo dòng điện PFC dàn nóng",
+     "U9": "Bảo vệ mạch hiệu chỉnh hệ số công suất (PFC)",
+     "U7": "Bảo vệ do dòng điện AC hiệu dụng đầu vào dàn nóng quá cao",
+     "L2": "Bảo vệ do dòng điện đỉnh máy nén quá cao",
+     "E5": "Bảo vệ do nhiệt độ đầu đẩy máy nén quá cao",
+     "L5": "Bảo vệ do IPM máy nén quá nhiệt",
+     "U3": "Bảo vệ do điện áp DC dàn nóng quá cao hoặc quá thấp",
+     "E6": "Bảo vệ chống đóng băng dàn lạnh",
+     "E7": "Bảo vệ quá tải hệ thống (nhiệt độ dàn ngưng tụ dàn nóng quá cao)",
+     "U2": "Bảo vệ do điện áp AC cấp vào dàn nóng bất thường"
+    }
+   },
+   {
+    "key": "ac_fan_speed",
+    "rpc": "setSpeed",
+    "kind": "enum",
+    "label": "Tốc độ gió",
+    "values": [
+     "Low",
+     "Mid",
+     "High",
+     "Turbo",
+     "Auto"
+    ],
+    "labels": {
+     "Low": "Nhẹ",
+     "Mid": "Trung bình",
+     "High": "Mạnh",
+     "Turbo": "Cực Mạnh",
+     "Auto": "Tự động"
+    }
+   },
+   {
+    "key": "ac_frequency",
+    "kind": "sensor",
+    "unit": "Hz",
+    "label": "Nhận giá trị tần số máy nén"
+   },
+   {
+    "key": "ac_heater_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ giàn cục nóng"
+   },
+   {
+    "key": "ac_hot_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt dộ môi trường cục nóng"
+   },
+   {
+    "key": "ac_idu_speed",
+    "kind": "sensor",
+    "unit": "V/phút",
+    "label": "Tốc độ quay của quạt cục lạnh",
+    "unitSpace": true
+   },
+   {
+    "key": "ac_ifeel_mode",
+    "rpc": "setIfeelMode",
+    "kind": "onoff",
+    "label": "Màn hình hiển thị"
+   },
+   {
+    "key": "ac_is_iclean",
+    "rpc": "setIclean",
+    "kind": "onoff",
+    "label": "Tự động làm sạch"
+   },
+   {
+    "key": "ac_is_sleep_mode",
+    "rpc": "setSleepMode",
+    "kind": "onoff",
+    "label": "Chế độ ngủ"
+   },
+   {
+    "key": "ac_mil_mode",
+    "rpc": "setMildewMode",
+    "kind": "onoff",
+    "label": "Chống nấm mốc"
+   },
+   {
+    "key": "ac_mute_mode",
+    "rpc": "setMuteMode",
+    "kind": "onoff",
+    "label": "Im lặng"
+   },
+   {
+    "key": "ac_odu_speed",
+    "kind": "sensor",
+    "unit": "V/phút",
+    "label": "Nhận tốc độ quay quạt cục nóng",
+    "unitSpace": true
+   },
+   {
+    "key": "ac_ope_mode",
+    "rpc": "setMode",
+    "kind": "enum",
+    "label": "Chế độ hoạt động",
+    "values": [
+     "Heat",
+     "Cool",
+     "Dry",
+     "Fan",
+     "Auto"
+    ],
+    "labels": {
+     "Heat": "Sưởi ấm",
+     "Cool": "Làm lạnh",
+     "Dry": "Hút ẩm",
+     "Fan": "Quạt",
+     "Auto": "Tự động"
+    }
+   },
+   {
+    "key": "ac_power_status",
+    "rpc": "setPower",
+    "kind": "onoff",
+    "label": "Bật/Tắt"
+   },
+   {
+    "key": "ac_room_temp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ phòng"
+   },
+   {
+    "key": "ac_swing_mode",
+    "rpc": "setSwingMode",
+    "kind": "enum",
+    "label": "Hướng gió",
+    "values": [
+     "r20",
+     "r35",
+     "r55",
+     "r70",
+     "r80"
+    ],
+    "labels": {
+     "r20": "Rộng 20 độ",
+     "r35": "Rộng 35 độ",
+     "r55": "Rộng 55 độ",
+     "r70": "Rộng 70 độ",
+     "r80": "Rộng 80 độ"
+    }
+   },
+   {
+    "key": "ac_temp_setting",
+    "max": 31,
+    "min": 16,
+    "rpc": "setTempTarget",
+    "kind": "level",
+    "step": 1,
+    "unit": "°C",
+    "label": "Nhiệt độ"
+   },
+   {
+    "key": "ac_temp_setting_max",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ tối đa"
+   },
+   {
+    "key": "ac_temp_setting_min",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ tối thiểu"
+   },
+   {
+    "key": "ac_timer_control",
+    "max": 100,
+    "min": 0,
+    "rpc": "setTimer",
+    "kind": "level",
+    "step": 15,
+    "unit": "phút",
+    "label": "Hẹn giờ",
+    "unitSpace": true
+   },
+   {
+    "key": "ac_voltage",
+    "kind": "sensor",
+    "unit": "V",
+    "label": "Voltage"
+   }
+  ],
+  "productGroup": "ac",
+  "version": 166
+ },
+ "fan_smart": {
+  "ui": {
+   "boCuc": {
+    "cot": 4,
+    "o": [
+     {
+      "key": "autoMode",
+      "col": 1,
+      "row": 1,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "curSpeed",
+      "col": 2,
+      "row": 1,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "err",
+      "col": 3,
+      "row": 1,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "humidTarget",
+      "col": 4,
+      "row": 1,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "mode",
+      "col": 1,
+      "row": 2,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "motorTemp",
+      "col": 2,
+      "row": 2,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "oscillate",
+      "col": 3,
+      "row": 2,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "power",
+      "col": 4,
+      "row": 2,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "roomHumid",
+      "col": 1,
+      "row": 3,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "roomTemp",
+      "col": 2,
+      "row": 3,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "sleepSpeed",
+      "col": 3,
+      "row": 3,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "speed",
+      "col": 4,
+      "row": 3,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "tempTarget",
+      "col": 1,
+      "row": 4,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "timerOff",
+      "col": 2,
+      "row": 4,
+      "w": 1,
+      "h": 1
+     },
+     {
+      "key": "watt",
+      "col": 3,
+      "row": 4,
+      "w": 2,
+      "h": 2
+     }
+    ]
+   }
+  },
+  "icon": "🌀",
+  "henGio": {
+   "bat": true,
+   "tatCap": []
+  },
+  "nameEn": "Smart Fan",
+  "nameVi": "Quạt thông minh",
+  "version": 18,
+  "category": "cooling",
+  "telemetry": [
+   "curSpeed",
+   "err",
+   "mode",
+   "motorTemp",
+   "power",
+   "roomHumid",
+   "roomTemp",
+   "speed",
+   "watt"
+  ],
+  "capabilities": [
+   {
+    "key": "autoMode",
+    "rpc": "setAutoMode",
+    "kind": "enum",
+    "label": "Tự chạy theo môi trường",
+    "values": [
+     "off",
+     "byTemp",
+     "byHumid",
+     "byBoth"
+    ],
+    "labels": {
+     "off": "Tắt tự động",
+     "byTemp": "Theo nhiệt độ",
+     "byHumid": "Theo độ ẩm",
+     "byBoth": "Theo cả hai"
+    }
+   },
+   {
+    "key": "curSpeed",
+    "kind": "sensor",
+    "label": "Tốc độ đang quay"
+   },
+   {
+    "key": "err",
+    "kind": "sensor",
+    "label": "Mã lỗi"
+   },
+   {
+    "key": "humidTarget",
+    "max": 90,
+    "min": 40,
+    "rpc": "setHumidTarget",
+    "kind": "level",
+    "step": 1,
+    "unit": "%",
+    "label": "Độ ẩm mong muốn"
+   },
+   {
+    "key": "mode",
+    "rpc": "setMode",
+    "kind": "enum",
+    "label": "cap.mode",
+    "values": [
+     "normal",
+     "sleep",
+     "natural",
+     "turbo"
+    ],
+    "labels": {
+     "normal": "Thường",
+     "sleep": "Ngủ",
+     "natural": "Tự nhiên",
+     "turbo": "Mạnh"
+    }
+   },
+   {
+    "key": "motorTemp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt mô-tơ"
+   },
+   {
+    "key": "oscillate",
+    "rpc": "setOscillate",
+    "kind": "onoff",
+    "label": "Xoay trái–phải"
+   },
+   {
+    "key": "power",
+    "rpc": "setPower",
+    "kind": "onoff",
+    "label": "cap.power"
+   },
+   {
+    "key": "roomHumid",
+    "kind": "sensor",
+    "unit": "%",
+    "label": "Độ ẩm phòng"
+   },
+   {
+    "key": "roomTemp",
+    "kind": "sensor",
+    "unit": "°C",
+    "label": "Nhiệt độ phòng"
+   },
+   {
+    "key": "sleepSpeed",
+    "max": 6,
+    "min": 1,
+    "rpc": "setSleepSpeed",
+    "kind": "level",
+    "step": 1,
+    "label": "Tốc độ khi ngủ"
+   },
+   {
+    "key": "speed",
+    "max": 12,
+    "min": 0,
+    "rpc": "setSpeed",
+    "kind": "level",
+    "step": 1,
+    "label": "Tốc độ gió"
+   },
+   {
+    "key": "tempTarget",
+    "max": 35,
+    "min": 20,
+    "rpc": "setTempTarget",
+    "kind": "level",
+    "step": 1,
+    "unit": "°C",
+    "label": "Nhiệt độ mong muốn"
+   },
+   {
+    "key": "timerOff",
+    "max": 720,
+    "min": 0,
+    "rpc": "setTimer",
+    "kind": "level",
+    "step": 15,
+    "unit": "phút",
+    "label": "Hẹn giờ tắt",
+    "unitSpace": true
+   },
+   {
+    "key": "watt",
+    "kind": "sensor",
+    "unit": "W",
+    "label": "Công suất",
+    "unitSpace": true
+   }
+  ],
+  "productGroup": "fan"
+ }
+}
