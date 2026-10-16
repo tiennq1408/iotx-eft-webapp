@@ -234,11 +234,45 @@ function maLoi(giaTri: unknown): string[] {
   return ra;
 }
 
-/** Mã lỗi ghép với tên lỗi nếu catalog có bảng `labels`; mã lạ giữ nguyên mã. */
-export function danhSachLoi(cap: IotxCapability, giaTri: unknown): Array<{ ma: string; chu: string }> {
-  const choPhep = (cap.values ?? []).map(v => String(v ?? "").trim()).filter(Boolean);
+/** Nhịp đồng bộ vẽ lại mỗi 2,5 giây; kêu mỗi lần vẽ là ngập console. Mỗi mã kêu MỘT lần. */
+const daKeuMaLoi = new Set<string>();
+
+function canhBaoMaLoiLa(khoaCap: string, ma: string, coTrongValues: boolean): void {
+  if (process.env.NODE_ENV === "production") return;
+  const dau = `${khoaCap}:${ma}`;
+  if (daKeuMaLoi.has(dau)) return;
+  daKeuMaLoi.add(dau);
+  console.warn(
+    `[loi] ${khoaCap} báo mã "${ma}" mà catalog không có tên` +
+    (coTrongValues ? " (có trong values nhưng thiếu labels)" : " (KHÔNG có trong values)") +
+    ` — màn vẫn hiện mã trần. Xem docs/viec-hien-ma-loi-la.md`,
+  );
+}
+
+export type MucLoi = { ma: string; chu: string; biet: boolean };
+
+/** Chuỗi lỗi hỏng có thể tách ra rất nhiều mảnh; đừng để nó đẻ ra một danh sách dài vô tận. */
+const TOI_DA_LOI = 20;
+
+/**
+ * Mã lỗi ghép với tên lỗi nếu catalog có bảng `labels`.
+ *
+ * KHÔNG lọc theo `cap.values`. Trước đây có lọc, và đó là lý do máy lạnh trên DEV báo
+ * `ac_error_catalog = "1"` mà local im re: `"1"` không nằm trong 26 mã catalog khai
+ * (C2, C3, E0…), nên nó bị loại, danh sách về rỗng, dải cảnh báo không vẽ. Thiết bị đang
+ * lỗi mà người dùng không biết là hỏng nặng hơn nhiều so với hiện một mã khó hiểu.
+ *
+ * Phần bảo vệ thật nằm ở `maLoi()`: nó đã loại `""`, `"0"`, `"false"` và mã trùng.
+ *
+ * `biet` = có tra được tên hay không. Nơi gọi dựa vào đó để chọn chữ hiện ra; chính hàm này
+ * không dịch được vì `t` nằm trong React.
+ */
+export function danhSachLoi(cap: IotxCapability, giaTri: unknown): MucLoi[] {
+  const khai = new Set((cap.values ?? []).map(v => String(v ?? "").trim()).filter(Boolean));
   const ten = cap.labels ?? {};
-  return maLoi(giaTri)
-    .filter(ma => !choPhep.length || choPhep.includes(ma))
-    .map(ma => ({ ma, chu: ten[ma] || ma }));
+  return maLoi(giaTri).slice(0, TOI_DA_LOI).map(ma => {
+    const chu = ten[ma] ?? "";
+    if (!chu) canhBaoMaLoiLa(cap.key, ma, khai.has(ma));
+    return { ma, chu, biet: chu !== "" };
+  });
 }

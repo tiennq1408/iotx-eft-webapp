@@ -264,7 +264,8 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
       {loi.length > 0 && kq.capBao && (
         <div className="bc-alarmstrip" role="alert">
           <div className="bc-alarmhead"><TriangleAlert className="ic-dong" aria-hidden="true" /><span>{nhanCap(kq.capBao, t)}</span></div>
-          <ul>{loi.map(x => <li key={x.ma}>{x.chu}</li>)}</ul>
+          {/* Mã không tra được tên vẫn PHẢI hiện — giấu đi là người dùng không biết máy đang lỗi. */}
+          <ul>{loi.map(x => <li key={x.ma}>{x.biet ? x.chu : `${t("dev_loi_ma")} ${x.ma}`}</li>)}</ul>
         </div>
       )}
       <div className="bc-grid" style={{

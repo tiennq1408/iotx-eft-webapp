@@ -73,7 +73,7 @@ const NHOM = {
   // và kết quả của nó phụ thuộc sadmin chứ không phụ thuộc mã trong repo. Không cần app
   // (`canApp: false`) — bài chỉ đọc `/v1/products`, nên chạy được cả khi `next dev` đang mở.
   'that':      { moiTruong: {}, canMayGia: false, canApp: false, rieng: true, bai: ['khoa-la.mjs'] },
-  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
+  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'loi-la.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
 };
 
 const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM).filter(k => !NHOM[k].rieng);
