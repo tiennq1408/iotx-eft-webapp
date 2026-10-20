@@ -1,262 +1,482 @@
-# Việc: Ghép OTP (email/SĐT) và đăng nhập Google vào màn đăng nhập
+# Việc: Hoàn thiện đăng ký · quên mật khẩu (mã qua email) · đăng nhập Google
 
 - Trạng thái: **chưa làm** — phần lớn **không nằm ở webapp**
-- Phạm vi: `IOT App - New UI` + IBS + sadmin + Google Cloud
-- Viết: 14/10/2026
+- Phạm vi: `IOT App - New UI` + IBS + Keycloak + Google Cloud
+- Viết: 14/10/2026 · **đo lại và viết lại 16/10/2026**
+- **PHƯƠNG ÁN ĐÃ CHỐT: B — IBS làm trung gian** (16/10/2026)
+- Thay thế bản 14/10. Bỏ nhánh SMS khỏi đợt này (xem Phụ lục).
 
-## Hiện trạng đo được hôm nay (14/10/2026)
+## Tóm tắt một đoạn
 
-| Kiểm | Kết quả |
-|---|---|
-| `POST /v1/auth/otp/*`, `send-otp`, `verify-otp` | `404 Cannot POST` — **cửa không tồn tại** |
-| `POST /v1/auth/google` | `404 Cannot POST` |
-| `POST /v1/auth/forgot-password`, `quen-mat-khau` | `404 Cannot POST` |
-| Trang đăng nhập realm `iot1` | chỉ có ô tài khoản + mật khẩu, **không có nút Google**, không có liên kết đăng ký / quên mật khẩu |
-| `/v1/tenant/theme` → `loginMethods` | vẫn khai `["password","otp","google"]` — **khai nhiều hơn thực tế** |
-| `lib/iotx/client.ts` | `CUA_QUEN_MAT_KHAU`, `CUA_DANG_NHAP_GOOGLE` … vẫn `= null` |
-
-`Cannot POST` là NestJS nói **không có route**, không phải lỗi quyền. Nghĩa là IBS chưa viết.
-
-### Soi lại sadmin ngày 14/10 — **không có gì thay đổi so với 08/10**
-
-Mục Đăng nhập & Bảo mật, từng ô một:
-
-| Ô | Trạng thái 14/10 |
-|---|---|
-| Bật gửi email qua SMTP | ❌ tắt · Máy chủ, Tài khoản, Mật khẩu, Gửi từ, Tên hiển thị đều **trống** |
-| Bật gửi SMS | ❌ tắt · API key/SID **trống**, Brandname **trống** |
-| Bật đăng nhập Google | ❌ tắt · Client ID, Client Secret **trống** |
-| Bắt xác minh khi đăng ký (OTP) | ❌ tắt |
-| Số điện thoại + mật khẩu | ❌ tắt |
-| Passkey (vân tay/khuôn mặt) | ❌ tắt |
-| Xác thực hai lớp (2FA) | ❌ Tắt |
-| Cho phép tự đăng ký | ✅ bật |
-| Cho phép quên mật khẩu | ✅ bật — **nhưng SMTP tắt nên vô hiệu** |
-| Giữ đăng nhập | **7 ngày** (mặc định ghi trên màn là 90) |
-| Mật khẩu tối thiểu | 8 ký tự, không bắt HOA/thường/số/đặc biệt |
-
-Menu sadmin vẫn đúng 24 mục như cũ, **không có mục mới nào**.
-
-### Và một phát hiện quan trọng: sadmin KHÔNG có màn cho `user_map`
-
-Mục **Quản trị → Người dùng** của sadmin là **tài khoản quản trị của chính sadmin**
-(`sadmin`, `phuong`, `tuyen`, `coder`…), **không phải người dùng cuối của app**. Nghĩa là
-vấn đề 2.3b — ai tạo `user_map` + customer ThingsBoard khi người dùng đăng nhập Google lần
-đầu — **không có cần gạt nào trên sadmin**. Hoàn toàn là việc của IBS.
-
-## Việc của webapp chỉ là phần cuối và nhỏ nhất
-
-Giao diện đã dựng sẵn: nút Google, liên kết Quên mật khẩu, và các hằng `CUA_* = null` để khi
-có cửa thì **sửa một dòng mỗi tính năng**. Thứ còn thiếu nằm ở ba nơi khác: **Google Cloud**,
-**sadmin**, và **IBS**.
+Ba luồng này **không chặn ở webapp**. Giao diện đã dựng sẵn cả ba màn, và mã đã có sẵn năm
+chỗ cắm dạng `CUA_* = null` để khi có cửa thì **sửa đúng một dòng mỗi tính năng**. Thứ còn
+thiếu nằm ở **Keycloak**, **IBS**, **SMTP** và **Google Cloud** — không nơi nào trong số đó
+là việc của đội webapp.
 
 ---
 
-## 0. Quyết định phải chốt TRƯỚC — nếu không mọi việc sau đều sai hướng
+## 0. Những câu đã chốt — IBS không phải hỏi lại
 
-App hiện đăng nhập bằng **password grant (ROPC)**: webapp gửi email + mật khẩu cho IBS, IBS đổi
-lấy token với Keycloak. Cách này **không có chỗ** cho cả hai tính năng:
+| Câu | Trả lời | Chốt ngày |
+|---|---|---|
+| Phương án A hay B? | **B — IBS làm trung gian** | 16/10/2026 |
+| Quên mật khẩu gửi **link** hay **mã**? | **Mã 6 chữ số** — hợp đồng mục 5 giữ nguyên, đúng kiểu | 16/10/2026 |
+| IBS đã có quyền gọi **Keycloak Admin REST API** chưa? | **Đã có đủ** — không phải xin thêm | 16/10/2026 |
 
-- **Google** bắt buộc phải chuyển hướng trình duyệt sang Google rồi quay về — ROPC không có bước đó.
-- **OTP** cần một bước thứ hai sau mật khẩu — ROPC chỉ có một lượt gọi.
+Ba câu còn lại (`tenant`, `user_map`, email trùng) vẫn **chưa chốt** — xem Nhóm 0.
 
-Chính sadmin cũng đã ghi điều này ở màn Đăng nhập & Bảo mật: *"Để BUỘC 2FA ngay trên màn đăng
-nhập của app (ROPC) cần thêm bước nhập mã ở app — phần đó để sau."*
+## 0b. Nghiệm thu 5 cửa IBS — đo ngày 19/10/2026
 
-Hai đường đi, **chọn một**:
+**IBS đã mở đủ 5 cửa, đúng tên và đúng hình dạng hợp đồng.** Đo trực tiếp trên
+`web.dev.happibot.net`:
+
+| Cửa | Kết quả |
+|---|---|
+| `POST /v1/auth/otp/gui` | ✅ có — `{ok:true, hetHanSau:300, guiLaiSau:60}` |
+| `POST /v1/auth/otp/xac-nhan` | ✅ có — mã sai → 400 *"Mã không đúng hoặc đã hết hạn — gửi lại mã mới."* |
+| `POST /v1/auth/dat-lai-mat-khau` | ✅ có — vé bịa → 400 *"Vé xác nhận không hợp lệ hoặc đã hết hạn"* |
+| `GET /v1/auth/google/bat-dau` | ✅ có — *"Đăng nhập Google chưa bật."* (đúng, sadmin chưa khai) |
+| `POST /v1/auth/google/doi-token` | ✅ có — 404 `not_found` cho thân rỗng |
+
+**Ba ràng buộc bảo mật: ĐẠT CẢ BA.**
+
+1. **Không lộ email.** Email không tồn tại và email có thật trả về **giống hệt nhau từng byte**:
+   `200 {"ok":true,"hetHanSau":300,"guiLaiSau":60}`.
+2. **Mã sống 300 giây**, mã sai trả câu chung không phân biệt "sai" với "hết hạn".
+3. **Giới hạn tốc độ hai tầng, theo CẢ email LẪN IP:**
+
+| Tầng | Ngưỡng đo được | Câu báo |
+|---|---|---|
+| Theo email — chờ gửi lại | lần thứ 2 trở đi trong 60s | *"Vừa gửi mã rồi — chờ 60 giây để gửi lại."* |
+| Theo email — khoá | ~5 lần | *"Đã gửi mã quá nhiều lần cho email này — thử lại sau 15 phút."* |
+| **Theo IP** | **10 lần** (email khác nhau) | *"Thiết bị của bạn gửi quá nhiều yêu cầu — thử lại sau 15 phút."* |
+
+### Còn hai việc chưa xong
+
+**a) `/auth/register` CHƯA đòi `veTam`.** Gửi thân thiếu trường, máy chủ đi thẳng từ
+*"Thiếu email/số điện thoại đăng nhập"* sang *"Mật khẩu phải có tối thiểu 8 ký tự"* — **không
+hề nhắc tới vé xác nhận**. Tức bước xác thực mã **chưa ghép vào luồng đăng ký**: hiện vẫn đăng
+ký được mà không cần xác minh email. Cần hỏi IBS: dự định ghép theo hướng nào.
+
+**b) `/auth/register` trả 409 cho lỗi kiểm tra đầu vào**, đáng lẽ 400. 409 nghĩa là "xung đột"
+(email đã tồn tại), dùng cho "mật khẩu quá ngắn" là sai mã. Lỗi nhỏ, nhưng webapp phân nhánh
+theo mã trạng thái nên sẽ hiểu nhầm.
+
+### Chưa kiểm được, phải chờ SMTP
+
+Bốn điều sau chỉ kiểm được khi nhận được thư thật (hoặc IBS mở một cửa đọc mã ở môi trường dev):
+
+- Mã có đúng **6 chữ số** không
+- Mã có thật sự **dùng một lần** không
+- Mã có **lưu dạng băm** và **so sánh timing-safe** không
+- `/dat-lai-mat-khau` có **thu hồi refresh token cũ** không ← quan trọng nhất
+
+---
+
+## 1. Hiện trạng — đo lại ngày 16/10/2026
+
+### 1.1 Cửa API: không có gì mới
+
+Thử **17 đường** ứng viên trên `web.dev.happibot.net`:
+
+| Nhóm | Kết quả |
+|---|---|
+| `/auth/otp/gui`, `/auth/otp/xac-nhan`, `/auth/send-otp`, `/auth/verify-otp`, `/auth/otp/send`, `/auth/otp/verify` | `404 Cannot POST` — **cửa không tồn tại** |
+| `/auth/forgot-password`, `/auth/quen-mat-khau`, `/auth/reset-password`, `/auth/doi-mat-khau`, `/auth/change-password` | `404 Cannot POST` |
+| `/auth/google`, `/auth/google/bat-dau`, `/auth/google/start`, `/auth/google/doi-token` | `404 Cannot GET/POST` |
+| `/auth/providers`, `/auth/methods` | `404 Cannot GET` |
+| **`/auth/register`**, **`/auth/login`** | `404 {"message":"not_found"}` ← **khác hẳn** |
+
+Chỗ khác nhau ở hàng cuối rất quan trọng: `Cannot POST /x` nghĩa là **đường không tồn tại**,
+còn `{"message":"not_found"}` là **câu trả lời của chính IBS** cho thân request rỗng — tức
+đường **có tồn tại**. Nhờ đó khẳng định được:
+
+> **`/auth/register` ĐÃ CHẠY.** Đăng ký không phải xây mới — việc cần làm là **thêm bước xác
+> thực mã email** vào luồng đã có.
+
+Không đổi gì so với lần đo 08/10 và 14/10.
+
+### 1.2 sadmin — TẤT CẢ cần gạt đều nằm ở đây
+
+`https://iotsa.dev.happibot.net/sadmin#dnbaomat` → mục **Đăng nhập & Bảo mật**. Chính trang đó
+tự mô tả: *"Cấu hình cho realm NGƯỜI DÙNG CUỐI (app). Bấm Lưu là áp ngay lên máy đăng nhập.
+Phần cần nhà cung cấp ngoài (SMTP, cổng SMS, Google) để trống thì tính năng đó chờ tới khi
+khai đủ."*
+
+Nghĩa là **sadmin ghi xuyên xuống Keycloak**. Không phải vào thẳng Keycloak cho bất cứ việc nào
+dưới đây.
+
+Trạng thái đọc được ngày **16/10/2026**:
+
+| Mục | Trạng thái |
+|---|---|
+| Giữ đăng nhập trên máy người dùng | **7 ngày** *(khớp với vé làm mới ≈6,38 ngày đã đo)* |
+| 2FA | Tắt |
+| Mật khẩu tối thiểu | 8 ký tự, không bật ràng buộc nào khác |
+| **Cho phép tự đăng ký** | ✅ **ĐÃ BẬT** |
+| **Cho phép quên mật khẩu** (gửi link/mã đặt lại) | ✅ **ĐÃ BẬT** |
+| **Bắt xác minh khi đăng ký (OTP)** | ❌ tắt — *cần SMTP hoặc SMS* |
+| Email + mật khẩu | ✅ bật (khoá, luôn bật) |
+| Số điện thoại + mật khẩu | ❌ tắt — cần cổng SMS |
+| **Google SSO** | ❌ tắt — **Client ID và Secret đều TRỐNG** |
+| **Passkey** (vân tay/khuôn mặt) | ❌ tắt |
+| **SMTP** | ❌ tắt — mọi ô trống, chỉ có cổng mặc định 587, bảo mật STARTTLS |
+| Cổng SMS | ❌ tắt — trống (nhà cung cấp mặc định Twilio) |
+
+**Hai điều quan trọng rút ra:**
+
+1. **Đăng ký và quên mật khẩu đã bật sẵn** — không phải việc cần làm. Thứ còn thiếu để chúng
+   chạy bằng mã email là **SMTP**, và công tắc *"Bắt xác minh khi đăng ký (OTP)"*.
+2. **Có một cách đăng nhập thứ tư mà bản 14/10 bỏ sót: Passkey** (vân tay / khuôn mặt). Hiện
+   tắt. Nếu sau này bật, `loginMethods` sẽ trả thêm nó và webapp phải vẽ được — đây là một lý
+   do nữa để làm việc 4.6 cho tử tế thay vì cắm cứng ba nút.
+
+sadmin còn ghi sẵn **địa chỉ redirect phải khai ở Google**:
+
+```
+https://sso.dev.happibot.net/realms/iot1/broker/google/endpoint
+```
+
+Và một câu rất đáng chú ý ngay dưới mục Cách đăng nhập:
+
+> *"SĐT/Google/Passkey chỉ bật khi đã khai đủ thông tin; chưa đủ thì hệ tự để tắt."*
+
+Tức là **`loginMethods` mà API trả về chính là phản chiếu của mục này**. Khai đủ Google thì nó
+tự bật, webapp không phải sửa gì — **miễn là webapp chịu đọc `loginMethods`** (việc 4.6).
+
+### 1.2b Một chỗ vênh cần kiểm chứng
+
+sadmin nói *"Cho phép tự đăng ký"* và *"Cho phép quên mật khẩu"* **đang bật**. Nhưng trang đăng
+nhập thật của realm Keycloak (mở qua `account-console`) **không có liên kết "Register" lẫn
+"Forgot password?"** nào:
+
+```
+Trang hiện: "Sign in to your account · Username or email · Remember me · Sign In"
+#kc-social-providers : KHÔNG CÓ   (đúng — Google chưa khai)
+"Register"           : KHÔNG CÓ   ← vênh với sadmin
+"Forgot password?"   : KHÔNG CÓ   ← vênh với sadmin
+```
+
+Hai cách giải thích, chưa phân định được:
+
+- Ô tích trên sadmin đang hiện **giá trị mặc định của biểu mẫu**, chưa phải trạng thái thật đã lưu.
+- Hoặc đã bấm Lưu nhưng **không ghi xuống được realm**.
+
+**Việc phải làm trước khi tin bất cứ ô tích nào trên màn này:** bấm **Lưu cấu hình** một lần
+(không đổi gì), rồi mở lại `https://sso.dev.happibot.net/realms/iot1/account/`. Nếu hai liên kết
+mọc ra thì đường ghi xuống Keycloak hoạt động; nếu vẫn không có thì **sadmin không ghi được
+xuống realm**, và đó là lỗi chặn toàn bộ kế hoạch — phải báo đội sadmin ngay.
+
+Với phương án B người dùng không nhìn thấy trang Keycloak, nên hai liên kết đó không quan trọng
+về mặt giao diện. Nhưng chúng là **phép thử rẻ nhất** để biết sadmin có thật sự ghi xuống
+Keycloak hay không, mà cả kế hoạch đang đặt cược vào điều đó.
+
+Realm có sẵn những thứ cần thiết khác:
+
+| Khả năng | Có? |
+|---|---|
+| `authorization_code` | ✅ |
+| PKCE `S256` | ✅ |
+| `token-exchange` | ✅ |
+| scope `email`, `phone` | ✅ |
+| `password` (ROPC — app đang dùng) | ✅ |
+
+### 1.3 Một rào cản mới phát hiện
+
+Thử mở luồng `authorization_code` với client `iotx-ibs` và `redirect_uri` là web.dev:
+
+```
+Invalid parameter: redirect_uri
+```
+
+Client `iotx-ibs` **không khai redirect URI nào cho trình duyệt** — nó là client phía máy chủ,
+chỉ dùng cho ROPC. Nghĩa là **Phương án A không chỉ là bật công tắc**: phải tạo thêm một
+**public client mới** cho webapp, khai redirect URI và bật PKCE.
+
+### 1.4 Webapp — đã sẵn sàng, không đổi gì từ 09/10
+
+`lib/iotx/client.ts` còn nguyên năm chỗ cắm:
+
+```ts
+const CUA_QUEN_MAT_KHAU: string | null = null;      // dòng 18
+const CUA_DANG_NHAP_GOOGLE: string | null = null;   // dòng 27
+const CUA_DOI_MAT_KHAU: string | null = null;       // dòng 35
+const CUA_DOI_TEN: string | null = null;            // dòng 44
+const CUA_DOI_ANH_DAI_DIEN: string | null = null;   // dòng 45
+```
+
+`components/ui/LoginScreen.tsx` đã có đủ ba màn: `dangNhap` · `quenMatKhau` · `dangKy`,
+hàm `guiMa()` và `dangKy()` đã viết, nút Google đã vẽ. Bấm vào thì hiện *"tính năng đang chờ bật"*.
+
+---
+
+## 2. Vì sao ROPC không đỡ được ba luồng này
+
+App hiện đăng nhập bằng **password grant (ROPC)**: webapp gửi email + mật khẩu cho IBS, IBS
+đổi lấy token với Keycloak. Kiểu này **không có chỗ** cho:
+
+- **Google** — bắt buộc chuyển hướng trình duyệt sang Google rồi quay về. ROPC không có bước đó.
+- **Mã xác thực** — cần một lượt gọi thứ hai sau lượt đầu. ROPC chỉ có một lượt.
+
+Chính sadmin cũng ghi ở màn Đăng nhập & Bảo mật: *"Để BUỘC 2FA ngay trên màn đăng nhập của app
+(ROPC) cần thêm bước nhập mã ở app — phần đó để sau."*
+
+---
+
+## 3. Quyết định đã chốt — PHƯƠNG ÁN B
+
+> **Chốt ngày 16/10/2026: làm theo phương án B.** Webapp giữ nguyên màn đăng nhập đã dựng;
+> IBS mở cửa `/v1/auth/*` và tự nói chuyện với Keycloak, SMTP và Google.
+>
+> Hai bảng dưới đây giữ lại **chỉ để ghi lý do**. Mọi việc trong tài liệu này đã viết theo B —
+> không cần đọc lại phần so sánh trừ khi muốn xem lại căn cứ.
 
 ### Phương án A — Webapp chuyển sang `authorization_code` + PKCE
 
-Người dùng bấm Đăng nhập → nhảy sang trang của Keycloak → đăng nhập ở đó → quay về app.
+Người dùng bấm Đăng nhập → nhảy sang trang Keycloak → làm mọi thứ ở đó → quay về app.
 
 | Ưu | Nhược |
 |---|---|
-| Keycloak làm **tất cả**: Google, OTP, quên mật khẩu, 2FA — bật bằng ô tích | **Mất màn đăng nhập của app**; người dùng thấy trang Keycloak |
-| IBS gần như **không phải viết gì** | Thương hiệu phải làm lại bằng theme của Keycloak |
-| Chuẩn mực, hết hạn chế của ROPC | Màn đăng nhập vừa dựng xong coi như bỏ |
-| Realm đã bật sẵn `S256` | |
+| Keycloak làm **cả ba**: đăng ký, quên mật khẩu, Google — bật bằng ô tích | **Mất màn đăng nhập của app.** Màn vừa dựng theo mẫu coi như bỏ |
+| IBS gần như **không phải viết cửa nào** | Thương hiệu phải làm lại bằng theme Keycloak |
+| Realm đã có sẵn PKCE `S256` | **Phải tạo public client mới** (mục 1.3) |
+| Chuẩn mực, hết hạn chế của ROPC | Người dùng thấy một tên miền khác giữa chừng |
 
 ### Phương án B — IBS làm trung gian, webapp giữ màn của mình
 
-IBS mở cửa `/v1/auth/*`, tự nói chuyện với Keycloak / SMTP / SMS. Webapp gọi cửa đó.
+IBS mở cửa `/v1/auth/*`, tự nói chuyện với Keycloak / SMTP / Google. Webapp gọi cửa đó.
 
 | Ưu | Nhược |
 |---|---|
-| **Giữ nguyên** màn đăng nhập và thương hiệu | IBS phải viết **4–6 cửa mới** |
-| Webapp chỉ sửa vài dòng | Google vẫn cần một lần chuyển hướng — IBS phải ôm phần callback |
-| Hợp với `AGENTS.md` (app chỉ gọi `/v1`) | Nhiều việc hơn hẳn, và lâu hơn |
+| **Giữ nguyên** màn đăng nhập và thương hiệu | IBS phải viết **5 cửa mới** |
+| Webapp chỉ sửa vài dòng | Google vẫn cần một lần chuyển hướng — IBS ôm phần callback |
+| Hợp `AGENTS.md` (app chỉ gọi `/v1`) | Nhiều việc hơn hẳn, lâu hơn |
 
-**Khuyến nghị: phương án B**, vì màn đăng nhập vừa dựng theo mẫu và sếp đã duyệt dáng. Nhưng
-phải nói rõ với IBS đây là 4–6 cửa chứ không phải một.
-
-Phần còn lại của tài liệu viết theo **phương án B**.
-
----
-
-## 1. Đường OTP — nhận mã qua email hoặc SĐT
-
-### Bước 1.1 — sadmin: khai nhà cung cấp *(không có bước này thì mã không gửi đi đâu)*
-
-Vào **Quản trị → Đăng nhập & Bảo mật**:
-
-| Mục | Việc | Hiện trạng |
-|---|---|---|
-| Email (SMTP) | khai Máy chủ, Cổng, Bảo mật, Tài khoản, Mật khẩu, Gửi từ, Tên hiển thị → bật **Bật gửi email qua SMTP** | ❌ đang tắt, mọi trường trống |
-| Cổng SMS | chọn Twilio / eSMS.vn, khai API key/SID, Brandname → bật **Bật gửi SMS** | ❌ đang tắt, trống |
-| Xác minh khi đăng ký | bật **Bắt xác minh khi đăng ký (OTP)** | ❌ đang tắt |
-| Đăng nhập bằng SĐT | bật **Số điện thoại + mật khẩu** | ❌ đang tắt (phụ thuộc cổng SMS) |
-
-**Kiểm sau bước này:** nhờ sadmin gửi thử một email và một SMS. Chưa gửi được thì đừng sang bước 1.2.
-
-### Bước 1.2 — IBS: mở hai cửa
-
-Đề xuất hợp đồng để IBS viết thẳng (tên và thân có thể đổi, nhưng **phải chốt trước khi webapp làm**):
-
-```http
-POST /v1/auth/otp/gui
-{ "tenant": "livotec", "dinhDanh": "ten@congty.com | 0912345678", "viec": "dang-ky | quen-mat-khau" }
-→ 201 { "ok": true, "guiToi": "e***@congty.com", "hetHanSau": 600, "guiLaiSau": 60 }
-→ 400  định dạng sai
-→ 429  xin mã quá nhiều lần
-```
-
-```http
-POST /v1/auth/otp/xac-nhan
-{ "tenant": "livotec", "dinhDanh": "...", "ma": "123456", "viec": "dang-ky" }
-→ 201 { "ok": true, ...bộ token }           // nếu là đăng ký/đăng nhập
-→ 201 { "ok": true, "veDatLai": "..." }     // nếu là quên mật khẩu
-→ 400  mã sai hoặc hết hạn — MỘT câu chung, không phân biệt
-→ 429  thử quá nhiều lần
-```
-
-Năm điểm IBS phải chốt, **hỏi ngay khi giao việc**:
-
-1. **Mã sống bao lâu?** Đề xuất 10 phút (mẫu HTML của anh đã ghi "hiệu lực trong 10 phút").
-2. **Gửi lại sau bao lâu?** Đề xuất 60 giây — webapp cần con số này để đếm ngược.
-3. **Sai bao nhiêu lần thì khoá?** Và khoá bao lâu.
-4. **Chống dò**: xin mã cho email không tồn tại phải trả **giống hệt** như email có tồn tại.
-   Khác nhau là lộ danh sách người dùng.
-5. **`guiToi` che thế nào?** `e***@congty.com` / `09****678` — để webapp hiện lại cho người dùng
-   biết mã đi đâu mà không lộ đủ địa chỉ.
-
-### Bước 1.3 — Webapp
-
-| Việc | Chi tiết |
-|---|---|
-| Điền hai hằng | `CUA_OTP_GUI`, `CUA_OTP_XAC_NHAN` trong `lib/iotx/client.ts` |
-| Màn nhập mã | 6 ô số, tự nhảy ô, dán được cả chuỗi, bàn phím số trên di động |
-| Đếm ngược | dùng `guiLaiSau` máy chủ trả, **không** cắm cứng 60 |
-| Hiện nơi nhận | dùng `guiToi` máy chủ trả, không tự ghép |
-| Chọn email hay SĐT | theo `loginMethods` — ⚠️ xem cảnh báo mục 3 |
-
-Màn "Đã gửi mã" đã có sẵn trong `LoginScreen.tsx` từ đợt dựng theo `docs/mau/login.html`, chỉ
-cần nối vào cửa thật.
+**Căn cứ chọn B:** màn đăng nhập vừa dựng theo mẫu `login.html` và đã được duyệt dáng; bỏ đi
+thì mất công đã làm và mất thương hiệu ở đúng màn đầu tiên khách hàng nhìn thấy. Chi phí phải
+trả: **IBS viết 5 cửa mới**, và tiến độ phụ thuộc IBS chứ không phụ thuộc webapp.
 
 ---
 
-## 2. Đường Google
+## 4. Danh sách công việc
 
-### Bước 2.1 — Google Cloud Console *(người có quyền trên tài khoản Google của công ty làm)*
+Xếp theo **người làm**, vì bốn nhóm này làm song song được, trừ chỗ ghi phụ thuộc.
 
-1. Tạo project (hoặc dùng project sẵn có) → **APIs & Services → Credentials**
-2. **Create credentials → OAuth client ID → Web application**
-3. **Authorized redirect URI** điền đúng dòng sadmin đã in sẵn:
-   ```
-   https://sso.dev.happibot.net/realms/iot1/broker/google/endpoint
-   ```
-4. Lấy **Client ID** và **Client Secret**
-5. Màn **OAuth consent screen**: điền tên app, logo, email hỗ trợ. Nếu muốn người ngoài công ty
-   đăng nhập được thì phải đưa app sang chế độ **Production** — việc này Google có thể **duyệt
-   vài ngày**, tính vào lịch.
+### Nhóm 0 — Quyết định (chốt trước, ai cũng chờ cái này)
 
-### Bước 2.2 — sadmin: bật Google SSO
-
-Dán Client ID + Secret vào mục **Google SSO**, bật **Bật đăng nhập Google**, Lưu.
-
-**Kiểm ngay sau bước này:** mở `https://sso.dev.happibot.net/realms/iot1/account/`. Trang đăng
-nhập phải **mọc thêm nút Google**. Không có nghĩa là identity provider chưa được tạo — dừng lại,
-đừng sang bước sau.
-
-### Bước 2.3 — Ba quyết định phải chốt, không có mặc định an toàn
-
-| # | Vấn đề | Vì sao quan trọng |
-|---|---|---|
-| **a** | **Tenant lấy ở đâu?** Realm `iot1` chứa user của **mọi** tenant; token Keycloak **không có claim tenant** (đã kiểm). Luồng Google cũng không mang tenant theo | Không chốt thì user Google vào không biết thuộc hãng nào |
-| **b** | **Ai tạo `user_map` + customer ThingsBoard?** `POST /auth/register` hiện tạo cả ba (Keycloak + TB + user_map). Google thì **Keycloak tự tạo user** ở lần đăng nhập đầu, **không đi qua `/register`** | Không nối thì user có token hợp lệ nhưng `GET /bootstrap` trượt — đăng nhập được mà app trống |
-| **c** | **Trùng email thì sao?** Đã đăng ký `abc@gmail.com` bằng mật khẩu, sau bấm Google cùng email | Keycloak mặc định báo *"User with email already exists"* và **chặn**, trừ khi bật tự nối tài khoản |
-
-Điểm **b** là chỗ chắc chắn vỡ nếu bỏ qua. Cách xử lý: Keycloak có bước **"first broker login"**
-— IBS gắn vào đó để tạo `user_map` và customer ThingsBoard, hoặc IBS tự tạo khi thấy user lạ
-ở lần gọi `/bootstrap` đầu tiên.
-
-### Bước 2.4 — IBS: mở hai cửa
-
-```http
-GET /v1/auth/google/bat-dau?tenant=livotec&ve=<đường quay lại trong app>
-→ 302 chuyển hướng sang Keycloak broker
-```
-
-```http
-GET /v1/auth/google/ket-qua?code=...&state=...
-→ 302 quay về app kèm một MÃ DÙNG MỘT LẦN (không phải token)
-```
-
-```http
-POST /v1/auth/google/doi-token
-{ "ma": "<mã dùng một lần>" }
-→ 201 bộ token như /auth/login
-```
-
-**Vì sao ba cửa chứ không hai:** không được trả token thẳng trên URL. Phần trước `#` đi vào
-nhật ký máy chủ, phần sau `#` nằm lại trong lịch sử trình duyệt. Trả **mã dùng một lần**, app
-đổi lấy token bằng `POST` — đây là cách chuẩn.
-
-### Bước 2.5 — Webapp
-
-| Việc | Chi tiết |
-|---|---|
-| Điền hằng | `CUA_DANG_NHAP_GOOGLE` trong `lib/iotx/client.ts` |
-| Nút Google | đang báo "chờ bật" → đổi thành mở `/v1/auth/google/bat-dau` |
-| Màn quay về | nhận mã dùng một lần, gọi `doi-token`, cất phiên, vào màn chính |
-| Lỗi | người dùng bấm Huỷ ở Google → quay về màn đăng nhập, báo nhẹ nhàng, **không** treo |
-
----
-
-## 3. Một cảnh báo về `loginMethods`
-
-`/v1/tenant/theme` đang trả `loginMethods: { eu: ["password","otp","google"] }` trong khi
-**cả `otp` lẫn `google` đều chưa chạy được** — không có cửa, sadmin tắt, realm chưa có IdP.
-
-Nên webapp **không được** chỉ dựa vào trường này để hiện nút. Hỏi IBS:
-
-> `loginMethods` là **khai báo ý định** hay **năng lực thật**? Nếu là ý định thì cần thêm một
-> trường nữa nói cái gì đang thật sự bật.
-
-Trước khi có câu trả lời: webapp giữ cách hiện tại (hiện nút, bấm vào báo "đang chờ bật").
-
----
-
-## Thứ tự làm và ai làm
-
-| # | Việc | Ai | Chặn bởi |
+| # | Việc | Người quyết | Chặn ai |
 |---|---|---|---|
-| 0 | Chốt phương án A hay B | sếp + IBS + anh | — |
-| 1 | Tạo OAuth client trên Google Cloud | người quản trị Google của công ty | — |
-| 2 | Khai SMTP + cổng SMS trên sadmin | hạ tầng | mua dịch vụ SMS |
-| 3 | Dán Client ID/Secret, bật Google SSO | hạ tầng | bước 1 |
-| 4 | Chốt 3 quyết định ở mục 2.3 + 5 điểm ở 1.2 | IBS + anh | — |
-| 5 | Viết 2 cửa OTP | IBS | bước 2, 4 |
-| 6 | Viết 3 cửa Google | IBS | bước 3, 4 |
-| 7 | Nối webapp | tab Code | bước 5, 6 |
-| 8 | Chạy A1-10 … A1-14 trong `docs/kich-ban-test.md` | anh | bước 7 |
+| ~~0.1~~ | ~~Chốt phương án A hay B~~ | — | ✅ **XONG 16/10: chọn B** |
+| 0.2 | `tenant` lấy từ đâu khi đăng nhập Google? (không có ô nhập tenant trong luồng Google) | Kiến trúc | **IBS việc 3.7** |
+| 0.3 | Ai tạo `user_map` + customer ThingsBoard ở lần đăng nhập đầu? | Kiến trúc | IBS |
+| 0.4 | Email trùng: đã có tài khoản mật khẩu, nay đăng nhập Google cùng email → gộp, chặn, hay tạo mới? | Kiến trúc + pháp lý | IBS |
 
-**Việc của webapp (bước 7) chỉ chiếm khoảng một phần mười công sức cả hạng mục.** Đây là điều
-cần nói rõ khi báo tiến độ — nhìn vào màn hình thì tưởng là việc giao diện.
+> **0.3 không có cần gạt nào trên sadmin.** Mục *Quản trị → Người dùng* của sadmin là tài
+> khoản quản trị của chính sadmin (`sadmin`, `phuong`, `tuyen`, `coder`…), **không phải người
+> dùng cuối**. Toàn bộ là việc của IBS.
+>
+> **0.4 không có mặc định an toàn.** Gộp tự động = ai chiếm được email đó ở Google thì vào được
+> tài khoản cũ. Chặn = người dùng kẹt. Tạo mới = hai tài khoản cùng email, thiết bị chia đôi.
+> Phải có người quyết, đừng để lập trình viên tự chọn.
 
-## Không làm
+### Nhóm 1 — Hạ tầng (làm được ngay, không chờ 0.1)
 
-- ❌ Webapp gọi thẳng Keycloak hay Google — `AGENTS.md` cấm, và sẽ phải viết lại khi đổi IdP.
-- ❌ Trả token trên URL ở bước quay về từ Google (mục 2.4).
-- ❌ Phân biệt "email này chưa đăng ký" với "mã sai" ở cửa OTP — lộ danh sách người dùng.
-- ❌ Cắm cứng 60 giây đếm ngược hay 10 phút hết hạn — lấy từ máy chủ.
-- ❌ Bật Google trên sadmin trước khi có Client ID thật — sadmin sẽ tự để tắt.
+Đây là phần **duy nhất** phải đi xin bên ngoài. Mọi thứ khác đã có sẵn cần gạt trên sadmin.
+
+| # | Việc | Người làm | Ghi chú |
+|---|---|---|---|
+| 1.1 | Dựng **máy chủ SMTP** gửi được thư ra ngoài | Hạ tầng | không có cái này thì mã không đi đâu cả. Cần: máy chủ, cổng, tài khoản, mật khẩu, địa chỉ gửi từ |
+| 1.2 | Cấu hình **SPF / DKIM / DMARC** cho tên miền gửi | Hạ tầng | thiếu thì thư rơi vào spam, người dùng tưởng hệ thống hỏng |
+| 1.3 | Tạo **OAuth client** trên Google Cloud Console | Người có quyền tài khoản Google công ty | lấy `client_id` + `client_secret` |
+| 1.4 | Khai **đúng** redirect URI ở Google | như trên | **sadmin đã ghi sẵn địa chỉ phải dùng** — chép nguyên văn, sai một ký tự là Google chặn:<br>`https://sso.dev.happibot.net/realms/iot1/broker/google/endpoint` |
+| 1.5 | Làm tương tự cho **production** khi lên thật | như trên | địa chỉ khác, phải khai thêm |
+| 1.6 | Soạn **mẫu thư** chứa mã xác thực (vi + en) | Nội dung / thiết kế | ghi rõ mã sống bao lâu |
+
+### Nhóm 2 — sadmin · **chỉ một màn, một nút Lưu**
+
+Tất cả nằm ở `iotsa.dev.happibot.net/sadmin#dnbaomat` → **Đăng nhập & Bảo mật**.
+Không phải vào Keycloak.
+
+| # | Việc | Ô trên sadmin | Phụ thuộc |
+|---|---|---|---|
+| 2.1 | Bấm **Lưu cấu hình** một lần rồi kiểm trang đăng nhập Keycloak | — | **làm TRƯỚC TIÊN**, xem mục 1.2b |
+| 2.2 | Khai **SMTP**: bật, máy chủ, cổng, bảo mật, tài khoản, mật khẩu, gửi từ, tên hiển thị | *Email (SMTP) & OTP* | 1.1 |
+| 2.3 | Bật **Bắt xác minh khi đăng ký (OTP)** | *Đăng ký & quên mật khẩu* | 2.2 |
+| 2.4 | Dán **Client ID** + **Client Secret**, bật **Bật đăng nhập Google** | *Google SSO* | 1.3 |
+
+**Không có trong danh sách vì đã bật sẵn:** *Cho phép tự đăng ký* và *Cho phép quên mật khẩu* —
+cả hai đang ✅ (với điều kiện mục 1.2b kiểm xong và thấy đúng).
+
+**Phép kiểm sau mỗi việc**, mở `https://sso.dev.happibot.net/realms/iot1/account/`:
+
+| Sau việc | Trang đăng nhập Keycloak phải |
+|---|---|
+| 2.1 | mọc thêm liên kết **Register** và **Forgot password?** |
+| 2.4 | mọc thêm **nút Google** |
+
+Không thấy thì dừng lại, đừng sang bước sau — đó là dấu hiệu sadmin không ghi được xuống realm.
+
+### Nhóm 3 — IBS ⟵ **khối việc lớn nhất; 3.1–3.6 BẮT ĐẦU ĐƯỢC NGAY**
+
+> Tính tới 16/10, IBS **không còn gì chặn** để viết năm cửa: kiểu mã đã chốt là **6 chữ số** và
+> quyền Admin REST API **đã có**. Chỉ riêng **việc 3.7** phải chờ ba quyết định 0.2–0.4.
+
+Năm cửa. Hợp đồng đề xuất ở mục 5.
+
+| # | Cửa | Dùng cho |
+|---|---|---|
+| 3.1 | `POST /v1/auth/otp/gui` | gửi mã tới email |
+| 3.2 | `POST /v1/auth/otp/xac-nhan` | đổi mã lấy kết quả |
+| 3.3 | `POST /v1/auth/dat-lai-mat-khau` | đặt mật khẩu mới sau khi xác thực mã |
+| 3.4 | `GET /v1/auth/google/bat-dau` | trả URL để trình duyệt nhảy sang Google |
+| 3.5 | `POST /v1/auth/google/doi-token` | đổi `code` lấy vé IoTX |
+| 3.6 | Giới hạn tốc độ cho 3.1 | chống dò và chống spam thư |
+| 3.7 | Hiện thực quyết định 0.2 / 0.3 / 0.4 | **phần khó nhất, không phải mấy cửa trên** — CHỜ Nhóm 0 |
+
+### Nhóm 4 — Webapp *(nhỏ nhất, làm cuối)*
+
+| # | Việc | Tệp |
+|---|---|---|
+| 4.1 | Điền đường dẫn vào `CUA_QUEN_MAT_KHAU` | `lib/iotx/client.ts:18` |
+| 4.2 | Điền đường dẫn vào `CUA_DANG_NHAP_GOOGLE` + viết luồng chuyển hướng | `lib/iotx/client.ts:27, 280` |
+| 4.3 | Thêm màn **nhập mã 6 số** (đếm ngược, nút gửi lại, dán được mã) | `components/ui/LoginScreen.tsx` |
+| 4.4 | Thêm màn **đặt mật khẩu mới** | như trên |
+| 4.5 | Ghép bước xác thực mã vào luồng `dangKy()` đã có | như trên |
+| 4.6 | **Đọc `loginMethods`** để bật/tắt từng cách đăng nhập | xem mục 6 |
+| 4.7 | Bài kiểm cho ba luồng | `tests/` |
+
+---
+
+## 5. Hợp đồng đề xuất cho năm cửa của IBS
+
+Viết sẵn để IBS khỏi phải tự nghĩ. Giữ đúng nếp của hợp đồng hiện có: lỗi mơ hồ trả
+`404 {"message":"not_found"}`, câu tiếng Việt soạn sẵn thì trả nguyên văn.
+
+```
+POST /v1/auth/otp/gui
+  { tenant, kenh: "email", dinhDanh: "<email>", viec: "dangKy" | "quenMatKhau" }
+  → 200 { ok: true, hetHanSau: 300, guiLaiSau: 60 }
+  → 429 { message: "<câu tiếng Việt>" }        quá nhiều lần
+  LUÔN trả 200 kể cả email không tồn tại — không được để lộ email nào có tài khoản.
+
+POST /v1/auth/otp/xac-nhan
+  { tenant, dinhDanh, ma: "123456", viec }
+  → 200 { ok: true, veTam: "<token ngắn hạn>" }    veTam chỉ dùng cho bước kế tiếp
+  → 400 { message: "<câu tiếng Việt>" }            mã sai hoặc hết hạn
+  Mã dùng MỘT lần. Sai quá N lần thì huỷ mã, bắt gửi lại.
+
+POST /v1/auth/dat-lai-mat-khau
+  { tenant, veTam, matKhauMoi }
+  → 200 { ok: true }
+  → 400 { message: "<câu tiếng Việt>" }
+  Đặt xong phải thu hồi mọi refresh token cũ của tài khoản đó.
+
+GET  /v1/auth/google/bat-dau?tenant=livotec&quayVe=<url app>
+  → 200 { url: "<địa chỉ Google>", state: "<chuỗi ngẫu nhiên>" }
+  IBS giữ `state` để chống CSRF; webapp không tự sinh.
+
+POST /v1/auth/google/doi-token
+  { tenant, code, state }
+  → 200 { accessToken, refreshToken, ... }      ĐÚNG hình dạng /auth/login trả về
+  → 404 { message: "not_found" }
+  Trả cùng hình dạng với /auth/login thì webapp dùng lại nguyên bộ xử lý phiên đang có.
+```
+
+**Ba ràng buộc bắt buộc, đừng bỏ:**
+
+1. **`/auth/otp/gui` luôn trả 200**, kể cả email không tồn tại. Trả 404 cho email lạ là biến
+   cửa này thành công cụ dò xem ai có tài khoản.
+2. **Mã 6 chữ số, sống 5 phút, dùng một lần**, sai quá 5 lần thì huỷ.
+3. **Giới hạn tốc độ theo cả email lẫn IP.** Không có nó thì một người có thể bắt máy chủ gửi
+   hàng nghìn thư và làm tên miền bị liệt vào danh sách đen.
+
+---
+
+## 6. Một cảnh báo riêng về `loginMethods`
+
+`lib/iotx/contracts.ts:15` khai:
+
+```ts
+loginMethods?: { eu?: string[]; staff?: string[] };
+```
+
+**Trường này chưa được đọc ở bất cứ đâu trong mã.** Hệ quả hiện tại: `LoginScreen.tsx` vẫn nhận
+số điện thoại ở ô Tài khoản và gửi thẳng lên `/auth/login`, trong khi **sadmin đang TẮT đăng
+nhập bằng số điện thoại**. Người dùng gõ số điện thoại thì nhận một câu lỗi chung chung, không
+hiểu vì sao.
+
+Việc 4.6 phải sửa đúng chỗ này: đọc `loginMethods.eu`, và **chỉ hiện cách đăng nhập nào máy
+chủ nói là đang bật**. Làm xong thì nút Google cũng tự ẩn khi chưa bật — không phải cắm cứng.
+
+---
+
+## 7. Thứ tự làm
+
+```
+NGAY           0.2 0.3 0.4   chốt ba quyết định   ← IBS chờ cái này để viết 3.7
+               1.1 → 1.3     SMTP + gửi thử       ┐
+               1.4 → 1.5     Google Cloud         ├ ba nhánh chạy SONG SONG
+               1.6           mẫu thư              ┘
+
+NGAY           2.1  bấm Lưu trên sadmin → KIỂM hai liên kết ở trang Keycloak
+                    (nếu không mọc ra: sadmin không ghi xuống realm — CHẶN hết)
+Khi 1.1 xong   2.2  khai SMTP trên sadmin, rồi 2.3 bật xác minh OTP
+Khi 1.3 xong   2.4  dán Google client vào sadmin → KIỂM nút Google
+
+Khi 0.2–0.4    IBS làm 3.1 … 3.7
+đã chốt        (3.7 là phần khó nhất — không phải mấy cái cửa)
+
+Cuối           nhóm 4 (webapp) — 1–2 ngày sau khi IBS xong
+```
+
+**Đường găng là IBS, không phải webapp.** Nếu phải báo tiến độ hằng tuần, ba con số đáng theo
+dõi là: **SMTP đã gửi được thư thật chưa (1.1)**, **ba quyết định 0.2–0.4 đã chốt chưa**, và
+**IBS đã bắt đầu 3.7 chưa**. Webapp chỉ mất 1–2 ngày và luôn là khâu cuối.
+
+---
+
+## 8. Nghiệm thu
+
+Luồng coi là xong khi làm được đủ các bước sau trên DEV, bằng một email thật:
+
+**Đăng ký**
+- [ ] Nhập email mới → nhận thư có mã trong vòng 60 giây, thư không vào hộp spam
+- [ ] Nhập sai mã → báo lỗi rõ, vẫn ở màn nhập mã
+- [ ] Nhập đúng mã → vào thẳng app, không phải đăng nhập lại
+- [ ] Để quá 5 phút rồi mới nhập mã → báo mã hết hạn, gửi lại được
+- [ ] Bấm gửi lại liên tục → bị chặn sau vài lần, có nói rõ chờ bao lâu
+
+**Quên mật khẩu**
+- [ ] Nhập email **không tồn tại** → màn hình nói y hệt như email có thật (không lộ)
+- [ ] Nhập đúng mã → đặt được mật khẩu mới
+- [ ] Mật khẩu mới dưới 8 ký tự → chặn tại chỗ
+- [ ] Sau khi đổi, **phiên cũ trên máy khác bị đăng xuất**
+- [ ] Mật khẩu cũ không dùng được nữa
+
+**Google**
+- [ ] Bấm "Tiếp tục với Google" → sang Google → chọn tài khoản → quay về app, đã đăng nhập
+- [ ] Người dùng mới hoàn toàn → tạo được `user_map` + customer ThingsBoard (quyết định 0.3)
+- [ ] Email đã có tài khoản mật khẩu → hành xử **đúng như quyết định 0.4**, không phải tuỳ hứng
+- [ ] Bấm huỷ ở màn Google → quay về màn đăng nhập, không treo, không báo lỗi lạ
+
+**Chung**
+- [ ] `loginMethods` tắt cách nào thì màn đăng nhập **không hiện** cách đó
+- [ ] Mọi lời gọi vẫn đi qua `/v1/*` (soát bằng `tests/kich-ban/a9-bao-mat.mjs`)
+
+---
+
+## Phụ lục — để sau, không làm đợt này
+
+- **Mã qua SMS.** Cần tài khoản cổng SMS, cần số gửi đã đăng ký với nhà mạng, và tính tiền
+  theo tin nhắn. Hợp đồng ở mục 5 đã chừa sẵn `kenh: "email" | "sms"` nên thêm sau không phải
+  sửa cửa.
+- **Đổi mật khẩu khi đã đăng nhập** (`CUA_DOI_MAT_KHAU`) — cùng họ nhưng là luồng khác, không
+  cần mã email.
+- **Sửa hồ sơ** (`CUA_DOI_TEN`, `CUA_DOI_ANH_DAI_DIEN`) — `GET /me` hiện chỉ trả email và
+  tenant, chưa có tên hay ảnh, cũng chưa có cửa ghi.
+- **Bắt buộc 2FA** — sadmin ghi rõ là để sau.
+
+## Nhắc
+
+Phần webapp (nhóm 4) thực thi ở **tab Code**. Các nhóm 0–3 là việc của người khác — tài liệu
+này viết để gửi sang họ.
