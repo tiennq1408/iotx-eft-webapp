@@ -721,7 +721,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .dim{color:var(--dim);}
 .devpage .small{font-size:.74rem;}
 .devpage .row{display:flex; align-items:center; gap:.5rem;}
-.devpage .devdau{padding-bottom:.1rem;}
+.devpage .devdau{padding-bottom:0;}
 .devpage .frow{display:flex; gap:.4rem;}
 /* ---- đầu màn chi tiết: nút đổi tên, sao ghim, ba ô gán chỗ ----
    Số đo chép từ bản tham chiếu web.dev (đọc 07/10/2026), trừ chiều cao ô chọn: bản đó để
@@ -745,7 +745,11 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .tt-lon{flex:0 0 auto;width:44px;height:44px;margin-left:-4px;padding:0;border:0;border-radius:12px;
   background:transparent;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .devpage .tt-lon svg{width:24px;height:24px;}
-.devpage .dev-gan{margin-top:.1rem;}
+/* Hai khối đầu màn gọn hơn (yêu cầu 20/10/2026): ba ô chọn vẫn cao 44px vì luật vùng chạm, chỉ
+   thu khe với hàng tên phía trên. */
+.devpage .dev-gan{margin-top:-.25rem;}
+/* Nút bút chì giữ vùng chạm 44×44 nhưng không đẩy dòng tên cao lên 44px: lề âm trên dưới. */
+.devpage .dev-tenhang .dev-but{margin:-10px 0;}
 .devpage .fsel{
   flex:1 1 0; min-width:0; min-height:44px; padding:.4rem .3rem;
   border:1px solid var(--line); border-radius:10px; background:var(--card);
@@ -898,6 +902,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .bc-chip span{text-align:center;white-space:normal;overflow-wrap:anywhere;max-width:100%;line-height:1.15;overflow:hidden;}
 .bc-chip i{background:0 0;flex:none;min-height:18px;font-size:18px;font-style:normal;line-height:1;}
 .bc-chip i .bc-icoimg{object-fit:contain;width:1em;height:1em;display:block;}
+/* Icon kho đơn sắc vẽ bằng mặt nạ tô màu chữ (BoCucGrid `Ico`), nên đổi màu theo nút đang chọn. */
+.bc-icomask{display:inline-block;background:currentColor;-webkit-mask:var(--ico) center / contain no-repeat;mask:var(--ico) center / contain no-repeat;}
 .bc-chip.on{background:var(--brand);border-color:var(--brand);color:#fff;}
 
 .bc-pwr{background:var(--brand);color:#fff;cursor:pointer;width:44px;height:44px;box-shadow:0 0 0 5px var(--brand-soft);border:0;border-radius:50%;flex:none;display:flex;justify-content:center;align-items:center;font-size:20px;}

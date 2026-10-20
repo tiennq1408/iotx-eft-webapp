@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
 import { LA_MA_MAU, capNguonCua, mauTuHex } from "@/lib/ui/khuon";
-import { diaChiIcon, laDuongDan } from "@/lib/ui/assets";
+import { diaChiIcon, donSacPixel, laDuongDan, laIconKho } from "@/lib/ui/assets";
 import { phimKichHoat } from "@/lib/ui/phim";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/ui/giaTriCap";
@@ -30,7 +30,56 @@ import type { Device } from "@/lib/types";
  * phân loại. Trả null nghĩa là KHÔNG có gì để vẽ, và lúc đó đừng vẽ thẻ bọc (xem `ONoiDung`).
  */
 
+/**
+ * Icon kho có đơn sắc không — đã kiểm thì nhớ cho cả phiên (một icon dùng ở nhiều chip, nhiều
+ * lần vẽ lại). Tải ảnh, vẽ thu nhỏ lên canvas rồi đọc điểm ảnh; lỗi gì cũng coi là KHÔNG đơn sắc
+ * để rơi về `<img>` như cũ.
+ */
+const DON_SAC = new Map<string, boolean | Promise<boolean>>();
+function kiemDonSac(src: string): boolean | Promise<boolean> {
+  const daCo = DON_SAC.get(src);
+  if (daCo !== undefined) return daCo;
+  const hua = new Promise<boolean>(xong => {
+    const anh = new Image();
+    anh.crossOrigin = "anonymous";
+    anh.onload = () => {
+      try {
+        const w = Math.max(1, Math.min(48, anh.naturalWidth || 48)), h = Math.max(1, Math.min(48, anh.naturalHeight || 48));
+        const nen = document.createElement("canvas"); nen.width = w; nen.height = h;
+        const ve = nen.getContext("2d");
+        if (!ve) return xong(false);
+        ve.drawImage(anh, 0, 0, w, h);
+        xong(donSacPixel(ve.getImageData(0, 0, w, h).data));
+      } catch { xong(false); }
+    };
+    anh.onerror = () => xong(false);
+    anh.src = src;
+  });
+  DON_SAC.set(src, hua);
+  void hua.then(kq => DON_SAC.set(src, kq));
+  return hua;
+}
+
+function useDonSac(src: string): boolean {
+  const daBiet = DON_SAC.get(src);
+  const [donSac, datDonSac] = useState(typeof daBiet === "boolean" && daBiet);
+  useEffect(() => {
+    if (!src) return;
+    let conMo = true;
+    void Promise.resolve(kiemDonSac(src)).then(kq => { if (conMo) datDonSac(kq); });
+    return () => { conMo = false; };
+  }, [src]);
+  return donSac;
+}
+
 function Ico({ ico }: { ico: string }) {
+  const kho = laDuongDan(ico) && laIconKho(ico);
+  const donSac = useDonSac(kho ? ico : "");
+  // Icon kho ĐƠN SẮC vẽ bằng mặt nạ tô `currentColor` — nên theo màu chữ của nút, kể cả khi nút
+  // đang chọn (chữ trắng hay màu nhấn). Ảnh nhiều màu giữ `<img>` để không mất màu thật.
+  if (kho && donSac) {
+    return <span className="bc-icoimg bc-icomask" style={{ "--ico": `url("${ico}")` } as React.CSSProperties} aria-hidden="true" />;
+  }
   if (laDuongDan(ico)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

@@ -95,3 +95,23 @@ export function diaChiIcon(ico?: string): string | null {
   const ten = v.slice(1);
   return TEN_ICON.test(ten) ? `${iotxConfig.apiBase}/icons/${encodeURIComponent(ten)}` : null;
 }
+
+/** Địa chỉ trỏ vào kho icon của sadmin (`/v1/icons/<ten>`) — chỉ những icon này mới được tô lại màu. */
+export const laIconKho = (src: string) => src.startsWith(`${iotxConfig.apiBase}/icons/`);
+
+/**
+ * Ảnh có phải icon ĐƠN SẮC không, đọc từ điểm ảnh RGBA (luật chép từ web.dev, 20/10/2026):
+ * bỏ qua điểm gần trong suốt (alpha < 64); điểm có độ chênh giữa ba kênh màu > 48 là "có màu".
+ * Không quá 2% điểm có màu thì coi là đơn sắc — đủ an toàn để vẽ bằng mặt nạ tô `currentColor`.
+ * Icon nhiều màu (logo, ảnh thật) phải giữ nguyên màu nên KHÔNG được tô.
+ */
+export function donSacPixel(data: ArrayLike<number> | null | undefined): boolean {
+  if (!data || !data.length) return false;
+  let soDiem = 0, coMau = 0;
+  for (let i = 0; i + 3 < data.length; i += 4) {
+    if (data[i + 3] < 64) continue;
+    soDiem++;
+    if (Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]) > 48) coMau++;
+  }
+  return soDiem > 0 && coMau <= 0.02 * soDiem;
+}

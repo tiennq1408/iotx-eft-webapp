@@ -33,6 +33,8 @@ async function mo(ten) {
 const dong = async () => { await p.locator('.devback').click(); await p.waitForTimeout(600); };
 
 /** Vị trí thật trên lưới, đọc từ CSS đã tính — không tin thuộc tính mình tự đặt. */
+/** Nguồn của một icon kho: `src` của <img>, hoặc `url()` trong biến `--ico` của mặt nạ. */
+const nguonIcon = n => n.getAttribute('src') || (n.style.getPropertyValue('--ico').match(/url\("?([^")]+)"?\)/) || [])[1] || null;
 const oCua = key => p.locator(`.bc-tile[data-k="${key}"]`).evaluate(n => {
   const s = getComputedStyle(n), r = n.getBoundingClientRect();
   return { cot: s.gridColumnStart + '/' + s.gridColumnEnd, hang: s.gridRowStart + '/' + s.gridRowEnd, w: Math.round(r.width), h: Math.round(r.height) };
@@ -70,7 +72,7 @@ const dauMode = await p.locator('.bc-tile[data-k="ac_ope_mode"] .bc-chip').evalu
 ok(`ac_ope_mode hàng đầu đủ 4 chip — thấy ${dauMode}`, dauMode === 4);
 
 ok('gtIco "@ten" thành ảnh kho icon cho cả 5 chế độ',
-  await p.locator('.bc-tile[data-k="ac_ope_mode"] .bc-chip i img').count() === 5);
+  await p.locator('.bc-tile[data-k="ac_ope_mode"] .bc-chip i .bc-icoimg').count() === 5);
 // Chip KHÔNG có icon thì không được dựng thẻ bọc rỗng: `.bc-chip i` có min-height 18px nên
 // một thẻ rỗng vẫn chiếm chỗ và đẩy nhãn tụt xuống. Đo bằng độ lệch tâm chứ không tin mắt.
 ok('chip không có icon thì không có thẻ bọc rỗng',
@@ -158,10 +160,10 @@ const huongAuto = await mode.locator('.bc-chip', { hasText: 'Tự động' }).ev
 ok(`[6] chỉ chip "Tự động" (Auto) có vt-trai — ${JSON.stringify(vtTrai)}, hướng ${huongAuto}`,
   vtTrai.length === 1 && vtTrai[0].trim() === 'Tự động' && huongAuto === 'row');
 
-// 7. ico: "@eco" → .bc-lb > i.bc-lico > img.bc-icoimg từ kho icon
-const icoEco = tile('ac_eco_mode').locator('.bc-lb > i.bc-lico > img.bc-icoimg');
-const srcEco = await icoEco.getAttribute('src').catch(() => null);
-ok(`[7] ico "@eco" → .bc-lb > i.bc-lico > img.bc-icoimg, src ${srcEco}`, await icoEco.count() === 1 && /\/v1\/icons\/eco$/.test(srcEco || ''));
+// 7. ico: "@eco" → .bc-lb > i.bc-lico > .bc-icoimg từ kho icon (img, hoặc mặt nạ nếu icon đơn sắc)
+const icoEco = tile('ac_eco_mode').locator('.bc-lb > i.bc-lico > .bc-icoimg');
+const srcEco = await icoEco.evaluate(nguonIcon).catch(() => null);
+ok(`[7] ico "@eco" → .bc-lb > i.bc-lico > .bc-icoimg, nguồn ${srcEco}`, await icoEco.count() === 1 && /\/v1\/icons\/eco$/.test(srcEco || ''));
 const coIco = await tile('ac_eco_mode').locator('i.bc-lico').evaluate(n => {
   const r = n.getBoundingClientRect(); return `${Math.round(r.width)}×${Math.round(r.height)}`; });
 ok(`[7] i.bc-lico 18×18 (${coIco})`, coIco === '18×18');
@@ -293,14 +295,20 @@ ok('ô chỉ số cũng ghép đơn vị vào cùng dòng',
 /* --- gtIco kiểu "@ten": tham chiếu kho icon của sadmin --- */
 // Catalog DEV đã bỏ emoji, chuyển sang `@wind`, `@leaf`… App từng bỏ qua thẳng mọi giá trị
 // bắt đầu bằng `@`, nên mọi nút chọn mất sạch biểu tượng trong khi web.dev vẫn có.
-const anhChip = p.locator('.bc-tile[data-k="mode"] .bc-chip i img');
-ok(`"@ten" đổi thành ảnh từ kho icon (${await anhChip.count()} nút)`, await anhChip.count() === 4);
-ok('địa chỉ trỏ đúng /v1/icons/<ten>',
-  (await anhChip.first().getAttribute('src')) === '/v1/icons/wind');
-ok('mọi icon tải được thật', await anhChip.evaluateAll(
-  ns => ns.every(n => n.complete && n.naturalWidth > 0)));
-ok('dùng loading="lazy" như bản tham chiếu',
-  (await anhChip.first().getAttribute('loading')) === 'lazy');
+const anhChip = p.locator('.bc-tile[data-k="mode"] .bc-chip i .bc-icoimg');
+ok(`"@ten" đổi thành icon từ kho icon (${await anhChip.count()} nút)`, await anhChip.count() === 4);
+ok('địa chỉ trỏ đúng /v1/icons/<ten>', (await anhChip.first().evaluate(nguonIcon)) === '/v1/icons/wind');
+// Icon kho đơn sắc → mặt nạ tô `currentColor` (luật web.dev). Mặt nạ chỉ được dựng SAU khi ảnh
+// tải được và đọc được điểm ảnh — nên có mặt nạ cũng là bằng chứng icon tải được thật.
+ok('icon kho đơn sắc vẽ bằng mặt nạ tô màu chữ, không phải <img>',
+  await anhChip.evaluateAll(ns => ns.every(n => n.tagName === 'SPAN' && n.classList.contains('bc-icomask'))));
+// Đúng yêu cầu 20/10/2026: nút đang chọn thì icon sáng CÙNG màu với chữ, như web.dev.
+const mauChon = await p.locator('.bc-tile[data-k="mode"] .bc-chip.on').first().evaluate(n => ({
+  chu: getComputedStyle(n).color, ico: getComputedStyle(n.querySelector('.bc-icoimg')).backgroundColor }));
+ok(`nút đang chọn: icon cùng màu với chữ (${mauChon.chu} / ${mauChon.ico})`, mauChon.chu === mauChon.ico);
+const mauKhong = await p.locator('.bc-tile[data-k="mode"] .bc-chip:not(.on)').first().evaluate(n => ({
+  chu: getComputedStyle(n).color, ico: getComputedStyle(n.querySelector('.bc-icoimg')).backgroundColor }));
+ok(`nút không chọn: icon cùng màu chữ thường (${mauKhong.ico}), khác màu nút đang chọn`, mauKhong.chu === mauKhong.ico && mauKhong.ico !== mauChon.ico);
 
 const sr = p.locator('.bc-tile[data-v="power01"] .bc-srow');
 ok('nút nguồn nằm trong .bc-srow như bản tham chiếu', await sr.count() === 1);
