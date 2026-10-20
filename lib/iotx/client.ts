@@ -11,13 +11,8 @@ import type {
 
 const TOKEN_KEY = "livotec-iotx-session";
 
-/**
- * Cửa gửi mã đặt lại mật khẩu — CHỜ IBS. Tới 08/10/2026 `/v1` chưa có cửa này (openapi) và
- * SMTP trong sadmin đang tắt. IBS mở cửa thì điền đường dẫn vào đây — chỉ sửa một chỗ.
- */
-const CUA_QUEN_MAT_KHAU: string | null = null;
-/** `message` của lỗi khi cửa quên mật khẩu chưa bật — màn đăng nhập dựa vào đây để nói rõ. */
-export const QUEN_MAT_KHAU_CHUA_BAT = "quen_mat_khau_chua_bat";
+/** Việc mà mã xác thực phục vụ — đúng hai giá trị hợp đồng nhận. */
+export type ViecOtp = "dangKy" | "quenMatKhau";
 
 /**
  * Cửa đăng nhập Google — CHỜ IBS. Tới 08/10/2026 `/v1` chưa có cửa này; tài liệu IoTX ghi
@@ -238,8 +233,16 @@ export class IotxClient {
     return result;
   }
 
-  async register(email: string, password: string, fullName?: string) {
-    const result = await this.request<IotxTokenSet>("/auth/register", { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, email, password, fullName } });
+  /**
+   * `veTam`: vé `/auth/otp/xac-nhan` trả sau khi xác nhận mã đăng ký. Đo 19/10/2026: IBS CHƯA
+   * đọc trường này (gửi thừa thì bỏ qua, không lỗi) — hôm nay bước mã chỉ được ép ở webapp.
+   * IBS ghép xong thì webapp không phải sửa gì.
+   */
+  async register(email: string, password: string, fullName?: string, veTam?: string) {
+    const result = await this.request<IotxTokenSet>("/auth/register", {
+      method: "POST", auth: false,
+      body: { tenant: iotxConfig.tenant, email, password, fullName, ...(veTam ? { veTam } : {}) },
+    });
     this.theHe++;
     this.tokens.set(result);
     return result;
@@ -254,10 +257,34 @@ export class IotxClient {
 
   logout() { this.hetPhien(); }
 
-  /** Gửi mã đặt lại mật khẩu tới email/SĐT. Chưa có cửa thì ném lỗi `QUEN_MAT_KHAU_CHUA_BAT`. */
-  guiMaQuenMatKhau(dinhDanh: string) {
-    if (!CUA_QUEN_MAT_KHAU) return Promise.reject(new IotxApiError(0, QUEN_MAT_KHAU_CHUA_BAT));
-    return this.request<Ok>(CUA_QUEN_MAT_KHAU, { method: "POST", auth: false, body: { tenant: iotxConfig.tenant, dinhDanh } });
+  /**
+   * Gửi mã 6 số tới email.
+   *
+   * LUÔN trả 200 kể cả email không tồn tại (đo 19/10: cả email ĐÃ có tài khoản với
+   * `viec:"dangKy"` cũng 200) — cố ý, để không ai dùng cửa này dò xem địa chỉ nào có tài khoản.
+   * Nghĩa là màn hình KHÔNG được suy ra điều gì từ việc gọi thành công.
+   */
+  guiMaOtp(dinhDanh: string, viec: ViecOtp) {
+    return this.request<Ok<{ hetHanSau: number; guiLaiSau: number }>>("/auth/otp/gui", {
+      method: "POST", auth: false,
+      body: { tenant: iotxConfig.tenant, kenh: "email", dinhDanh, viec },
+    });
+  }
+
+  /** Đổi mã lấy vé tạm. Vé dùng cho đúng bước kế tiếp, sống ngắn, dùng một lần. */
+  xacNhanMaOtp(dinhDanh: string, ma: string, viec: ViecOtp) {
+    return this.request<Ok<{ veTam: string }>>("/auth/otp/xac-nhan", {
+      method: "POST", auth: false,
+      body: { tenant: iotxConfig.tenant, dinhDanh, ma, viec },
+    });
+  }
+
+  /** Đặt mật khẩu mới sau khi đã xác nhận mã. KHÔNG trả vé đăng nhập — xong phải quay về màn đăng nhập. */
+  datLaiMatKhau(veTam: string, matKhauMoi: string) {
+    return this.request<Ok>("/auth/dat-lai-mat-khau", {
+      method: "POST", auth: false,
+      body: { tenant: iotxConfig.tenant, veTam, matKhauMoi },
+    });
   }
   /** Đổi mật khẩu của người đang đăng nhập. Chưa có cửa thì ném lỗi `DOI_MAT_KHAU_CHUA_BAT`. */
   doiMatKhau(matKhauCu: string, matKhauMoi: string) {

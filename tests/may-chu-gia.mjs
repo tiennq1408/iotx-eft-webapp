@@ -148,6 +148,9 @@ function henGio(req, res, p) {
   return J(res, { message: 'not_found' }, 404);
 }
 
+const OTP = new Map();      // "viec:dinhDanh" -> mã đang chờ
+const VE_TAM = new Map();   // veTam -> { viec, dinhDanh }
+let dangKyCuoi = null;      // thân /auth/register gần nhất, để bài kiểm soát veTam/mật khẩu
 const J = (res,obj,code=200)=>{res.writeHead(code,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});res.end(JSON.stringify(obj));};
 http.createServer((req,res)=>{
   const u = new URL(req.url,'http://x');
@@ -158,6 +161,41 @@ http.createServer((req,res)=>{
   if (/^\/(admin|internal|danh-muc|vat-tu)(\/|$)|^\/(health|live|ready)$/.test(p)) return J(res,{loRa:true});
   if (p==='/auth/login') return J(res,{accessToken:'a',refreshToken:'r',tenant:'livotec',expiresIn:300});
   if (p==='/auth/refresh') return J(res,{accessToken:'a',refreshToken:'r',tenant:'livotec',expiresIn:300});
+  // Mã xác thực email (docs/viec-noi-otp-webapp.md) — mã CỐ ĐỊNH 123456 để bài kiểm đoán được.
+  // Câu `message` chép đúng chữ IBS DEV trả ngày 19/10/2026. `/otp/gui` luôn 200 kể cả email
+  // đã/chưa có tài khoản, như thật.
+  if (p==='/auth/otp/gui' || p==='/auth/otp/xac-nhan' || p==='/auth/dat-lai-mat-khau' || p==='/auth/register') {
+    let raw=''; req.on('data',c=>raw+=c);
+    return req.on('end',()=>{
+      let b={}; try { b=JSON.parse(raw||'{}'); } catch { /* thân hỏng: coi như rỗng */ }
+      const viecHopLe = b.viec==='dangKy' || b.viec==='quenMatKhau';
+      if (p==='/auth/otp/gui') {
+        if (!b.dinhDanh || !viecHopLe) return J(res,{message:'Thiếu email hoặc việc cần xác nhận.'},400);
+        OTP.set(`${b.viec}:${b.dinhDanh}`,'123456');
+        return J(res,{ok:true,hetHanSau:300,guiLaiSau:60});
+      }
+      if (p==='/auth/otp/xac-nhan') {
+        const khoa=`${b.viec}:${b.dinhDanh}`;
+        if (!viecHopLe || OTP.get(khoa)!==String(b.ma||'')) return J(res,{message:'Mã không đúng hoặc đã hết hạn — gửi lại mã mới.'},400);
+        OTP.delete(khoa);                                   // mã dùng một lần
+        const ve='ve-'+Math.random().toString(36).slice(2);
+        VE_TAM.set(ve,{viec:b.viec,dinhDanh:b.dinhDanh});
+        return J(res,{ok:true,veTam:ve});
+      }
+      if (p==='/auth/dat-lai-mat-khau') {
+        const v=VE_TAM.get(b.veTam);
+        if (!v || v.viec!=='quenMatKhau') return J(res,{message:'Vé xác nhận không hợp lệ hoặc đã hết hạn — xác nhận mã lại.'},400);
+        if (String(b.matKhauMoi||'').length<8) return J(res,{message:'Mật khẩu phải có tối thiểu 8 ký tự'},400);
+        VE_TAM.delete(b.veTam);
+        return J(res,{ok:true});
+      }
+      // /auth/register — email chứa "da-dang-ky" giả cảnh email đã có tài khoản (DEV trả 409).
+      dangKyCuoi=b;
+      if (String(b.email||'').includes('da-dang-ky')) return J(res,{message:'email đã đăng ký'},409);
+      return J(res,{accessToken:'a',refreshToken:'r',tenant:'livotec',expiresIn:300});
+    });
+  }
+  if (p==='/__dang_ky_cuoi') return J(res,dangKyCuoi||{});
   if (p==='/tenant/theme') return J(res,{colorPrimary:'#02b6ac',tenantName:'Livotec Home',logoUrl:null});
   if (p==='/i18n') return J(res,{lang:'vi',langs:['en','th','vi'],strings});
   if (p==='/bootstrap') return J(res,bs);

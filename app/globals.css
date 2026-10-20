@@ -437,6 +437,15 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .dn-err svg{width:14px;height:14px;flex:none;}
 .dn-alert{display:flex;gap:10px;padding:12px 14px;border-radius:12px;background:var(--danger-soft);color:#8A2A27;font-size:14px;line-height:1.45;}
 .dn-alert svg{width:20px;height:20px;flex:none;}
+/* Đặt lại mật khẩu xong: dòng báo thành công ở màn đăng nhập (không tự đăng nhập). */
+.dn-ok{display:flex;gap:10px;padding:12px 14px;border-radius:12px;background:#E5F5EC;color:#1D5B3A;font-size:14px;line-height:1.45;}
+.dn-ok svg{width:20px;height:20px;flex:none;}
+/* Ô mã 6 số: một ô duy nhất, chữ lớn giãn cách cho dễ đọc; cỡ ≥16px để Safari iOS không tự phóng to. */
+.dn-input.dn-otp{font-size:24px;font-weight:700;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums;}
+.dn-input.dn-otp::placeholder{font-size:16px;font-weight:400;letter-spacing:normal;}
+.dn-input.dn-otp:disabled{background:#F1F4F3;opacity:.7;}
+.dn-otp-han{font-size:14px;color:var(--dn-chu);}
+.login-btn.secondary{background:#fff;color:var(--teal-dark);border:1px solid var(--border);}
 .dn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 /* Ô tích: mẫu vẽ ô 18px trong nhãn 44px. Thẻ <input> thật phủ KÍN cả nhãn (vô hình) để chính nó
    đạt vùng chạm ≥44px như a11y.mjs đo; ô vuông 18px nhìn thấy là .dn-tich vẽ riêng. */

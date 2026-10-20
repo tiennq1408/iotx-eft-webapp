@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, Lock } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, ChevronLeft, Eye, EyeOff, KeyRound, Lock } from "lucide-react";
 import { useChu } from "./chu";
 import { CoNgonNgu } from "./modals";
+import NhapMaOtp from "./NhapMaOtp";
 import { IMG } from "@/lib/ui/assets";
 import { MAT_KHAU_TOI_THIEU, anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/ui/ngonNgu";
-import { GOOGLE_CHUA_BAT, IotxApiError, QUEN_MAT_KHAU_CHUA_BAT, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi } from "@/lib/iotx";
+import { otpGia } from "@/lib/ui/otpGia";
+import { GOOGLE_CHUA_BAT, IotxApiError, iotxClient, isIotxMode, laLoiDangNhap, moTaLoi, type ViecOtp } from "@/lib/iotx";
 
 /**
  * Màn đăng nhập dựng theo mẫu `docs/mau/login.html` (xem `docs/viec-man-dang-nhap.md`):
@@ -29,6 +31,17 @@ const laSoDienThoai = (v: string) => /^(0|\+84)\d{9}$/.test(v.replace(/[\s.-]/g,
 
 type Man = "dangNhap" | "quenMatKhau" | "dangKy";
 type Loi = Record<string, string>;
+type Han = { hetHanSau: number; guiLaiSau: number };
+
+/** Ba cửa mã xác thực: thật ở chế độ IoTX, giả (không gọi mạng) ở chế độ mock. */
+const otp: {
+  guiMaOtp: (dinhDanh: string, viec: ViecOtp) => Promise<Han>;
+  xacNhanMaOtp: (dinhDanh: string, ma: string, viec: ViecOtp) => Promise<{ veTam: string }>;
+  datLaiMatKhau: (veTam: string, matKhauMoi: string) => Promise<unknown>;
+} = isIotxMode ? iotxClient : otpGia;
+
+/** Mốc mặc định trước khi máy chủ trả số thật — chỉ để hiện tạm, không bao giờ dùng để chặn. */
+const HAN_MAC: Han = { hetHanSau: 300, guiLaiSau: 60 };
 
 /** Một ô nhập có nhãn riêng (đọc màn hình hiểu được), lỗi định dạng ngay dưới ô. */
 /** Chữ G bốn màu của Google, dùng nguyên theo hướng dẫn nút "Sign in with Google". */
@@ -78,14 +91,26 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   const [dnPw, setDnPw] = useState("");
   /** Ô "Ghi nhớ đăng nhập" giữ theo mẫu, CHƯA nối gì — phiên vẫn lưu như cũ. */
   const [ghiNho, setGhiNho] = useState(false);
-  // quên mật khẩu
+  /** Dòng báo thành công ở màn đăng nhập (đặt lại mật khẩu xong). */
+  const [baoXong, setBaoXong] = useState("");
+  // quên mật khẩu: nhập định danh → nhập mã → đặt mật khẩu mới
   const [qmId, setQmId] = useState("");
-  const [qmBuoc, setQmBuoc] = useState<"nhap" | "daGui">("nhap");
-  // đăng ký
+  const [qmBuoc, setQmBuoc] = useState<"nhap" | "nhapMa" | "datLai">("nhap");
+  const [qmVe, setQmVe] = useState("");          // veTam sau khi xác nhận mã
+  const [qmHan, setQmHan] = useState<Han>(HAN_MAC);
+  const [qmPw, setQmPw] = useState("");
+  const [qmPw2, setQmPw2] = useState("");
+  // đăng ký: điền form → nhập mã → tạo tài khoản
   const [dkTen, setDkTen] = useState("");
   const [dkId, setDkId] = useState("");
   const [dkPw, setDkPw] = useState("");
   const [dkPw2, setDkPw2] = useState("");
+  const [dkBuoc, setDkBuoc] = useState<"nhap" | "nhapMa">("nhap");
+  const [dkHan, setDkHan] = useState<Han>(HAN_MAC);
+  /** `register` trả 409 (email đã có tài khoản) sau khi đã xác nhận mã: mời sang đặt lại mật khẩu. */
+  const [dkTrung, setDkTrung] = useState(false);
+  /** Tăng sau mỗi lần gửi mã: đổi `key` của màn nhập mã để đồng hồ đếm lại từ đầu. */
+  const [lanGui, setLanGui] = useState(0);
 
   /**
    * Ô tài khoản ở cả ba màn: nhãn "Tài khoản", placeholder "Email hoặc số điện thoại". Chỉ màn
@@ -97,7 +122,8 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
   const goiYId = t("dn_tai_khoan_ph");
 
   function sangMan(moi: Man) {
-    setMan(moi); setCanhBao(""); setLoi({}); setHienMk(false); setQmBuoc("nhap");
+    setMan(moi); setCanhBao(""); setLoi({}); setHienMk(false); setBaoXong("");
+    setQmBuoc("nhap"); setQmVe(""); setQmPw(""); setQmPw2(""); setDkBuoc("nhap"); setDkTrung(false);
   }
 
   /** Gõ lại vào ô nào thì xoá lỗi của chính ô đó, như mẫu. */
@@ -117,13 +143,13 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     try { await viec(); }
     catch (error) {
       // Lỗi máy chủ LUÔN vào cảnh báo chung; 401 và 404 nói cùng một câu.
-      setCanhBao(laLoiDangNhap(error) ? t("login_bad") : moTaLoi(error));
+      setCanhBao(man === "dangNhap" && laLoiDangNhap(error) ? t("login_bad") : moTaLoi(error));
     } finally { setDangGui(false); }
   }
 
   async function dangNhap(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCanhBao("");
+    setCanhBao(""); setBaoXong("");
     const id = dnId.trim();
     const moi: Loi = {};
     // Màn đăng nhập không kiểm định dạng tài khoản: gửi nguyên lên máy chủ, đúng sai do máy chủ trả.
@@ -164,10 +190,68 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     if (dkPw2 !== dkPw) moi["dk-pw2"] = t("dk_loi_pw2");
     setLoi(moi);
     if (Object.keys(moi).length) return;
+    setDkTrung(false);
+    // Gửi mã TRƯỚC, tạo tài khoản SAU — để không sinh tài khoản chưa xác minh nằm rác.
     await goi(async () => {
-      if (isIotxMode) await iotxClient.register(id, dkPw, ten);
+      const han = await otp.guiMaOtp(id, "dangKy");
+      setDkHan({ hetHanSau: han.hetHanSau, guiLaiSau: han.guiLaiSau });
+      setLanGui(n => n + 1);
+      setDkBuoc("nhapMa");
+    });
+  }
+
+  /**
+   * Đăng ký bước 2: mã → vé tạm → tạo tài khoản → vào thẳng app (register trả vé đăng nhập).
+   * Mật khẩu vẫn nằm trong state từ bước 1, không bắt gõ lại.
+   *
+   * Mã đúng mà `register` hỏng (đo 19/10: email đã có tài khoản vẫn nhận mã, rồi register trả
+   * 409 "email đã đăng ký") thì QUAY VỀ bước 1 kèm câu máy chủ — đừng để người dùng kẹt ở màn mã.
+   */
+  async function xacNhanDangKy(ma: string) {
+    const id = dkId.trim();
+    setDangGui(true); setCanhBao("");
+    let veTam: string;
+    try {
+      veTam = (await otp.xacNhanMaOtp(id, ma, "dangKy")).veTam;
+    } catch (error) {
+      setCanhBao(moTaLoi(error));                   // mã sai: ở nguyên bước mã
+      setDangGui(false);
+      return;
+    }
+    try {
+      if (isIotxMode) await iotxClient.register(id, dkPw, dkTen.trim(), veTam);
       else sessionStorage.setItem("livotec-session", "1");
       await onDone();
+    } catch (error) {
+      setDkBuoc("nhap");
+      setCanhBao(moTaLoi(error));
+      // 409 = email đã có tài khoản (mật khẩu < 8 — lý do 409 còn lại — đã chặn tại chỗ ở bước 1).
+      // Báo điều này ở ĐÂY là an toàn: chỉ chủ hộp thư mới qua được bước mã để tới register.
+      setDkTrung(error instanceof IotxApiError && error.status === 409);
+    } finally { setDangGui(false); }
+  }
+
+  /**
+   * Từ đăng ký (email đã có tài khoản) sang quên mật khẩu: điền sẵn email và gửi luôn mã đặt lại,
+   * để người dùng không phải gõ lại và bấm thêm một lần nữa.
+   */
+  async function sangDatLaiMatKhau() {
+    const id = dkId.trim();
+    sangMan("quenMatKhau");
+    setQmId(id);
+    await goi(async () => {
+      const han = await otp.guiMaOtp(id, "quenMatKhau");
+      setQmHan({ hetHanSau: han.hetHanSau, guiLaiSau: han.guiLaiSau });
+      setLanGui(n => n + 1);
+      setQmBuoc("nhapMa");
+    });
+  }
+
+  async function guiLaiDangKy() {
+    await goi(async () => {
+      const han = await otp.guiMaOtp(dkId.trim(), "dangKy");
+      setDkHan({ hetHanSau: han.hetHanSau, guiLaiSau: han.guiLaiSau });
+      setLanGui(n => n + 1);
     });
   }
 
@@ -179,14 +263,54 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
     const loiId = id ? "" : t("dn_loi_id_trong");
     setLoi(loiId ? { "qm-id": loiId } : {});
     if (loiId) return;
-    setDangGui(true);
-    try {
-      await iotxClient.guiMaQuenMatKhau(id);
-      setQmBuoc("daGui");
-    } catch (error) {
-      // Chưa có cửa (chờ IBS) hoặc SMTP đang tắt: nói rõ, KHÔNG nhảy sang "Đã gửi mã".
-      setCanhBao(error instanceof IotxApiError && error.message === QUEN_MAT_KHAU_CHUA_BAT ? t("qm_chua_bat") : moTaLoi(error));
-    } finally { setDangGui(false); }
+    // Máy chủ trả 200 kể cả email không tồn tại — màn hình nói y hệt, không lộ gì. Lỗi (400,
+    // 429) thì hiện NGUYÊN VĂN câu máy chủ và không nhảy bước.
+    await goi(async () => {
+      const han = await otp.guiMaOtp(id, "quenMatKhau");
+      setQmHan({ hetHanSau: han.hetHanSau, guiLaiSau: han.guiLaiSau });
+      setLanGui(n => n + 1);
+      setQmBuoc("nhapMa");
+    });
+  }
+
+  /** Quên mật khẩu bước 2: mã → vé tạm. Mã sai thì ở nguyên bước này, hiện câu máy chủ trả. */
+  async function xacNhanQuenMatKhau(ma: string) {
+    await goi(async () => {
+      const { veTam } = await otp.xacNhanMaOtp(qmId.trim(), ma, "quenMatKhau");
+      setQmVe(veTam);
+      setLoi({});
+      setQmBuoc("datLai");
+    });
+  }
+
+  async function guiLaiQuenMatKhau() {
+    await goi(async () => {
+      const han = await otp.guiMaOtp(qmId.trim(), "quenMatKhau");
+      setQmHan({ hetHanSau: han.hetHanSau, guiLaiSau: han.guiLaiSau });
+      setLanGui(n => n + 1);
+    });
+  }
+
+  /**
+   * Quên mật khẩu bước 3. Cửa này chỉ trả `{ok:true}`, KHÔNG có vé đăng nhập — xong thì VỀ MÀN
+   * ĐĂNG NHẬP, tuyệt đối không tự đăng nhập: người dùng cần thử mật khẩu vừa đổi, và nếu luồng này
+   * do kẻ khác chạy thì tự đăng nhập là trao tài khoản cho họ.
+   */
+  async function datLaiMatKhau(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCanhBao("");
+    const moi: Loi = {};
+    if (qmPw.length < MAT_KHAU_TOI_THIEU) moi["qm-pw"] = t("dk_loi_pw_ngan", { n: MAT_KHAU_TOI_THIEU });
+    if (qmPw2 !== qmPw) moi["qm-pw2"] = t("dk_loi_pw2");
+    setLoi(moi);
+    if (Object.keys(moi).length) return;
+    await goi(async () => {
+      await otp.datLaiMatKhau(qmVe, qmPw);
+      const id = qmId.trim();
+      sangMan("dangNhap");
+      setDnId(id); setDnPw("");
+      setBaoXong(t("qm_xong"));
+    });
   }
 
   const oMatKhau = (id: string, giaTri: string, dat: (v: string) => void, ph: string, tuDien: string, moTa?: string) => (
@@ -208,6 +332,10 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
 
   const thongBao = canhBao && (
     <div className="dn-alert" role="alert"><AlertCircle aria-hidden="true" /><span>{canhBao}</span></div>
+  );
+
+  const baoThanhCong = baoXong && (
+    <div className="dn-ok" role="status"><CheckCircle2 aria-hidden="true" /><span>{baoXong}</span></div>
   );
 
   const nutLai = (
@@ -248,6 +376,7 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
               <h1 id="dn-title">{t("login_btn")}</h1>
             </div>
             <form className="dn-form" noValidate onSubmit={dangNhap}>
+              {baoThanhCong}
               {thongBao}
               <O id="dn-id" nhan={nhanId} loi={loi["dn-id"]}>
                 {oChu("dn-id", dnId, setDnId, goiYId, "username")}
@@ -288,19 +417,38 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
                   <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("qm_gui")}</button>
                 </form>
               </>
-            ) : (
+            ) : qmBuoc === "nhapMa" ? (
               <>
-                {/* Bước 2 dựng sẵn theo mẫu — chỉ tới được khi IBS có cửa gửi mã. */}
                 <div className="dn-head">
                   <div className="dn-tieu-de">
                     <span className="dn-badge"><Check aria-hidden="true" /></span>
                     <h1 id="qm-title">{t("qm_da_gui")}</h1>
                   </div>
-                  <p className="dn-lead">{t("qm_da_gui_lead", { dich: qmId.trim() })}</p>
+                  <p className="dn-lead">{t("qm_da_gui_lead", { dich: qmId.trim(), phut: Math.max(1, Math.round(qmHan.hetHanSau / 60)) })}</p>
                 </div>
                 {thongBao}
-                <button type="button" className="login-btn" onClick={() => setCanhBao(t("qm_chua_bat"))}>{t("qm_nhap_ma")}</button>
-                <p className="dn-foot">{t("qm_khong_nhan")} <button type="button" className="dn-link" onClick={() => { setQmBuoc("nhap"); setCanhBao(""); }}>{t("qm_gui_lai")}</button></p>
+                <NhapMaOtp key={lanGui} dich={qmId.trim()} hetHanSau={qmHan.hetHanSau} guiLaiSau={qmHan.guiLaiSau}
+                  dangGui={dangGui} onXacNhan={xacNhanQuenMatKhau} onGuiLai={guiLaiQuenMatKhau} />
+              </>
+            ) : (
+              <>
+                <div className="dn-head">
+                  <div className="dn-tieu-de">
+                    <span className="dn-badge"><KeyRound aria-hidden="true" /></span>
+                    <h1 id="qm-title">{t("qm_dat_lai_title")}</h1>
+                  </div>
+                  <p className="dn-lead">{t("qm_dat_lai_lead")}</p>
+                </div>
+                <form className="dn-form" noValidate onSubmit={datLaiMatKhau}>
+                  {thongBao}
+                  <O id="qm-pw" nhan={t("dn_pw")} loi={loi["qm-pw"]}>
+                    {oMatKhau("qm-pw", qmPw, setQmPw, t("dn_pw_ph"), "new-password")}
+                  </O>
+                  <O id="qm-pw2" nhan={t("dk_pw2")} loi={loi["qm-pw2"]} anNhan>
+                    {oChu("qm-pw2", qmPw2, setQmPw2, t("dk_pw2"), "new-password", hienMk ? "text" : "password")}
+                  </O>
+                  <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("qm_dat_lai_title")}</button>
+                </form>
               </>
             )}
             <p className="dn-foot">{t("qm_da_nho")} <button type="button" className="dn-link" onClick={() => sangMan("dangNhap")}>{t("login_btn")}</button></p>
@@ -309,12 +457,28 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
 
         {man === "dangKy" && (
           <section className="dn-khung" aria-labelledby="dk-title">
+            {dkBuoc === "nhapMa" ? (
+              <>
+                <div className="dn-head">
+                  <h1 id="dk-title">{t("dk_title")}</h1>
+                  <p className="dn-lead">{t("dk_ma_lead", { dich: dkId.trim() })}</p>
+                </div>
+                {thongBao}
+                <NhapMaOtp key={lanGui} dich={dkId.trim()} hetHanSau={dkHan.hetHanSau} guiLaiSau={dkHan.guiLaiSau}
+                  dangGui={dangGui} onXacNhan={xacNhanDangKy} onGuiLai={guiLaiDangKy} />
+              </>
+            ) : (<>
             <div className="dn-head">
               <h1 id="dk-title">{t("dk_title")}</h1>
               <p className="dn-lead">{t("dk_lead")}</p>
             </div>
             <form className="dn-form" noValidate onSubmit={dangKy}>
               {thongBao}
+              {dkTrung && (
+                <button type="button" className="login-btn secondary" disabled={dangGui} onClick={sangDatLaiMatKhau}>
+                  {t("dk_dat_lai")}
+                </button>
+              )}
               <O id="dk-ten" nhan={t("dk_ten")} loi={loi["dk-ten"]}>
                 {oChu("dk-ten", dkTen, setDkTen, t("dk_ten_ph"), "name")}
               </O>
@@ -329,6 +493,7 @@ export default function LoginScreen({ onDone, logoUrl, lang, langs = [], onLang 
               </O>
               <button className="login-btn" type="submit" disabled={dangGui}>{dangGui ? t("working") : t("dk_btn")}</button>
             </form>
+            </>)}
             <p className="dn-foot">{t("dk_da_co")} <button type="button" className="dn-link" onClick={() => sangMan("dangNhap")}>{t("login_btn")}</button></p>
           </section>
         )}

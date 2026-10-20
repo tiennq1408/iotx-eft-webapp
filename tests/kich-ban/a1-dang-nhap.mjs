@@ -132,8 +132,9 @@ await thu('A1-10', async () => {
   await p.locator('.dn-row .dn-link').click(); await cho(300);
   await p.locator('#qm-id').fill('ai@do.vn');
   await p.locator('.dn-khung .login-btn').click(); await cho(500);
-  ca('A1-10', [['báo "tính năng đang chờ bật"', /chờ bật/.test(await p.locator('.dn-alert').innerText().catch(() => ''))],
-    ['không nhảy sang màn "Đã gửi mã"', await p.locator('#qm-id').count() === 1]]);
+  // IBS mở cửa mã email từ 19/10/2026 (docs/viec-noi-otp-webapp.md): Gửi mã → bước nhập mã.
+  ca('A1-10', [['Gửi mã → sang bước nhập mã', await p.locator('#otp-ma').count() === 1],
+    ['không còn báo "tính năng đang chờ bật"', !/chờ bật/.test(await p.locator('.dn-khung').innerText().catch(() => ''))]]);
   await ctx.close();
 });
 

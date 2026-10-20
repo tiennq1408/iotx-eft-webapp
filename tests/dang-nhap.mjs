@@ -68,7 +68,7 @@ try {
   await p.locator('.dn-khung .login-btn').click(); await cho(300);
   ok('tài khoản không phải email/SĐT → KHÔNG báo lỗi định dạng ở màn đăng nhập', await errCua(p, 'dn-id').count() === 0 && await errCua(p, 'dn-pw').count() === 1);
 
-  /* ---------- 8. Quên mật khẩu chưa có cửa ---------- */
+  /* ---------- 8. Quên mật khẩu (mock: mã giả, không gọi mạng — luồng thật đo ở otp.mjs) ---------- */
   await p.locator('.dn-row .dn-link').click(); await cho(300);
   ok('sang màn Quên mật khẩu (state, không đổi hash)', await p.locator('#qm-title').count() === 1 && !new URL(p.url()).hash);
   ok('quên mật khẩu: nhãn "Tài khoản" + placeholder', (await p.locator('label[for="qm-id"]').innerText()).trim() === 'Tài khoản' && (await p.locator('#qm-id').getAttribute('placeholder')) === 'Email hoặc số điện thoại');
@@ -78,8 +78,9 @@ try {
     const i = document.querySelector('.dn-tieu-de .dn-badge').getBoundingClientRect(), h = document.querySelector('#qm-title').getBoundingClientRect();
     return h.left >= i.right && Math.abs((i.top + i.bottom) / 2 - (h.top + h.bottom) / 2) < 6;
   }));
-  ok('Gửi mã khi chưa có cửa → .alert báo đang chờ bật', /chờ bật/.test(await p.locator('.dn-alert').innerText()));
-  ok('…và KHÔNG sang bước "Đã gửi mã"', await p.locator('#qm-id').count() === 1 && !/Đã gửi mã/.test(await p.locator('.dn-khung').innerText()));
+  ok('Gửi mã → sang bước nhập mã (một ô, gợi ý one-time-code)',
+    await p.locator('#otp-ma').count() === 1 && (await p.locator('#otp-ma').getAttribute('autocomplete')) === 'one-time-code');
+  ok('…không còn câu "tính năng đang chờ bật"', !/chờ bật/.test(await p.locator('.dn-khung').innerText()));
   await p.locator('.dn-back').click(); await cho(300);
 
   /* ---------- 9, 4. Đăng ký ---------- */
