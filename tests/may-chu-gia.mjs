@@ -196,6 +196,17 @@ http.createServer((req,res)=>{
     });
   }
   if (p==='/__dang_ky_cuoi') return J(res,dangKyCuoi||{});
+  // Tra serial S-Factory (docs/viec-bang-phai-thiet-bi.md). Bản ghi SNB6DRE9USGD chép nguyên từ
+  // DEV ngày 20/10/2026; serial lạ → 200 found:false toàn null; sai dạng → 400 invalid_serial.
+  // Các nhánh 502/503 và warranty:null do bài kiểm tự chặn bằng page.route.
+  if (p==='/serials/lookup') {
+    const s = String(u.searchParams.get('serial')||'').trim().toUpperCase();
+    if (!/^[A-Z0-9._\/-]{3,64}$/.test(s)) return J(res,{message:'Serial không hợp lệ: 3–64 ký tự chữ/số và . _ / -',error:'invalid_serial'},400);
+    if (s==='SNB6DRE9USGD') return J(res,{found:true,serial:s,product:{name:'Máy lọc nước nóng lạnh Karofi KAD-X59',code:'1001040629'},
+      manufactureDate:'2025-07-11',purchaseDate:null,
+      warranty:{months:null,activatedAt:null,expiredAt:null,status:'Inactive',code:'BHGK1VJYCUFC',exportedAt:'2025-07-18'},source:'sfactory'});
+    return J(res,{found:false,serial:s,product:null,manufactureDate:null,purchaseDate:null,warranty:null,source:'sfactory'});
+  }
   if (p==='/tenant/theme') return J(res,{colorPrimary:'#02b6ac',tenantName:'Livotec Home',logoUrl:null});
   if (p==='/i18n') return J(res,{lang:'vi',langs:['en','th','vi'],strings});
   if (p==='/bootstrap') return J(res,bs);

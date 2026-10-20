@@ -6,6 +6,7 @@ import { useChu, type HamChu } from "../chu";
 import Icon from "../Icon";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
+import BangThietBi, { coTheTraSerial } from "./BangThietBi";
 import VeO, { type Ngu } from "./VeO";
 import { boCucCua } from "@/lib/ui/boCuc";
 import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/ui/khuon";
@@ -78,6 +79,8 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
   const { t } = useChu();
   const [loi, setLoi] = useState("");
   const [doiTen, setDoiTen] = useState(false);
+  /** Bảng phải: thông tin thiết bị + bảo hành. */
+  const [moBang, setMoBang] = useState(false);
   const [tenMoi, setTenMoi] = useState("");
   const [themMuc, setThemMuc] = useState<"house" | "room" | "grp" | null>(null);
 
@@ -238,6 +241,13 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
           </div>
           <button className={`fav-lon${device.fav ? " on" : ""}`} aria-pressed={Boolean(device.fav)}
             aria-label={t("dev_fav")} onClick={() => { void lam({ fav: !device.fav }); }}>★</button>
+          {/* Không có serial (`device.code`) thì chẳng có gì để tra — không vẽ nút. Gặp 503 (chưa
+              khai S-Factory) một lần thì cũng thôi vẽ cho tới khi tải lại trang. */}
+          {device.code && coTheTraSerial() && (
+            <button className="tt-lon" aria-label={t("tt_mo")} aria-haspopup="dialog" onClick={() => setMoBang(true)}>
+              <Icon name="info" />
+            </button>
+          )}
         </div>
 
         {/* Gán nhà / phòng / nhóm ngay tại đây, không phải lặn vào màn quản lý. */}
@@ -294,6 +304,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
           <button className="btn gh" onClick={onClose}><X aria-hidden="true" /> {t("close")}</button>
         </div>
       </div>
+      {moBang && <BangThietBi device={device} onClose={() => setMoBang(false)} />}
     </div>
   );
 }

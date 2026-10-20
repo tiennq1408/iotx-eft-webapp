@@ -21,6 +21,8 @@ export type Device = {
   virtual?: boolean;
   /** Đã ẩn khỏi danh sách (`PATCH /devices/{id} { hidden }`) — vẫn ghép nối, chỉ không hiện. */
   hidden?: boolean;
+  /** Mốc thêm thiết bị (epoch ms). */
+  createdTime?: number;
 };
 
 export type SpaceState = { houses: string[]; rooms: string[]; groups: string[] };

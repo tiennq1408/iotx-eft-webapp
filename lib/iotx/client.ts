@@ -11,6 +11,21 @@ import type {
 
 const TOKEN_KEY = "livotec-iotx-session";
 
+/** Kết quả tra serial trong S-Factory (`GET /v1/serials/lookup`). */
+export type BaoHanhSerial = {
+  found: boolean;
+  serial: string;
+  product: { name: string; code: string } | null;
+  /** "2025-07-11" — ĐÃ theo giờ Việt Nam. */
+  manufactureDate: string | null;
+  purchaseDate: string | null;
+  warranty: {
+    months: number | null; activatedAt: string | null; expiredAt: string | null;
+    status: string | null; code: string | null; exportedAt: string | null;
+  } | null;
+  source: string;
+};
+
 /** Việc mà mã xác thực phục vụ — đúng hai giá trị hợp đồng nhận. */
 export type ViecOtp = "dangKy" | "quenMatKhau";
 
@@ -277,6 +292,17 @@ export class IotxClient {
       method: "POST", auth: false,
       body: { tenant: iotxConfig.tenant, dinhDanh, ma, viec },
     });
+  }
+
+  /**
+   * Tra serial trong S-Factory.
+   *
+   * Serial lạ KHÔNG phải lỗi: máy chủ trả 200 kèm `found:false` và mọi khoá là null. Chỉ các mã
+   * 4xx/5xx mới là lỗi thật (xem `BangThietBi`). IBS tự chuẩn hoá chữ thường và khoảng trắng,
+   * trả bản in hoa trong `serial`. Đi qua `request` để có sẵn Bearer và luật làm mới vé sau 401.
+   */
+  traSerial(serial: string) {
+    return this.request<BaoHanhSerial>(`/serials/lookup?serial=${encodeURIComponent(serial.trim().toUpperCase())}`);
   }
 
   /** Đặt mật khẩu mới sau khi đã xác nhận mã. KHÔNG trả vé đăng nhập — xong phải quay về màn đăng nhập. */
