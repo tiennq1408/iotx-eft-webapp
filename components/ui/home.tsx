@@ -38,7 +38,11 @@ export function BannerCarousel() {
       {BANNERS.map((muc, i) => muc.src
         ? (
           <div key={i} className={`banner-slide${i === chiSo ? " active" : ""}`} aria-hidden={i !== chiSo}>
-            <Image unoptimized src={muc.src} alt={muc.alt ? t(muc.alt) : ""} width={400} height={120} />
+            {/* `fill` thay cho width/height cố định: CSS đã cho ảnh phủ kín khung 120px (object-fit:
+                cover), khai cứng 400×120 thì Next cảnh báo kích thước bị sửa một chiều. Ảnh đầu là
+                LCP của màn chủ nên tải ngay (Next 16 bỏ `priority`, khuyên `loading="eager"`). */}
+            <Image unoptimized fill sizes="(min-width: 560px) 416px, 100vw" src={muc.src}
+              alt={muc.alt ? t(muc.alt) : ""} loading={i === 0 ? "eager" : "lazy"} />
           </div>
         )
         : (
