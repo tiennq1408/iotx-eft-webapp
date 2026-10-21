@@ -114,6 +114,25 @@ async function datTrangThai(p, bat) {
   await ctx.close();
 }
 
+/* ---- Tắt / chưa chọn → icon mờ .55 (web.dev 23/10/2026) ---- */
+{
+  const { ctx, p } = await phien();
+  const eco = p.locator('.bc-tile[data-k="ac_eco_mode"]');
+  const doEco = () => eco.evaluate(n => ({ tat: n.querySelector('.bc-lb').classList.contains('tat'),
+    mo: getComputedStyle(n.querySelector('.bc-lb .bc-lico')).opacity, bat: n.querySelector('[role=switch]').getAttribute('aria-checked') }));
+  let e = await doEco();
+  if (e.bat === 'true') { await eco.locator('[role=switch]').click(); await cho(900); e = await doEco(); }
+  ok(`công tắc đang TẮT → nhãn có lớp tat, icon cố định mờ ${e.mo}`, e.bat === 'false' && e.tat && e.mo === '0.55');
+  await eco.locator('[role=switch]').click(); await cho(900); e = await doEco();
+  ok(`bật lên → bỏ lớp tat, icon rõ ${e.mo}`, e.bat === 'true' && !e.tat && e.mo === '1');
+  const mode = p.locator('.bc-tile[data-k="ac_ope_mode"]');
+  await mode.locator('.bc-chip').first().click(); await cho(900);
+  const chip = await mode.evaluate(n => [...n.querySelectorAll('.bc-chip')].map(c => ({ on: c.classList.contains('on'), mo: getComputedStyle(c.querySelector(':scope > i')).opacity })));
+  ok(`chip đang chọn icon rõ, chip chưa chọn icon mờ .55 (${JSON.stringify(chip.slice(0, 3))})`,
+    chip.some(c => c.on) && chip.every(c => c.mo === (c.on ? '1' : '0.55')));
+  await ctx.close();
+}
+
 console.log(R.join('\n'));
 console.log('Lỗi JS:', loi.length ? [...new Set(loi)].join(' | ') : 'không có');
 console.log(`${R.filter(r => r.startsWith('PASS')).length}/${R.length} đạt`);

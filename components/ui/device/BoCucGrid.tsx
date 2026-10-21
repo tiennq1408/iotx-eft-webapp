@@ -115,10 +115,11 @@ function mauNhan(o: OdaDung): string | undefined {
  * Icon cố định (`o.ico`) mặc định nằm bên trái. Chữ đứng trong `.bc-lb-chu` riêng để ô có
  * `mauCtl` tô chữ màu mực, chỉ icon/nút mang màu nhấn; `nhan.mau` đặt thẳng lên chữ thì thắng.
  */
-function NhanO({ o, ten, style, dam }: { o: OdaDung; ten: string; style?: React.CSSProperties; dam?: boolean }) {
+/** `tat`: công tắc/nút nguồn đang TẮT → lớp `tat`, icon cố định mờ đi (web.dev 23/10/2026). */
+function NhanO({ o, ten, style, dam, tat }: { o: OdaDung; ten: string; style?: React.CSSProperties; dam?: boolean; tat?: boolean }) {
   const ico = diaChiIcon(o.ico);
   return (
-    <span className={`bc-lb ${lopViTri(o.vtIco) || "vt-trai"}`}>
+    <span className={`bc-lb ${lopViTri(o.vtIco) || "vt-trai"}${tat ? " tat" : ""}`}>
       {ico && <i className="bc-lico" aria-hidden="true"><Ico ico={ico} /></i>}
       <span className={["bc-lb-chu", lopNhan(o)].filter(Boolean).join(" ")}
         style={{ ...style, fontWeight: dam ? 600 : undefined, color: mauNhan(o) }}>{ten}</span>
@@ -210,13 +211,13 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
         <div className="bc-srow" style={{ justifyContent: CAN_NGANG[o.canN || "giua"], gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
             aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
-          {o.w >= 2 && <NhanO o={o} ten={ten} dam />}
+          {o.w >= 2 && <NhanO o={o} ten={ten} dam tat={!bat} />}
         </div>
       );
     }
     return (
       <div className="bc-srow">
-        <NhanO o={o} ten={ten} />
+        <NhanO o={o} ten={ten} tat={!bat} />
         <button className="switch-hit" role="switch" aria-checked={bat}
           aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
           <span className={`switch${bat ? " on" : ""}`} />

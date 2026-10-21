@@ -907,6 +907,9 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Icon kho đơn sắc vẽ bằng mặt nạ tô màu chữ (BoCucGrid `Ico`), nên đổi màu theo nút đang chọn. */
 .bc-icomask{display:inline-block;background:currentColor;-webkit-mask:var(--ico) center / contain no-repeat;mask:var(--ico) center / contain no-repeat;}
 .bc-chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-chu,#fff);}
+/* Trạng thái tắt/chưa chọn: icon mờ đi (web.dev 23/10/2026) — chip chưa chọn, và icon cố định
+   của công tắc/nút nguồn đang tắt (`.bc-lb.tat`, BoCucGrid `NhanO`). */
+.bc-chip:not(.on)>i,.bc-lb.tat .bc-lico{opacity:.55;}
 
 .bc-pwr{background:var(--brand);color:var(--brand-chu,#fff);cursor:pointer;width:44px;height:44px;box-shadow:0 0 0 5px var(--brand-soft);border:0;border-radius:50%;flex:none;display:flex;justify-content:center;align-items:center;font-size:20px;}
 .bc-pwr.off{background:var(--dim);color:#fff;box-shadow:0 0 0 5px var(--line);}
