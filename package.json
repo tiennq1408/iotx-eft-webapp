@@ -28,5 +28,14 @@
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.7.2"
-  }
+  },
+  "browserslist": [
+    "safari >= 13",
+    "ios_saf >= 13",
+    "chrome >= 80",
+    "and_chr >= 80",
+    "edge >= 80",
+    "firefox >= 78",
+    "samsung >= 13"
+  ]
 }
