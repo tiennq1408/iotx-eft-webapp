@@ -906,10 +906,24 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .bc-chip i .bc-icoimg{object-fit:contain;width:1em;height:1em;display:block;}
 /* Icon kho đơn sắc vẽ bằng mặt nạ tô màu chữ (BoCucGrid `Ico`), nên đổi màu theo nút đang chọn. */
 .bc-icomask{display:inline-block;background:currentColor;-webkit-mask:var(--ico) center / contain no-repeat;mask:var(--ico) center / contain no-repeat;}
-.bc-chip.on{background:var(--brand);border-color:var(--brand);color:#fff;}
+.bc-chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-chu,#fff);}
 
-.bc-pwr{background:var(--brand);color:#fff;cursor:pointer;width:44px;height:44px;box-shadow:0 0 0 5px var(--brand-soft);border:0;border-radius:50%;flex:none;display:flex;justify-content:center;align-items:center;font-size:20px;}
-.bc-pwr.off{background:var(--dim);box-shadow:0 0 0 5px var(--line);}
+.bc-pwr{background:var(--brand);color:var(--brand-chu,#fff);cursor:pointer;width:44px;height:44px;box-shadow:0 0 0 5px var(--brand-soft);border:0;border-radius:50%;flex:none;display:flex;justify-content:center;align-items:center;font-size:20px;}
+.bc-pwr.off{background:var(--dim);color:#fff;box-shadow:0 0 0 5px var(--line);}
+/* `power02` — thanh nguồn phủ cả ô (web.dev 22/10/2026). */
+.bc-tile.p2{padding:0;}
+.bc-p2{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;height:100%;min-width:0;min-height:44px;padding:6px 12px;border:0;border-radius:14px;
+  font:inherit;font-size:15px;font-weight:600;line-height:1.2;cursor:pointer;}
+.bc-p2.off{background:var(--bg,#f6f8f8);color:var(--ink);}
+.bc-p2.on{background:var(--brand);color:var(--p2-chu,var(--brand-chu,#fff));}
+.bc-p2.vt-tren{flex-direction:column;gap:2px;}
+.bc-p2.vt-duoi{flex-direction:column-reverse;gap:2px;}
+.bc-p2.vt-phai{flex-direction:row-reverse;}
+.bc-p2-ico{flex:none;display:inline-flex;font-size:24px;font-style:normal;line-height:1;}
+.bc-p2-ico .bc-icoimg{width:1em;height:1em;display:block;}
+.bc-p2.off .bc-p2-ico{opacity:.55;}
+.bc-p2-chu{min-width:0;overflow:hidden;overflow-wrap:anywhere;}
+.bc-p2:disabled{opacity:.45;cursor:not-allowed;}
 
 /* Công tắc 40×23 nhưng viền trong suốt kéo vùng chạm lên 44px — mẹo của bản tham chiếu. */
 /* Công tắc trong lưới dùng CHUNG `.switch-hit` + `.switch` với màn chủ, không có bản riêng.
@@ -944,13 +958,13 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* `o.mauCtl`: ô đè ba biến màu nội tuyến; `.bc-body` là chỗ màu đổ vào. */
 .bc-tile.mauo .bc-body{color:var(--brand);}
 .bc-tile.mauo .bc-chip:not(.on){color:var(--brand);}
-.bc-tile.mauo .bc-pwr{color:#fff;}
+.bc-tile.mauo .bc-pwr{color:var(--brand-chu,#fff);}
 .bc-tile.mauo .bc-big small{color:inherit;opacity:.75;}
 /* Nhãn trong ô có `mauCtl`: chữ màu mực, icon cố định mới mang màu nhấn (web.dev 15/10/2026). */
 .bc-tile.mauo .bc-lb-chu{color:var(--ink);}
 .bc-tile.mauo .bc-lico{color:var(--brand);}
 /* `o.vien: "skin"`: viền 2px màu nhấn. */
-.bc-tile.vien,.bc-khung.vien{border:2px solid var(--brand);}
+.bc-tile.vien,.bc-khung.vien{border:2px solid var(--vien,var(--brand));}
 /* `o.nenAnh`: ảnh nền của riêng ô. */
 .bc-tile.nen{background-position:50% center;background-repeat:no-repeat;background-size:cover;}
 /* `o.hlChon: "vien"`: mục đang chọn tô viền trong thay vì nền đặc. */

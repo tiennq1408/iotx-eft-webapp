@@ -25,10 +25,10 @@ const soCaoHang = (v: unknown): number | null => {
 const SO_COT = 4;
 
 /** Control tự giãn hết chiều ngang ô: thân xếp DỌC, nhãn nằm trên. */
-const DAY_NGANG = ["switch01", "slider01", "step01", "chips01", "filterlist01"];
+const DAY_NGANG = ["switch01", "power02", "slider01", "step01", "chips01", "filterlist01"];
 
 /** Control tự in nhãn của mình, nên ô không in thêm lần nữa. */
-const TU_CO_NHAN = ["switch01", "step01", "power01"];
+const TU_CO_NHAN = ["switch01", "step01", "power01", "power02"];
 
 export const CAN_NGANG: Record<string, string> = { trai: "flex-start", giua: "center", phai: "flex-end" };
 export const CAN_DOC: Record<string, string> = { tren: "flex-start", giua: "center", duoi: "flex-end" };
@@ -54,10 +54,12 @@ export type OBoCuc = {
   gtVt?: Record<string, string>;
   /** Màu nhấn riêng của ô (mã hex) — đè `--brand`, `--brand-deep`, `--brand-soft`. */
   mauCtl?: string;
-  /** `"skin"`: viền 2px màu nhấn. */
+  /** Viền 2px: `"skin"` (màu nhấn) hoặc mã màu. */
   vien?: string;
   /** `"vien"`: mục đang chọn tô viền thay vì nền đặc. */
   hlChon?: string;
+  /** `power02` lúc BẬT: màu chữ — `"skin"` (màu nhấn) hoặc mã màu. Không khai thì `--brand-chu`. */
+  mauChu?: string;
   nenAnh?: string;
   /**
    * Chiều cao MỖI HÀNG mà ô này phủ lên (px), đè `caoHang` của lưới.
@@ -87,7 +89,7 @@ const KHOA_BIET = {
   boCuc: new Set(["cot", "caoHang", "donHang", "skin", "nenAnh", "alarm", "o"]),
   o: new Set(["key", "col", "row", "w", "h", "variant", "canN", "canD", "caoHang", "moiHang",
               "coNut", "rongNut", "nhan", "gtIco", "ico", "vtIco", "gtVt", "mauCtl",
-              "vien", "hlChon", "nenAnh"]),
+              "vien", "hlChon", "nenAnh", "mauChu"]),
   nhan: new Set(["can", "co", "dam", "nghieng", "mau"]),
 } as const;
 

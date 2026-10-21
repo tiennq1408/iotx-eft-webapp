@@ -187,6 +187,24 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
 
   if (cap.kind === "onoff") {
     const bat = laBat(v);
+    if (o.variant === "power02") {
+      // Thanh nguồn (web.dev 22/10/2026): cả ô là MỘT nút — icon + tên. Tắt: nền nhạt, chữ mực,
+      // icon mờ. Bật: nền màu nhấn, chữ `o.mauChu` ("skin" → màu nhấn, hoặc mã màu), không khai
+      // thì `--brand-chu`. Icon kho đơn sắc vẽ bằng mặt nạ nên đổi màu theo chữ.
+      const mau = o.mauChu?.trim();
+      const mauChu = mau === "skin" ? "var(--brand)" : mau && LA_MA_MAU.test(mau) ? mau : undefined;
+      const ico = diaChiIcon(o.ico);
+      return (
+        <button className={["bc-p2", lopViTri(o.vtIco) || "vt-trai", bat ? "on" : "off"].join(" ")}
+          style={bat && mauChu ? ({ "--p2-chu": mauChu } as React.CSSProperties) : undefined}
+          aria-pressed={bat} aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
+          <i className="bc-p2-ico" aria-hidden="true">{ico ? <Ico ico={ico} /> : "⏻"}</i>
+          {/* Như web.dev: chữ chỉ nhận lớp cỡ/đậm của `nhan`, KHÔNG nhận `nhan.mau` — màu chữ do
+              trạng thái bật/tắt quyết (DEV đang khai `nhan.mau` xám, tô lên nền màu nhấn là chìm). */}
+          <span className={["bc-p2-chu", lopNhan(o)].filter(Boolean).join(" ")}>{ten}</span>
+        </button>
+      );
+    }
     if (o.variant === "power01") {
       return (
         <div className="bc-srow" style={{ justifyContent: CAN_NGANG[o.canN || "giua"], gap: 10 }}>
@@ -292,8 +310,19 @@ function bienMauO(o: OdaDung): React.CSSProperties | undefined {
   return m ? ({ "--brand": m.brand, "--brand-deep": m.deep, "--brand-soft": m.soft, "--brand-chu": m.chu } as React.CSSProperties) : undefined;
 }
 
+/**
+ * `o.vien`: `"skin"` → viền màu nhấn; MÃ MÀU (vd. `"#ffffff"`, sadmin đổi 22/10/2026) → viền đúng
+ * màu đó. Như web.dev: gán vào biến `--vien`, CSS vẽ `2px solid var(--vien, var(--brand))`.
+ * Giá trị khác bị bỏ — chuỗi đến từ máy chủ, không cho chèn khai báo CSS lạ.
+ */
+function mauVien(o: OdaDung): string | undefined {
+  const v = o.vien?.trim();
+  if (v === "skin") return "var(--brand)";
+  return v && LA_MA_MAU.test(v) ? v : undefined;
+}
+
 function lopO(o: OdaDung): string {
-  return ["bc-tile", bienMauO(o) ? "mauo" : "", o.vien === "skin" ? "vien" : "", nenAnhO(o) ? "nen" : ""].filter(Boolean).join(" ");
+  return ["bc-tile", bienMauO(o) ? "mauo" : "", o.variant === "power02" ? "p2" : "", mauVien(o) ? "vien" : "", nenAnhO(o) ? "nen" : ""].filter(Boolean).join(" ");
 }
 
 export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
@@ -336,6 +365,7 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
               gridColumn: `${o.col} / ${o.col + o.w}`,
               gridRow: `${kq.map[o.row]} / ${kq.map[o.row + o.h - 1] + 1}`,
               ...bienMauO(o),
+              ...(mauVien(o) ? { "--vien": mauVien(o) } as React.CSSProperties : {}),
               backgroundImage: nenAnhO(o),
             }}>
               {!tuCoNhan(o.variant) && (

@@ -57,7 +57,7 @@ const coKhuon = (ma: unknown): ma is string => typeof ma === "string" && Object.
 
 /** Kiểu vẽ mà mỗi `kind` chấp nhận; dùng chung với lưới `ui.boCuc` (xem `boCuc.ts`). */
 export const VARIANT_THEO_KIND: Record<IotxCapability["kind"], readonly string[]> = {
-  onoff: ["switch01", "power01"],
+  onoff: ["switch01", "power01", "power02"],
   level: ["slider01", "dial01", "step01"],
   enum: ["chips01"],
   sensor: ["readout01", "gauge01", "state01", "alarm01"],

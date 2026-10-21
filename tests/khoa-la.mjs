@@ -15,11 +15,17 @@ const BIET = {
   'ui':         ['renderer','archetype','skin','controls','gauges','image','uuTien','slots','boCuc'],
   'boCuc':      ['cot','caoHang','donHang','skin','nenAnh','alarm','o'],
   'boCuc.o':    ['key','col','row','w','h','variant','canN','canD','caoHang','moiHang','coNut',
-                 'rongNut','nhan','gtIco','ico','vtIco','gtVt','mauCtl','vien','hlChon','nenAnh'],
+                 'rongNut','nhan','gtIco','ico','vtIco','gtVt','mauCtl','vien','hlChon','nenAnh','mauChu'],
   'o.nhan':     ['can','co','dam','nghieng','mau'],
   'capability': ['key','kind','label','rpc','min','max','step','unit','unitSpace','values','labels'],
 };
 for (const k of Object.keys(BIET)) BIET[k] = new Set(BIET[k]);
+
+// Giá trị `variant` local vẽ được — giữ ĐỒNG BỘ với VARIANT_THEO_KIND trong lib/ui/khuon.ts. Kiểu
+// lạ thì local lặng lẽ vẽ bằng kiểu mặc định (22/10/2026: DEV đổi nút nguồn ac_1 sang `power02`
+// mà bài này không bắt được vì chỉ soát TÊN khoá).
+const KIEU_VE = new Set(['switch01', 'power01', 'power02', 'slider01', 'dial01', 'step01', 'chips01',
+  'readout01', 'gauge01', 'state01', 'alarm01', 'filterlist01']);
 
 const url = `${GOC}/v1/products?lang=vi&tenant=${encodeURIComponent(TENANT)}`;
 let sp;
@@ -51,7 +57,21 @@ for (const [ma, p] of Object.entries(sp)) {
   if (!bc) continue;
   coBoCuc++;
   soat('boCuc', bc, ma);
-  for (const o of bc.o || []) { soat('boCuc.o', o, ma); soat('o.nhan', o.nhan, ma); }
+  for (const o of bc.o || []) {
+    soat('boCuc.o', o, ma); soat('o.nhan', o.nhan, ma);
+    // `vien` chỉ nhận "skin" hoặc mã màu (22/10/2026 sadmin chuyển sang "#ffffff") — giá trị khác
+    // local bỏ viền lặng lẽ.
+    if (o.vien !== undefined && o.vien !== 'skin' && !/^#[0-9a-f]{3,8}$/i.test(String(o.vien))) {
+      const d = `vien=${o.vien}`;
+      if (!la.has(d)) la.set(d, new Set());
+      la.get(d).add(`${ma}.${o.key}`);
+    }
+    if (o.variant && !KIEU_VE.has(o.variant)) {
+      const d = `variant=${o.variant}`;
+      if (!la.has(d)) la.set(d, new Set());
+      la.get(d).add(`${ma}.${o.key}`);
+    }
+  }
 }
 
 console.log(`Quét ${Object.keys(sp).length} sản phẩm, ${coBoCuc} sản phẩm có ui.boCuc`);
