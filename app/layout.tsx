@@ -5,13 +5,17 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Livotec Home",
   description: "Điều khiển ngôi nhà thông minh Livotec",
+  // "Thêm vào Màn hình chính" trên iPhone: chạy như app, thanh trạng thái TRONG SUỐT để nền vẽ lên
+  // dưới tai thỏ. Nội dung tự lùi xuống bằng env(safe-area-inset-top) trong globals.css.
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Livotec Home" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#EEF3F1",
+  // Màu khởi đầu = mép trên màn đăng nhập; sau khi chạy, LivotecApp đổi theo màn (lib/ui/mauDinh.ts).
+  themeColor: "#fadcbe",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

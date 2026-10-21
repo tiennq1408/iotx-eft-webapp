@@ -53,7 +53,7 @@ function ghiCaiDat(caiDat: CaiDat) {
 }
 
 /** Tối thật sự hay không — "theo hệ thống" thì hỏi trình duyệt. */
-function laToi(giaoDien: GiaoDien): boolean {
+export function laToi(giaoDien: GiaoDien): boolean {
   if (giaoDien !== "heThong") return giaoDien === "toi";
   return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
 }

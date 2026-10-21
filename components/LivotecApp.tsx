@@ -27,7 +27,8 @@ import DeviceDetail from "@/components/ui/device/DeviceDetail";
 import HenGioPanel from "@/components/ui/device/HenGioPanel";
 import LoginScreen from "@/components/ui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
-import { DS_CO_CHU, DS_GIAO_DIEN, useCaiDat, type CoChu, type GiaoDien } from "@/lib/ui/caiDat";
+import { DS_CO_CHU, DS_GIAO_DIEN, laToi, useCaiDat, type CoChu, type GiaoDien } from "@/lib/ui/caiDat";
+import { MAU_DINH, datMauDinh } from "@/lib/ui/mauDinh";
 import { anhCoNgonNgu, dsNgonNgu, tenNgonNgu } from "@/lib/ui/ngonNgu";
 
 /**
@@ -65,6 +66,15 @@ export default function LivotecApp() {
 
   // Giao diện tối, cỡ/kiểu chữ chỉ áp sau đăng nhập — màn đăng nhập có bảng màu riêng.
   const [caiDat, suaCaiDat] = useCaiDat(hydrated && signedIn);
+  // Vùng tai thỏ / thanh trạng thái theo màu mép trên của màn đang hiện (xem lib/ui/mauDinh.ts).
+  const dangXemChiTiet = panel?.loai === "device";
+  useEffect(() => {
+    if (!hydrated) return;
+    const toi = signedIn && laToi(caiDat.giaoDien);
+    datMauDinh(!signedIn ? MAU_DINH.dangNhap
+      : dangXemChiTiet ? (toi ? MAU_DINH.chiTietToi : MAU_DINH.chiTiet)
+        : (toi ? MAU_DINH.appToi : MAU_DINH.app));
+  }, [hydrated, signedIn, dangXemChiTiet, caiDat.giaoDien]);
   const [thongBaoLoi, setThongBaoLoi] = useState("");
   const [man, setMan] = useState<ManChinh>("home");
   const [boLoc, setBoLoc] = useState<BoLoc>(BO_LOC_DAU);

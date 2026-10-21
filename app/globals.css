@@ -118,6 +118,13 @@ input, select, textarea{font-family:inherit;}
 .splash .brand-mark{width:64px;height:64px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,#12b7a7,var(--teal-dark));color:#fff;}
 .splash .brand-mark svg{width:32px;height:32px;}
 
+/* Tai thỏ: `viewport-fit=cover` cho trang vẽ ra cả vùng dưới tai thỏ / thanh trạng thái. Trên
+   điện thoại (cột ứng dụng trải hết bề ngang) nền trang lấy đúng màu mép trên của màn đang hiện
+   (`--mau-dinh`, LivotecApp → lib/ui/mauDinh.ts), để chỗ lộ ra khi kéo quá đầu trang, hai bên tai
+   thỏ lúc xoay ngang, hay dải trạng thái liền một màu với app chứ không thành vệt xám. */
+@media (max-width:559px){
+  html, body{background:var(--mau-dinh, var(--nen-san));}
+}
 @media (min-width:560px){
   .stage{background:var(--nen-san);}
   .app-shell{
@@ -166,7 +173,7 @@ input, select, textarea{font-family:inherit;}
 }
 
 /* ---------- thanh trên ---------- */
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:transparent;flex-shrink:0;}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;padding-top:calc(6px + env(safe-area-inset-top));background:transparent;flex-shrink:0;}
 .profile-chip{display:flex;align-items:center;gap:8px;min-height:44px;border:0;background:transparent;padding:0;}
 .avatar-circle{width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
 .avatar-circle img{width:100%;height:100%;object-fit:cover;}
@@ -306,7 +313,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 
 /* ---------- drawer ---------- */
 .drawer-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.35);z-index:60;display:flex;justify-content:flex-end;overflow:hidden;}
-.drawer{position:relative;width:80%;height:100%;background:var(--card);padding:20px 16px;box-shadow:-8px 0 24px rgba(0,0,0,.15);overflow-y:auto;}
+.drawer{position:relative;width:80%;height:100%;background:var(--card);padding:20px 16px;padding-top:calc(20px + env(safe-area-inset-top));box-shadow:-8px 0 24px rgba(0,0,0,.15);overflow-y:auto;}
 .drawer h3{font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;}
 .drawer h3 svg{width:18px;height:18px;}
 .drawer-item{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:13px 4px;font-size:13.5px;font-weight:600;color:var(--text);border:0;border-bottom:1px solid var(--border);background:var(--card);text-align:left;}
@@ -315,7 +322,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .drawer-item.danger{color:var(--danger);}
 /* Popup tài khoản: thả xuống ngay dưới avatar + tên ở góc trái trên. */
 .tk-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,0.35);overflow:hidden;}
-.tk-popup{position:absolute;top:56px;left:12px;width:min(340px,calc(100% - 24px));max-height:calc(100% - 80px);overflow-y:auto;
+.tk-popup{position:absolute;top:calc(56px + env(safe-area-inset-top));left:12px;width:min(340px,calc(100% - 24px));max-height:calc(100% - 80px);overflow-y:auto;
   padding:16px 14px 14px;border-radius:18px;background:var(--card);box-shadow:var(--shadow);}
 .tk-popup .drawer-item{background:transparent;}
 /* Nút × đóng ở góc phải trên của popup tài khoản và menu phải. */
@@ -411,7 +418,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
    Màu nhấn đi theo theme.colorPrimary qua --teal / --teal-dark / --teal-soft (apDungTheme);
    không cắm cứng màu của mẫu, không tải phông của mẫu. Số đo chạm giữ đúng mẫu: ô và nút 52px,
    ô tích / liên kết 44px. */
-.login-content{padding:20px 18px 24px;gap:20px;align-items:stretch;}
+.login-content{padding:20px 18px 24px;padding-top:calc(20px + env(safe-area-inset-top));gap:20px;align-items:stretch;}
 .dn-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;}
 .dn-brand{display:flex;align-items:center;gap:10px;min-width:0;}
 .dn-back{width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--text);display:flex;align-items:center;justify-content:center;}
@@ -504,7 +511,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
    Giữ nguyên tên class mà các component cũ đang dùng, chỉ đổi
    màu/bán kính theo tông mới.
    ============================================================= */
-.full-panel{position:absolute;inset:0;z-index:65;background:var(--nen-anh),var(--bg);overflow:hidden;}
+.full-panel{position:absolute;inset:0;z-index:65;background:var(--nen-anh),var(--bg);overflow:hidden;padding-top:env(safe-area-inset-top);}
 .panel-head{min-height:60px;display:grid;grid-template-columns:48px 1fr 72px;align-items:center;gap:6px;border-bottom:1px solid var(--border);background:var(--card);padding:6px 8px;}
 .panel-head h2{margin:0;text-align:center;font-size:16px;font-weight:800;}
 .panel-head>span, .panel-head>.text-button{text-align:right;font-size:12px;color:var(--muted);}
@@ -714,7 +721,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 }
 .devpage .devbody{
   flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:.6rem;
-  padding:.8rem .9rem 1rem; overflow-y:auto;
+  padding:.8rem .9rem 1rem; padding-top:calc(.8rem + env(safe-area-inset-top)); overflow-y:auto;
 }
 
 .devpage .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:.7rem .8rem;}
