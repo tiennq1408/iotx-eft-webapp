@@ -873,6 +873,8 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Lưới boCuc — chép từ bộ vẽ của bản tham chiếu web.dev.happibot.net     */
 /* ==================================================================== */
 .bc-wrap{display:flex;flex-direction:column;gap:10px;width:100%;margin:.2rem 0;}
+/* `boCuc.nenAnh`: ảnh nền của cả lưới, đúng số đo web.dev. */
+.bc-wrap.nen{background-position:50%;background-repeat:no-repeat;background-size:cover;border-radius:14px;padding:8px;}
 .bc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .bc-tile{z-index:1;background:var(--card);border:1px solid color-mix(in srgb, var(--line) 70%, transparent);border-radius:14px;display:flex;flex-direction:column;min-width:0;min-height:0;padding:8px 10px;position:relative;overflow:hidden;}
 .bc-tile .bc-pl{color:var(--dim);white-space:nowrap;text-overflow:ellipsis;margin-bottom:8px;padding-right:4px;font-size:12px;overflow:hidden;}

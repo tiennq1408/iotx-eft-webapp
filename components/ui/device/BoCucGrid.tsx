@@ -127,10 +127,11 @@ function NhanO({ o, ten, style, dam }: { o: OdaDung; ten: string; style?: React.
 }
 
 /** Ảnh nền của ô: chỉ nhận địa chỉ ảnh, và bọc chuỗi để dấu nháy trong URL không phá `url()`. */
-function nenAnhO(o: OdaDung): string | undefined {
-  const v = o.nenAnh?.trim();
+function anhNen(dia?: string): string | undefined {
+  const v = dia?.trim();
   return v && /^(https?:\/\/|\/)/i.test(v) ? `url(${JSON.stringify(v)})` : undefined;
 }
+const nenAnhO = (o: OdaDung) => anhNen(o.nenAnh);
 
 /* Vòng xoay — dựng đúng như bản tham chiếu web.dev: hai CUNG TRÒN trên viewBox 120, tâm
    (60,60) bán kính 46, quét 270° bắt đầu từ 135° (mở xuống dưới). Cung chạy được vẽ bằng
@@ -309,7 +310,8 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
   const loi = kq.capBao ? danhSachLoi(kq.capBao, device.lastValues?.[kq.capBao.key]) : [];
 
   return (
-    <div className="bc-wrap">
+    // `boCuc.nenAnh`: ảnh nền của CẢ lưới (khác `o.nenAnh` của từng ô) — web.dev gắn lên `.bc-wrap`.
+    <div className={anhNen(bc.nenAnh) ? "bc-wrap nen" : "bc-wrap"} style={{ backgroundImage: anhNen(bc.nenAnh) }}>
       {loi.length > 0 && kq.capBao && (
         <div className="bc-alarmstrip" role="alert">
           <div className="bc-alarmhead"><TriangleAlert className="ic-dong" aria-hidden="true" /><span>{nhanCap(kq.capBao, t)}</span></div>
