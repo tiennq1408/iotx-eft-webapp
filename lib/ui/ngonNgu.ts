@@ -40,9 +40,13 @@ export function anhCoNgonNgu(ma: string): string | null {
   return CO_ANH[ma] ?? CO_ANH[ma.split("-")[0]] ?? null;
 }
 
-/** Danh sách để dựng ô chọn: ngôn ngữ đang dùng mà máy chủ không liệt kê vẫn phải có mặt. */
+/**
+ * Danh sách để dựng ô chọn: `langs` máy chủ trả, LUÔN có `en` (như web.dev — tiếng Anh là ngôn
+ * ngữ mặc định nên phải chọn lại được), và ngôn ngữ đang dùng mà máy chủ không liệt kê vẫn có mặt.
+ */
 export function dsNgonNgu(lang: string | undefined, langs: string[]): string[] {
-  return lang && !langs.includes(lang) ? [lang, ...langs] : langs;
+  const ds = langs.length && !langs.includes("en") ? ["en", ...langs] : langs;
+  return lang && !ds.includes(lang) ? [lang, ...ds] : ds;
 }
 
 /** Mật khẩu tối thiểu theo chính sách sadmin (08/10/2026) — dùng ở đăng ký và đổi mật khẩu. */

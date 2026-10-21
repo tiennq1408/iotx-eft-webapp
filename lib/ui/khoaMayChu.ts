@@ -1,0 +1,78 @@
+/**
+ * Khoá chữ local → khoá chữ của máy chủ (`/v1/i18n`), để chữ trên màn LẤY TỪ MÁY CHỦ như web.dev
+ * (yêu cầu 21/10/2026) — sửa chữ trên sadmin là app đổi theo, không phải build lại.
+ *
+ * Chỉ ghi những khoá local KHÁC TÊN với khoá máy chủ. Khoá trùng tên (`common.close`,
+ * `routine.if`…) không cần ở đây: hàm `t` tra thẳng tên đó trên máy chủ trước.
+ *
+ * Dựng ngày 21/10/2026 bằng cách đối chiếu câu tiếng Việt của local với `/v1/i18n?lang=vi` DEV
+ * (559 khoá): giữ 63 cặp câu tiếng Việt GIỐNG HỆT và nghĩa tiếng Anh cũng khớp. Đã loại các cặp
+ * trùng chữ mà khác nghĩa — vd. "Khác" (nhóm khác) với `op.neq` "not equal to", "Thiết bị" (thanh
+ * dưới) với `common.device` tiếng Anh là "device" chữ thường. Khoá local không có trong bảng này
+ * và cũng không trùng tên trên máy chủ thì vẫn dùng chữ trong `strings.ts` — sadmin chưa có câu đó.
+ */
+export const KHOA_MAY_CHU: Record<string, string> = {
+  "on": "common.on",
+  "off": "common.off",
+  "cancel": "common.cancel",
+  "close": "common.close",
+  "back": "common.back",
+  "nav_home": "home.title",
+  "nav_automation": "routine.title",
+  "nav_services": "home.services",
+  "nav_discover": "home.explore",
+  "all_houses": "filter.allHouses",
+  "all_rooms": "filter.allRooms",
+  "add_device": "device.add",
+  "pick_room": "filter.pickRoom",
+  "auto_if": "routine.newCond",
+  "auto_time": "routine.newSched",
+  "if_label": "routine.if",
+  "then_label": "routine.then",
+  "auto_run": "routine.runNow",
+  "auto_delete": "common.delete",
+  "shadow_tag": "routine.shadow",
+  "svc_maintenance": "services.maintenance",
+  "svc_warranty": "services.warranty",
+  "svc_activate": "services.activate",
+  "svc_shop": "services.shop",
+  "dh_sub": "explore.sub",
+  "dh_btn": "explore.open",
+  "menu_title": "menu.title",
+  "menu_spaces": "menu.places",
+  "menu_members": "menu.members",
+  "menu_add": "menu.addDevice",
+  "menu_virtual": "menu.virtual",
+  "logout": "profile.logout",
+  "menu_ngon_ngu": "profile.language",
+  "menu_thong_bao": "menu.notify",
+  "notif_title": "menu.notify",
+  "notif_empty": "notify.empty",
+  "login_btn": "login.signIn",
+  "dn_tai_khoan_ph": "login.email",
+  "dn_hoac": "common.or",
+  "dn_google": "login.google",
+  "dk_ten": "login.fullName",
+  "dk_btn": "login.signUp",
+  "login_lang": "profile.language",
+  "login_bad": "login.badCreds",
+  "save": "common.save",
+  "rule_history_empty": "routine.noRuns",
+  "hg_run_repeat": "routine.finishLoop",
+  "dev_shared": "dev.shared",
+  "pick_device": "routine.pickDevice",
+  "supplies_name": "list.nameIn",
+  "supplies_replace": "list.replace",
+  "supplies_life_edit": "list.setLife",
+  "supplies_drop": "list.remove",
+  "khung_more": "khung.more",
+  "khung_less": "khung.less",
+  "pick_house": "filter.pickHouse",
+  "pick_group": "filter.pickGroup",
+  "all_groups": "filter.allGroups",
+  "loc_nhom": "place.group",
+  "spaces.title": "place.title",
+  "add.title": "device.add",
+  "add.maSoPh": "wizard.pin",
+  "add.tiepTuc": "common.continue",
+};
