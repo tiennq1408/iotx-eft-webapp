@@ -107,7 +107,26 @@ const kenh = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(1
  * Hai mẫu `#fb6559` và `#ffffff` là bài kiểm nghiệm thu trong `tests/bo-cuc.mjs`.
  * Kênh alpha (mã 4/8 chữ số) không đi vào deep/soft.
  */
-export function mauTuHex(ma: string): { brand: string; deep: string; soft: string } | null {
+/** Độ sáng tương đối WCAG của một màu `#rrggbb` (0 = đen, 1 = trắng). */
+function doSang(rgb: number[]): number {
+  const [r, g, b] = rgb.map(c => c / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const CHU_TOI = "#1b1f23";
+
+/**
+ * Màu chữ/biểu tượng đặt TRÊN nền màu nhấn (`--brand-chu`): trắng hoặc `#1b1f23`.
+ *
+ * GIỐNG web.dev TUYỆT ĐỐI theo yêu cầu 21/10/2026: độ sáng > 0,5 thì chữ tối, còn lại chữ trắng.
+ * Đã biết và chấp nhận: với màu nhấn sáng vừa (vd. `#2dc3b4`, `#2ea5fc`, `#fb6559`) ngưỡng này ra
+ * chữ trắng tương phản chỉ ~2,2–3:1, dưới mức WCAG mà AGENTS.md đòi. Muốn đạt WCAG thì thay ngưỡng
+ * bằng "chọn bên tương phản cao hơn": so 1,05/(L+0,05) (với trắng) với (L+0,05)/(L_#1b1f23+0,05).
+ */
+export function mauDoiNguoc(rgb: number[]): string {
+  return doSang(rgb) > 0.5 ? CHU_TOI : "#ffffff";
+}
+
+export function mauTuHex(ma: string): { brand: string; deep: string; soft: string; chu: string } | null {
   if (!LA_MA_MAU.test(ma)) return null;
   let h = ma.slice(1).toLowerCase();
   if (h.length === 3 || h.length === 4) h = [...h].map(c => c + c).join("");
@@ -117,12 +136,17 @@ export function mauTuHex(ma: string): { brand: string; deep: string; soft: strin
     brand: ma.toLowerCase(),
     deep: "#" + rgb.map(c => kenh(c * 0.78)).join(""),
     soft: "#" + rgb.map(c => kenh(c + (255 - c) * 0.86)).join(""),
+    chu: mauDoiNguoc(rgb),
   };
 }
 
 /** Tên cũ (`ocean`/`sunset`/`graphite`) VẪN giữ — sản phẩm khác có thể còn dùng. */
-export const mauSkin = (ma: unknown) =>
-  typeof ma !== "string" ? null : LA_MA_MAU.test(ma.trim()) ? mauTuHex(ma.trim()) : SKIN[ma] || null;
+export const mauSkin = (ma: unknown) => {
+  if (typeof ma !== "string") return null;
+  if (LA_MA_MAU.test(ma.trim())) return mauTuHex(ma.trim());
+  const da = SKIN[ma];
+  return da ? { ...da, chu: mauTuHex(da.brand)?.chu ?? "#ffffff" } : null;
+};
 
 /* ------------------------------------------------------------------ */
 /* Gán nhóm mặc định khi `slots` không nói                             */

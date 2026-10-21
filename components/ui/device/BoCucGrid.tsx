@@ -289,7 +289,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
 /** `mauCtl`: ba biến màu nội tuyến đè lên biến gốc, chỉ trong ô này. Mã hỏng thì bỏ qua. */
 function bienMauO(o: OdaDung): React.CSSProperties | undefined {
   const m = o.mauCtl ? mauTuHex(o.mauCtl.trim()) : null;
-  return m ? ({ "--brand": m.brand, "--brand-deep": m.deep, "--brand-soft": m.soft } as React.CSSProperties) : undefined;
+  return m ? ({ "--brand": m.brand, "--brand-deep": m.deep, "--brand-soft": m.soft, "--brand-chu": m.chu } as React.CSSProperties) : undefined;
 }
 
 function lopO(o: OdaDung): string {

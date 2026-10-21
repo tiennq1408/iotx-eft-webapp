@@ -149,7 +149,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
   const bc = boCucCua(device.product);
   const da = mauSkin(bc?.skin ?? kq?.skin);
   const bien = da
-    ? ({ display: "contents", "--brand": da.brand, "--brand-deep": da.deep, "--brand-soft": da.soft } as React.CSSProperties)
+    ? ({ display: "contents", "--brand": da.brand, "--brand-deep": da.deep, "--brand-soft": da.soft, "--brand-chu": da.chu } as React.CSSProperties)
     : undefined;
 
   // Báo động đang im không đáng chiếm chỗ trên đầu màn — tụt xuống "xem thêm" dạng dòng
