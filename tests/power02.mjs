@@ -10,7 +10,7 @@ import fs from 'node:fs';
  * `"#ffffff"` thay vì `"skin"` (kiểm ở cuối bài). Bơm vào app qua `/v1/products`.
  *
  *   Tắt: nền `--bg`, chữ màu mực, icon mờ .55.  Bật: nền màu nhấn, chữ `o.mauChu` ("skin" → màu
- *   nhấn, mã màu → mã đó), không khai thì `--brand-chu`. Không có `o.ico` thì icon là ⏻.
+ *   nhấn, mã màu → mã đó), không khai thì `--brand-chu`. Không có `o.ico` thì icon nguồn SVG (không dùng ký tự ⏻ — Android thiếu phông).
  *   Ô nhận lớp `p2` (đệm 0) và không in nhãn riêng — nút tự mang tên.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
@@ -40,7 +40,7 @@ const tile = p => p.locator(`.bc-tile[data-k="${KHOA}"]`);
 const nut = p => tile(p).locator('button.bc-p2');
 const doNut = p => nut(p).evaluate(n => {
   const s = getComputedStyle(n), i = n.querySelector('.bc-p2-ico'), r = n.getBoundingClientRect();
-  return { lop: n.className, nen: s.backgroundColor, chu: s.color, icoMo: getComputedStyle(i).opacity, ico: i.textContent.trim(), w: Math.round(r.width), h: Math.round(r.height),
+  return { lop: n.className, nen: s.backgroundColor, chu: s.color, icoMo: getComputedStyle(i).opacity, ico: i.querySelector('svg.ic-nguon') ? 'svg' : i.textContent.trim(), w: Math.round(r.width), h: Math.round(r.height),
     brand: getComputedStyle(n).getPropertyValue('--brand').trim() };
 });
 /** Đưa nút về trạng thái muốn có (máy giả nhớ giá trị sau mỗi lệnh). */
@@ -59,7 +59,7 @@ async function datTrangThai(p, bat) {
   const bat = await doNut(p);
   ok(`bật: nền màu nhấn (${bat.nen}), chữ --brand-chu (${bat.chu}), lớp "on"`,
     /\bon\b/.test(bat.lop) && bat.nen === 'rgb(45, 195, 180)' && bat.chu === 'rgb(255, 255, 255)');
-  ok(`không khai ico → icon ⏻ ("${bat.ico}")`, bat.ico === '⏻');
+  ok(`không khai ico → icon nguồn SVG, không phải ký tự ("${bat.ico}")`, bat.ico === 'svg');
   ok(`vùng chạm ≥44px (${bat.w}×${bat.h})`, bat.h >= 44 && bat.w >= 44);
   await tile(p).screenshot({ path: anh('power02-bat') });
 

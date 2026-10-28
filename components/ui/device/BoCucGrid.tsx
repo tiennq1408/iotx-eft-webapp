@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { Power, TriangleAlert } from "lucide-react";
 import { useChu, type HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
 import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
@@ -36,6 +36,15 @@ import type { Device } from "@/lib/types";
  * lần vẽ lại). Tải ảnh, vẽ thu nhỏ lên canvas rồi đọc điểm ảnh; lỗi gì cũng coi là KHÔNG đơn sắc
  * để rơi về `<img>` như cũ.
  */
+/**
+ * Icon nguồn vẽ bằng SVG chứ không bằng ký tự "⏻" (U+23FB) như web.dev: phông mặc định của nhiều
+ * máy Android không có ký tự đó, nên hiện ô vuông hoặc mượn phông khác lệch cỡ. Cỡ 1em, màu chữ —
+ * vẫn ăn `font-size`/`color` của nút như ký tự cũ.
+ */
+export function IconNguon() {
+  return <Power className="ic-nguon" width="1em" height="1em" strokeWidth={2.4} aria-hidden="true" />;
+}
+
 const DON_SAC = new Map<string, boolean | Promise<boolean>>();
 function kiemDonSac(src: string): boolean | Promise<boolean> {
   const daCo = DON_SAC.get(src);
@@ -202,7 +211,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu, khoaGt }: {
         <button className={["bc-p2", lopViTri(o.vtIco) || "vt-trai", bat ? "on" : "off"].join(" ")}
           style={bat && mauChu ? ({ "--p2-chu": mauChu } as React.CSSProperties) : undefined}
           aria-pressed={bat} aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>
-          <i className="bc-p2-ico" aria-hidden="true">{ico ? <Ico ico={ico} /> : "⏻"}</i>
+          <i className="bc-p2-ico" aria-hidden="true">{ico ? <Ico ico={ico} /> : <IconNguon />}</i>
           {/* Như web.dev: chữ chỉ nhận lớp cỡ/đậm của `nhan`, KHÔNG nhận `nhan.mau` — màu chữ do
               trạng thái bật/tắt quyết (DEV đang khai `nhan.mau` xám, tô lên nền màu nhấn là chìm). */}
           <span className={["bc-p2-chu", lopNhan(o)].filter(Boolean).join(" ")}>{ten}</span>
@@ -213,7 +222,7 @@ function ONoiDung({ o, device, t, chan, gui, vatTu, khoaGt }: {
       return (
         <div className="bc-srow" style={{ justifyContent: CAN_NGANG[o.canN || "giua"], gap: 10 }}>
           <button className={`bc-pwr${bat ? "" : " off"}`} aria-pressed={bat}
-            aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
+            aria-label={ten} disabled={khoa} onClick={() => gui(cap, !bat)}><IconNguon /></button>
           {o.w >= 2 && <NhanO o={o} ten={ten} dam tat={!bat} />}
         </div>
       );
