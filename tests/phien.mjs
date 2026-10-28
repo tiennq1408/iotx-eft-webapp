@@ -63,10 +63,11 @@ const quayLaiTab = p => p.evaluate(() => document.dispatchEvent(new Event('visib
   ok('Mất mạng khi mở: vẫn ở trong app', await doi(async () => await p.locator('.top-bar').count() > 0));
   ok('Mất mạng khi mở: không bị đá ra màn đăng nhập', await p.locator('button.login-btn').count() === 0);
   ok('Mất mạng khi mở: token vẫn còn', await p.evaluate(() => localStorage.getItem('livotec-iotx-session') !== null));
-  ok('Mất mạng khi mở: có báo lỗi', await doi(async () => await p.locator('.toast-loi').count() > 0));
+  // 503 ở cửa ngõ = mất máy chủ (docs/viec-pwa.md 3.3): báo bằng dải "Mất kết nối máy chủ", không phải toast.
+  ok('Mất mạng khi mở: có báo lỗi (dải mất kết nối)', await doi(async () => await p.locator('.mat-ket-noi, .toast-loi').count() > 0));
   await p.unroute('**/v1/bootstrap**');
   await quayLaiTab(p);
-  ok('Mạng về: đồng bộ lại đủ và tắt báo lỗi', await doi(async () => await p.locator('.toast-loi').count() === 0, 8000));
+  ok('Mạng về: đồng bộ lại đủ và tắt báo lỗi', await doi(async () => await p.locator('.mat-ket-noi, .toast-loi').count() === 0, 8000));
   ok('Mạng về: tải được hồ sơ', await doi(async () => (await p.locator('.profile-name').first().innerText({ timeout: 300 }).catch(() => '')).includes('p')));
   await ctx.close();
 }

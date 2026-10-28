@@ -59,6 +59,7 @@ export default function LivotecApp() {
 
   const {
     hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang, loiDongBo, setLoiDongBo,
+    matMayChu, thuKetNoiLai,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, taiLuat,
     doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
@@ -441,8 +442,16 @@ export default function LivotecApp() {
 
             <BottomNav active={man} onChon={next => { setMan(next); dongPanel(); }} />
 
-            {(thongBaoLoi || loiDongBo) && (
-              <div className="toast-loi" role="status">
+            {/* Mất máy chủ (docs/viec-pwa.md 3.3): dải cố định thay cho toast lỗi đồng bộ — câu đó
+                giờ thừa, dải đã nói rồi. Lỗi lệnh (`thongBaoLoi`) vẫn hiện, xếp phía trên dải. */}
+            {matMayChu && (
+              <div className="mat-ket-noi" role="status">
+                <span><strong>{chu.mat_ket_noi}</strong>{chu.mat_ket_noi_mo_ta}</span>
+                <button onClick={() => void thuKetNoiLai()}>{chu.bh_thu_lai}</button>
+              </div>
+            )}
+            {(thongBaoLoi || (loiDongBo && !matMayChu)) && (
+              <div className={matMayChu ? "toast-loi tren-dai" : "toast-loi"} role="status">
                 <span>{thongBaoLoi || loiDongBo}</span>
                 <button aria-label={chu.toast_close} onClick={() => { setThongBaoLoi(""); setLoiDongBo(""); }}>×</button>
               </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultData, loadData, saveData } from "@/lib/storage";
 import {
-  apGiaTri, browserTokenStore, docAnhChup, docProducts, ghiAnhChup, ghiProducts, iotxClient, isIotxMode, laHetPhien, mapIotxDevice, mapNotification,
+  apGiaTri, browserTokenStore, docAnhChup, docProducts, ghiAnhChup, ghiProducts, iotxClient, isIotxMode, laHetPhien, laLoiMang, mapIotxDevice, mapNotification,
   giuThietBiCu, mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
 } from "@/lib/iotx";
 import { SoLenhCho } from "@/lib/iotx/soLenhCho";
@@ -54,6 +54,23 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
   const [loiDongBo, setLoiDongBo] = useState("");
   /** Đã có một lần `syncRemote` trọn vẹn chưa; chưa thì nhịp đồng bộ phải làm lại cả lần đó. */
   const daDongBoDu = useRef(false);
+  /**
+   * Mất máy chủ (docs/viec-pwa.md 3.3): `useDongBoNen` dừng SSE và nhịp hỏi `/bootstrap`, màn
+   * chính hiện dải "Mất kết nối máy chủ" trên dữ liệu cuối cùng đang giữ.
+   */
+  const [matMayChu, setMatMayChu] = useState(false);
+  const soLanHongMang = useRef(0);
+  /**
+   * Ghi nhận kết quả một lần đồng bộ. Chưa từng với tới máy chủ trong lần mở này (mở app lúc
+   * mất mạng) thì một lần hỏng đã đủ; đang chạy ngon thì phải hỏng HAI lần liền mới tính — một
+   * cú chớp mạng không đáng dừng cả realtime.
+   */
+  const ghiKetQuaDongBo = useCallback((loi: unknown) => {
+    if (!loi) { soLanHongMang.current = 0; setMatMayChu(false); return; }
+    if (!laLoiMang(loi)) return;
+    soLanHongMang.current += 1;
+    if (!daDongBoDu.current || soLanHongMang.current >= 2) setMatMayChu(true);
+  }, []);
 
   const productsRef = useRef<Record<string, IotxProduct>>({});
   /** Nhãn phiên bản catalog đang giữ (`phienBan.products`) — đổi nghĩa là sadmin vừa lưu. */
@@ -150,9 +167,10 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     // Một luồng thôi: hỏi định kỳ, quay lại tab và SSE nối lại có thể rơi cùng lúc, nhất là
     // khi lần đồng bộ đầy đủ (5 request) còn chưa xong.
     dangDongBo.current ??= (daDongBoDu.current ? refreshDevices() : syncRemote())
+      .then(() => ghiKetQuaDongBo(null), loi => { ghiKetQuaDongBo(loi); throw loi; })
       .finally(() => { dangDongBo.current = null; });
     return dangDongBo.current;
-  }, [refreshDevices, syncRemote]);
+  }, [refreshDevices, syncRemote, ghiKetQuaDongBo]);
 
   // `logout` báo qua `onHetPhien` — phần dọn state nằm ở người nghe bên dưới.
   const hetPhien = useCallback(() => iotxClient.logout(), []);
@@ -177,6 +195,8 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
    */
   useEffect(() => iotxClient.onHetPhien(() => {
     daDongBoDu.current = false;
+    soLanHongMang.current = 0;
+    setMatMayChu(false);
     setSignedIn(false);
     if (!isIotxMode) return;
     setData(DU_LIEU_RONG);
@@ -197,13 +217,13 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     if (isIotxMode && hasSession) {
       // Chỉ 401 (refresh cũng đã hỏng) mới là phiên chết. Mất mạng, 502/503 hay lỗi
       // `/products` thì giữ phiên: báo lỗi, và nhịp đồng bộ sẽ thử lại.
-      void syncRemote().catch(error => {
+      void syncRemote().then(() => ghiKetQuaDongBo(null), error => {
         if (laHetPhien(error)) hetPhien();
-        else setLoiDongBo(moTaLoi(error));
+        else { setLoiDongBo(moTaLoi(error)); ghiKetQuaDongBo(error); }
       });
     }
     setHydrated(true);
-  }, [syncRemote, khoiDong, hetPhien, langHienTai]);
+  }, [syncRemote, khoiDong, hetPhien, langHienTai, ghiKetQuaDongBo]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -216,7 +236,10 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     return () => clearTimeout(hen);
   }, [data, hydrated, signedIn]);
 
-  useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien: nhanSuKien, onHetPhien: hetPhien });
+  useDongBoNen({ signedIn, xemKy, matMayChu, dongBoNhip, onSuKien: nhanSuKien, onHetPhien: hetPhien });
+
+  /** Nút "Thử lại" trên dải mất kết nối. */
+  const thuKetNoiLai = useCallback(() => dongBoNhip().catch(() => undefined), [dongBoNhip]);
 
   /**
    * Đổi ngôn ngữ: bảng chữ đổi ngay (trong `datNgonNgu`), còn tên thiết bị, nhãn capability
@@ -231,6 +254,7 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
 
   return {
     hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang, loiDongBo, setLoiDongBo,
+    matMayChu, thuKetNoiLai,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, taiLuat,
     doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,

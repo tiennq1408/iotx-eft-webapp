@@ -42,12 +42,14 @@ function ghi(value: NoiDungCache) {
 }
 
 /**
- * Catalog đang giữ, chỉ trả về khi nhãn phiên bản còn khớp với nhãn bootstrap vừa báo.
- * Lệch nhãn nghĩa là hãng đã đổi catalog — phải tải lại.
+ * Catalog đang giữ. Biết nhãn phiên bản mà lệch nghĩa là hãng đã đổi catalog — phải tải lại.
+ * Chưa biết nhãn (mất mạng nên `/bootstrap` hỏng) thì cứ dùng bản đang giữ, như `docI18n`:
+ * trả null ở đây là app trắng màn dù catalog vẫn nằm nguyên trong localStorage.
  */
 export function docProducts(lang: string, nhan: string | undefined): Record<string, IotxProduct> | null {
   const muc = doc().products?.[lang];
-  if (!muc || !nhan || muc.nhan !== nhan) return null;
+  if (!muc) return null;
+  if (nhan !== undefined && muc.nhan !== nhan) return null;
   return muc.products;
 }
 
