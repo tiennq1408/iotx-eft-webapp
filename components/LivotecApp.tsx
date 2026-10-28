@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/ManChinh";
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import { capNguonCua } from "@/lib/ui/khuon";
+import { phienBle } from "@/lib/ble/quatBle";
 import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
   ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
@@ -130,6 +131,17 @@ export default function LivotecApp() {
     // Sản phẩm không khai nguồn điện thì không có lệnh nào để gửi; đoán "setPower" chỉ để
     // máy chủ từ chối. Thẻ thiết bị cũng không vẽ công tắc trong trường hợp này.
     if (isIotxMode && !capNguon?.rpc) return;
+    // Đang nối Bluetooth với quạt: lệnh đi thẳng sang quạt, cả ở chế độ mock.
+    const ble = phienBle(id);
+    if (ble && capNguon?.rpc) {
+      suaThietBi(id, device => apGiaTri(device, { [capNguon.key]: !truoc.on }));
+      try { await ble.gui(capNguon.rpc, { [capNguon.key]: !truoc.on }); }
+      catch (error) {
+        suaThietBi(id, () => truoc);
+        setThongBaoLoi(moTaLoi(error));
+      }
+      return;
+    }
     await lacQuan(
       () => suaThietBi(id, device => ({ ...device, on: !device.on, lastValues: { ...device.lastValues, [capNguon?.key || "power"]: !device.on } })),
       async () => {
@@ -198,6 +210,17 @@ export default function LivotecApp() {
     const truoc = data.devices.find(device => device.id === id);
     // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
     suaThietBi(id, device => apGiaTri(device, { [capability.key]: value }));
+    // Đang nối Bluetooth với quạt: lệnh đi thẳng sang quạt, cùng `method`/`params` như RPC
+    // qua `/v1` (xem lib/ble/quatBle.ts). Quạt báo lại trạng thái qua notify.
+    const ble = phienBle(id);
+    if (ble) {
+      try { await ble.gui(capability.rpc, { [capability.key]: value }); }
+      catch (error) {
+        if (truoc) suaThietBi(id, () => truoc);
+        throw error;
+      }
+      return;
+    }
     if (!isIotxMode) return;
     // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
     ghiNhanLenh(id, capability.key, value);

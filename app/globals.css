@@ -786,6 +786,11 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 /* Icon (lucide) trong nút: cùng cỡ chữ nút, nằm ngay hàng chữ. */
 .devpage .btn svg{width:1.1em; height:1.1em; vertical-align:-.2em; margin-right:.15em;}
 .devpage .btn:disabled{opacity:.45; cursor:not-allowed;}
+/* Khối điều khiển quạt qua Bluetooth (components/ui/device/BleQuat.tsx). */
+.devpage .ble-quat{display:flex; flex-direction:column; gap:.45rem;}
+.devpage .ble-quat .small{margin:0;}
+.devpage .ble-quat .frow .btn{flex:0 0 auto; width:auto;}
+.devpage .ble-quat .fsel{font-size:1rem; letter-spacing:.2em; text-align:center;}
 
 /* Lựa chọn dạng chip — ô chạm cao 44px như bản tham chiếu. */
 .devpage .mchips{display:flex; flex-wrap:wrap; gap:.4rem;}

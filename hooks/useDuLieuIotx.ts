@@ -7,6 +7,7 @@ import {
   giuThietBiCu, mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
 } from "@/lib/iotx";
 import { SoLenhCho } from "@/lib/iotx/soLenhCho";
+import { apTrangThaiBle, ngheBle } from "@/lib/ble/quatBle";
 import type { AppData, ChiaSeNhan, UiNotification } from "@/lib/types";
 import type { IotxDevice, IotxProduct, IotxProfile, IotxRule, IotxRules, IotxStreamEvent } from "@/lib/iotx/contracts";
 import { useBoChuVaTheme } from "./useBoChuVaTheme";
@@ -80,7 +81,7 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
    * giữ lại (cờ `hidden`) để nút "thiết bị đã ẩn" trên hàng lọc tìm được và hiện lại được.
    */
   const mapThietBi = useCallback((devices: IotxDevice[]) => devices
-    .map(device => soLenhCho.current.apLen(mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product }))), []);
+    .map(device => apTrangThaiBle(soLenhCho.current.apLen(mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product })))), []);
 
   const syncRemote = useCallback(async () => {
     const bootstrap = await iotxClient.bootstrap(langHienTai());
@@ -170,6 +171,15 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
       devices: current.devices.map(device => device.id === event.deviceId ? apGiaTri(device, { [event.key]: event.value }) : device),
     }));
   }, []);
+
+  /** Quạt đang nối Bluetooth báo trạng thái mới (đổi từ app, từ nút trên thân, từ remote). */
+  useEffect(() => ngheBle((deviceId, gt) => {
+    if (!gt || !Object.keys(gt).length) return;
+    setData(current => ({
+      ...current,
+      devices: current.devices.map(device => device.id === deviceId ? apGiaTri(device, gt) : device),
+    }));
+  }), []);
 
   /**
    * Phiên kết thúc (đăng xuất, hoặc refresh cũng hỏng): về màn đăng nhập và bỏ hết dữ liệu
