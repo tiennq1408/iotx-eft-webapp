@@ -758,6 +758,17 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .tt-lon{flex:0 0 auto;width:44px;height:44px;margin-left:-4px;padding:0;border:0;border-radius:12px;
   background:transparent;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .devpage .tt-lon svg{width:24px;height:24px;}
+/* Nút "Kết nối trực tiếp" (components/ble/KetNoiBle.tsx) — cùng khuôn nút thông tin; đã nối thì màu nhấn. */
+.devpage .ble-nut.on{color:var(--brand);}
+.devpage .ble-nut[aria-busy="true"]{opacity:.6;}
+/* Băng BLE trên lưới: mỏng; đã nối nền nhạt màu nhấn; mất kết nối / lỗi nền vàng. */
+.devpage .ble-bang{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px 0 12px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-weight:600;}
+.devpage .ble-bang span{flex:1;min-width:0;}
+.devpage .ble-bang>svg{width:18px;height:18px;flex:none;color:var(--brand);}
+.devpage .ble-bang.on{background:var(--brand-soft);border-color:var(--brand);}
+.devpage .ble-bang.vang{background:#fff4cc;border-color:#e0b100;color:#4a3800;}
+.devpage .ble-bang button{min-width:44px;min-height:44px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-weight:700;font-size:13px;}
 /* Hai khối đầu màn gọn hơn (yêu cầu 20/10/2026): ba ô chọn vẫn cao 44px vì luật vùng chạm, chỉ
    thu khe với hàng tên phía trên. */
 .devpage .dev-gan{margin-top:-.25rem;}

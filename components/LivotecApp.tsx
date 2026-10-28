@@ -24,6 +24,8 @@ import {
   NHAN_CO_CHU, NHAN_GIAO_DIEN, type MucChon, type MucMenu,
 } from "@/components/ui/modals";
 import DeviceDetail from "@/components/ui/device/DeviceDetail";
+import { BangBle, NutKetNoiBle } from "@/components/ble/KetNoiBle";
+import { rpcTheoDuong } from "@/lib/iotx/ble";
 import HenGioPanel from "@/components/ui/device/HenGioPanel";
 import LoginScreen from "@/components/ui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
@@ -202,7 +204,7 @@ export default function LivotecApp() {
     if (!isIotxMode) return;
     // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
     ghiNhanLenh(id, capability.key, value);
-    try { await iotxClient.rpc(id, capability.rpc, { [capability.key]: value }); }
+    try { await rpcTheoDuong(id, capability.rpc, { [capability.key]: value }); }
     catch (error) {
       boGhiNhanLenh(id, capability.key);
       if (truoc) suaThietBi(id, () => truoc);
@@ -510,6 +512,8 @@ export default function LivotecApp() {
                 onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id, tuChiTiet: true })}
                 spaces={data.spaces}
                 onSua={patch => suaThongTinThietBi(thietBiDangMo.id, patch)}
+                nutBle={<NutKetNoiBle device={thietBiDangMo} />}
+                bangBle={<BangBle device={thietBiDangMo} />}
               />
             )}
 

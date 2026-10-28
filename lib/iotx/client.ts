@@ -110,7 +110,7 @@ function choDocCoHanGio<T>(promise: Promise<T>, ms: number): Promise<T> {
  * "Không kết nối được máy chủ" — báo sai hoàn toàn, mạng không hề hỏng.
  * `crypto.getRandomValues` thì có ở mọi ngữ cảnh, nên dựng tay v4 từ nó.
  */
-function khoaMotLan(): string {
+export function khoaMotLan(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   const b = new Uint8Array(16);
   crypto.getRandomValues(b);
