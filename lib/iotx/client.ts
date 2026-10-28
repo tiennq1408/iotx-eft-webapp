@@ -438,7 +438,7 @@ export class IotxClient {
 
   async subscribe(
     onEvent: (event: IotxStreamEvent) => void,
-    options: { signal?: AbortSignal; onReconnect?: () => void } = {},
+    options: { signal?: AbortSignal; onReconnect?: () => void; onThong?: (thong: boolean) => void } = {},
   ) {
     let attempt = 0;
     let daTungNoi = false;
@@ -473,6 +473,8 @@ export class IotxClient {
         // mới báo cho caller đi lấy lastValues, chứ không báo lúc vừa đứt.
         if (daTungNoi) options.onReconnect?.();
         daTungNoi = true;
+        // Luồng đang thông — bên nghe nhịp tim của mạch chỉ tin "im lặng" khi luồng thông.
+        options.onThong?.(true);
 
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
         let buffer = "";
@@ -490,6 +492,7 @@ export class IotxClient {
             }
           }
         } finally {
+          options.onThong?.(false);
           await reader.cancel().catch(() => undefined);
         }
       } catch (error) {

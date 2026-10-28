@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { iotxClient, isIotxMode, laHetPhien } from "@/lib/iotx";
 import type { IotxStreamEvent } from "@/lib/iotx/contracts";
+import { datLuongThong } from "@/lib/ble/dieuKhienBle";
 
 /**
  * Nhịp hỏi lại trạng thái.
@@ -38,6 +39,7 @@ export function useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien, onHetPhien
     void iotxClient.subscribe(onSuKien, {
       signal: controller.signal,
       onReconnect: () => { void dongBoNhip().catch(() => undefined); },
+      onThong: datLuongThong,
     }).catch(error => { if (laHetPhien(error)) onHetPhien(); });
     return () => controller.abort();
   }, [signedIn, dongBoNhip, onSuKien, onHetPhien]);

@@ -244,6 +244,44 @@ thiết bị ảo, và người dùng có quyền điều khiển. Rời màn ch
 | Có Wi-Fi | có, người dùng chọn Bluetooth | Bluetooth |
 | Mất Wi-Fi | có | Bluetooth |
 | Mất Wi-Fi | không có | tự nối BLE (xem dưới); chưa được thì nhắc "Chạm để điều khiển qua Bluetooth" |
+| Có Wi-Fi | có, nhưng BLE rớt / không trả lời | Wi-Fi (gửi lại lệnh vừa hỏng) |
+| Máy chủ nói có Wi-Fi, nhưng mạch không báo lại lệnh trong 3 s | bất kỳ | Bluetooth — app tự đánh dấu "Mất Wi-Fi" (xem dưới) |
+
+**Một cú bấm khi mạch mất Wi-Fi** (`guiQuaKenh` trong `components/LivotecApp.tsx`). Máy chủ chậm
+vài phút mới biết mạch mất Wi-Fi (keepalive MQTT 120 s của firmware, rồi thời gian "không hoạt
+động" của ThingsBoard), nên app không đợi cờ `online`: với máy có đường Bluetooth, mỗi lệnh qua
+Wi-Fi được đợi tới khi máy chủ báo lại đúng giá trị vừa đặt (`SoLenhCho.choXacNhan`, tối đa
+`CHO_WIFI_MS` = 3 s, hỏi lại `/bootstrap` ở 1,2 s và 2,4 s cho nhanh). Không thấy → `danhDauMatWifi`
+(icon "Mất Wi-Fi", giữ 2 phút hoặc tới khi máy chủ có tin mới từ mạch), nối Bluetooth và gửi lại
+lệnh đó — nối NGẦM nếu được (máy đã chọn trong lần mở trang này, hoặc `getDevices`).
+
+Hộp chọn Bluetooth chỉ tự bật khi CHẮC mạch không còn đường Wi-Fi: máy chủ báo ngoại tuyến, hoặc
+chính điện thoại không gửi được yêu cầu (`TypeError`). Mạch không báo lại, hay máy chủ trả
+5xx/hết giờ, chỉ là NGHI (mạch có thể còn Wi-Fi mà không báo trạng thái; firmware cũng không trả
+lời RPC) — khi đó không bật hộp chọn lên mặt người dùng, khối Bluetooth nhắc "Thiết bị không phản
+hồi qua Wi-Fi. Chạm để điều khiển qua Bluetooth", lần bấm sau vẫn thử Wi-Fi lại. Mỗi lần nghi,
+console ghi một dòng `[kenh] …` kèm lý do để soát trên máy thật.
+
+**Nhịp tim — cách biết CHẮC mạch mất Wi-Fi.** Firmware gửi `{"hb": <giây chạy>}` lên telemetry mỗi
+5 giây khi còn nối MQTT (`mqtt_app.c`, kèm keepalive MQTT 30 giây thay cho 120 giây). App ghi lúc
+cuối cùng nghe thấy mạch (dữ liệu của nó trên máy chủ đổi, hoặc có sự kiện SSE — `ghiNgheMach`).
+Mạch có khoá `hb` mà 20 giây không nghe gì (`soatNhipTim`, `NHIP_TIM_MAT_MS`) → chắc mất Wi-Fi:
+icon tự thành "Mất Wi-Fi" không cần bấm gì, khối Bluetooth tự nối ngầm nếu được, và bấm bất kỳ nút
+nào là mở hộp chọn rồi gửi qua Bluetooth. Có nhịp tim lại là tự về Wi-Fi. Mạch chạy firmware cũ
+(chưa có `hb`) thì không xét theo cách này.
+
+Đo trên DEV thật (28/10/2026): `hb` chỉ tới app qua luồng SSE, `/bootstrap` không trả khoá này. Nên
+app nhớ riêng "mạch này có nhịp tim" (`livotec-co-hb:<id>` trong localStorage) và chỉ xét im lặng khi
+chính luồng SSE đang thông (`datLuongThong`, báo từ `iotxClient.subscribe`). Thử trên mạch thật
+(giữ mạch ở chế độ nạp để nó ngừng gửi): thẻ đổi sang "không phản hồi qua Wi-Fi" trong vòng 50 giây;
+mạch chạy lại thì về "Trực tuyến qua Wi-Fi" ngay khi nhịp tim đầu tiên tới.
+Chưa có mã tem thì báo nhập mã một lần ở khối Bluetooth.
+
+Giả định cần kiểm trên IBS thật: `lastValues` chỉ đổi khi MẠCH báo telemetry, không phải khi máy
+chủ nhận RPC. Nếu IBS tự ghi giá trị vừa đặt vào `lastValues` thì lệnh luôn "được xác nhận" và
+việc tự chuyển này không bao giờ chạy. Mạch không báo trạng thái (ví dụ mạch thử trên bàn chưa nối
+điều hoà) thì im lặng là chuyện thường của nó: app chỉ coi im lặng là mất Wi-Fi với mạch đã từng
+báo lại một lệnh qua Wi-Fi trên trình duyệt đó (`daBietBaoLai`, nhớ trong localStorage).
 
 - **Wi-Fi luôn được ưu tiên.** Nối tay khi máy đang có Wi-Fi nghĩa là người dùng chọn Bluetooth
   (`PhienBle.tuChon`); nút "Ưu tiên Wi-Fi" / "Dùng Bluetooth" đổi qua lại. Nối lúc mất Wi-Fi thì
@@ -251,7 +289,13 @@ thiết bị ảo, và người dùng có quyền điều khiển. Rời màn ch
 - **Tự nối khi mất Wi-Fi** (`PhienBle.noiLai`): Web Bluetooth bắt một cú chạm cho hộp chọn, nên
   chỉ tự nối được máy đã chọn trong lần mở trang này, hoặc máy trình duyệt đã cho phép
   (`navigator.bluetooth.getDevices`, nếu trình duyệt có), và cần mã tem đã nhớ. Không được thì
-  hiện lời nhắc kèm nút — một chạm là nối.
+  hiện lời nhắc kèm nút — một chạm là nối. Bấm **bất kỳ nút điều khiển nào** lúc mất Wi-Fi cũng
+  tự nối (`noiTuDong`: cú bấm đó cho phép mở hộp chọn) rồi gửi luôn lệnh qua BLE.
+- Chrome 156 trên máy tính chưa bật `getDevices` mặc định (cần cờ
+  `chrome://flags/#enable-web-bluetooth-new-permissions-backend`). Không có nó thì sau khi tải lại
+  trang, lần nối đầu luôn cần một cú chạm.
+- **Không có Bluetooth thì về Wi-Fi:** phiên BLE đóng là lệnh đi Wi-Fi (kể cả khi đã chọn
+  Bluetooth); lệnh qua BLE hỏng vì `timeout`/`ngat` mà máy còn Wi-Fi thì gửi lại qua Wi-Fi.
 - `online` của máy chủ có độ trễ: lệnh qua Wi-Fi hỏng vì đường truyền (mạng, 408, 5xx) mà đang có
   phiên BLE chờ sẵn thì gửi lại qua BLE. Lỗi nghiệp vụ (quyền, giá trị sai) không chuyển.
 

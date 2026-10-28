@@ -312,6 +312,12 @@ http.createServer((req,res)=>{
     return J(res,{ok:true, nhanMoi: bs.phienBan.products});
   }
 
+  // Máy chủ báo thiết bị ngoại tuyến / trực tuyến (cờ `active` của ThingsBoard) — bài ble-wifi.
+  if (p==='/__truc_tuyen') {
+    const d = bs.devices.find(x=>x.id===u.searchParams.get('id'));
+    if (d) d.active = u.searchParams.get('bat') !== '0';
+    return J(res,{ok:!!d, active:d?.active});
+  }
   // Đổi giá trị ngay trong dữ liệu giả, KHÔNG phát SSE — giả cảnh đổi ở nơi khác trong
   // lúc tab này đang chạy nền và không nhận được sự kiện.
   if (p==='/__doi') {

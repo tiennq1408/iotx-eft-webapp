@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bluetooth, BluetoothOff, Wifi } from "lucide-react";
 import { useChu } from "../chu";
 import { useKenhBle } from "./KenhKetNoi";
-import { LoiBle, PhienBle, coWebBluetooth, docMaTem, coDuongBle, nhoMaTem, phienBle } from "@/lib/ble/dieuKhienBle";
+import { LoiBle, PhienBle, coWebBluetooth, docMaTem, coDuongBle, matWifiChac, nhoMaTem, phienBle } from "@/lib/ble/dieuKhienBle";
 import type { Device } from "@/lib/types";
 
 /**
@@ -23,7 +23,7 @@ import type { Device } from "@/lib/types";
  */
 export default function BleDieuKhien({ device, chan }: { device: Device; chan: boolean }) {
   const { t } = useChu();
-  const { phien, kenh } = useKenhBle(device);
+  const { phien, kenh, wifi } = useKenhBle(device);
   const [nhapMa, setNhapMa] = useState(false);
   const [ma, setMa] = useState("");
   const [dangNoi, setDangNoi] = useState(false);
@@ -50,7 +50,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
 
   // Mất Wi-Fi → tự nối Bluetooth (cần mã tem đã nhớ); có Wi-Fi lại → cho tự nối ở lần mất sau.
   useEffect(() => {
-    if (device.online) { daTuNoi.current = false; return; }
+    if (wifi) { daTuNoi.current = false; return; }
     if (!coKhoi || phienBle(device.id) || daTuNoi.current) return;
     const maNho = docMaTem(device.id);
     if (!maNho) return;   // chưa nhớ mã: lời nhắc chạm tự hiện (`nhacCham`)
@@ -68,10 +68,10 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi trạng thái mạng hay phiên đổi
-  }, [device.online, device.id, coKhoi, phien]);
+  }, [wifi, device.id, coKhoi, phien]);
 
   if (!coKhoi) return null;
-  const nhacCham = !device.online && (canCham || !docMaTem(device.id));
+  const nhacCham = !wifi && (canCham || !docMaTem(device.id));
 
   async function noi(maTem: string) {
     setLoi("");
@@ -79,7 +79,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     try {
       // Nối tay khi máy đang có Wi-Fi = người dùng chọn Bluetooth. Nối lúc mất Wi-Fi thì để tự
       // động: có Wi-Fi lại là lệnh về Wi-Fi.
-      await PhienBle.ketNoi(device.id, maTem, device.code, device.online);
+      await PhienBle.ketNoi(device.id, maTem, device.code, wifi);
       nhoMaTem(device.id, maTem);
       setNhapMa(false);
       setCanCham(false);
@@ -111,9 +111,9 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
             </span>
           </div>
           <p className="small dim">
-            {t(kenh !== "ble" ? "ble_cho_mo_ta" : phien.tuChon && device.online ? "ble_tu_chon_mo_ta" : "ble_du_phong_mo_ta")}
+            {t(kenh !== "ble" ? "ble_cho_mo_ta" : phien.tuChon && wifi ? "ble_tu_chon_mo_ta" : "ble_du_phong_mo_ta")}
           </p>
-          {device.online && (phien.tuChon ? (
+          {wifi && (phien.tuChon ? (
             <button className="btn gh" onClick={() => phien.datTuChon(false)}><Wifi aria-hidden="true" /> {t("ble_uu_tien_wifi")}</button>
           ) : (
             <button className="btn gh" onClick={() => phien.datTuChon(true)}><Bluetooth aria-hidden="true" /> {t("ble_dung_ble")}</button>
@@ -135,7 +135,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
         </>
       ) : (
         <>
-          {nhacCham && <p className="small ble-nhac" role="status">{t("ble_mat_wifi")}</p>}
+          {nhacCham && <p className="small ble-nhac" role="status">{t(device.online && !matWifiChac(device.id) ? "ble_nghi_mat_wifi" : "ble_mat_wifi")}</p>}
           <button className={nhacCham ? "btn" : "btn gh"} disabled={dangNoi} onClick={bamNoi}>
             <Bluetooth aria-hidden="true" /> {dangNoi ? t("working") : t("ble_mo")}
           </button>

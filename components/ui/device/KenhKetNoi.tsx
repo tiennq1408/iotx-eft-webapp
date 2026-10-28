@@ -3,17 +3,25 @@
 import { useEffect, useState } from "react";
 import { Bluetooth, Wifi, WifiOff } from "lucide-react";
 import { useChu } from "../chu";
-import { kenhDung, ngheBle, phienBle } from "@/lib/ble/dieuKhienBle";
+import { coWifi, kenhDung, ngheBle, phienBle } from "@/lib/ble/dieuKhienBle";
 import type { Device } from "@/lib/types";
 
 /**
  * Phiên Bluetooth của thiết bị và kênh lệnh đang dùng — vẽ lại khi phiên mở/đóng, khi người
- * dùng đổi giữa "Dùng Bluetooth" và "Ưu tiên Wi-Fi", và khi `device.online` đổi.
+ * dùng đổi giữa "Dùng Bluetooth" và "Ưu tiên Wi-Fi", khi `device.online` đổi, và khi app tự đánh
+ * dấu mạch mất Wi-Fi (`wifi` — xem `coWifi`).
  */
 export function useKenhBle(device: Pick<Device, "id" | "online">) {
   const [, setNhip] = useState(0);
   useEffect(() => ngheBle(id => { if (id === device.id) setNhip(n => n + 1); }), [device.id]);
-  return { phien: phienBle(device.id), kenh: kenhDung(device) };
+  // Điện thoại mất/có mạng lại cũng đổi kênh (`coWifi`).
+  useEffect(() => {
+    const ve = () => setNhip(n => n + 1);
+    window.addEventListener("online", ve);
+    window.addEventListener("offline", ve);
+    return () => { window.removeEventListener("online", ve); window.removeEventListener("offline", ve); };
+  }, []);
+  return { phien: phienBle(device.id), kenh: kenhDung(device), wifi: coWifi(device) };
 }
 
 /**
@@ -28,8 +36,7 @@ export function useKenhBle(device: Pick<Device, "id" | "online">) {
  */
 export default function KenhKetNoi({ device, gon = false }: { device: Device; gon?: boolean }) {
   const { t } = useChu();
-  const { phien, kenh: dung } = useKenhBle(device);
-  const wifi = device.online;
+  const { phien, kenh: dung, wifi } = useKenhBle(device);
 
   const kenh = [
     ...(phien ? [dung === "ble"
@@ -39,7 +46,10 @@ export default function KenhKetNoi({ device, gon = false }: { device: Device; go
       ? dung === "wifi"
         ? { loai: "wifi", Icon: Wifi, chu: t("kenh_wifi"), moTa: t("kenh_wifi_mo_ta"), cho: false }
         : { loai: "wifi", Icon: Wifi, chu: t("kenh_wifi"), moTa: t("kenh_wifi_cho_mo_ta"), cho: true }
-      : { loai: "mat", Icon: WifiOff, chu: t("offline"), moTa: t("kenh_mat_mo_ta"), cho: false },
+      // Máy chủ còn nói trực tuyến nhưng app thấy mạch im lặng: "Mất Wi-Fi", khác "Ngoại tuyến".
+      : device.online
+        ? { loai: "mat", Icon: WifiOff, chu: t("kenh_mat_wifi"), moTa: t("kenh_mat_wifi_mo_ta"), cho: false }
+        : { loai: "mat", Icon: WifiOff, chu: t("offline"), moTa: t("kenh_mat_mo_ta"), cho: false },
   ];
 
   return (

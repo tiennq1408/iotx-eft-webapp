@@ -91,8 +91,11 @@ const CAU_LOI: Record<string, string> = {
   no_code: "Thiết bị chưa được cài mã tem nên chưa điều khiển qua Bluetooth được.",
   khong_ho_tro: "Trình duyệt này không có Web Bluetooth.",
   can_cham: "Trình duyệt cần bạn chạm để chọn thiết bị Bluetooth.",
+  khong_phan_hoi: "Thiết bị không phản hồi qua Wi-Fi. Chạm \"Điều khiển gần qua Bluetooth\" để chuyển sang Bluetooth.",
 };
 const loi = (ma: string) => new LoiBle(ma, CAU_LOI[ma] ?? `Thiết bị báo lỗi: ${ma}`);
+/** Lỗi Bluetooth theo mã, kèm câu tiếng Việt (giao diện dịch lại theo khoá `ble_loi_<mã>`). */
+export const loiBle = loi;
 
 type TraLoi = { id?: number; ok?: boolean; err?: string; t?: Record<string, unknown> };
 type ChoTraLoi = { xong: (v: TraLoi) => void; hong: (e: Error) => void; hen: ReturnType<typeof setTimeout> };
@@ -148,7 +151,17 @@ export class PhienBle {
    * trang này, rồi tới các máy trình duyệt đã cho phép (`getDevices`, nếu có). Không máy nào
    * khớp serial thì ném `can_cham`: trình duyệt bắt người dùng tự mở hộp chọn.
    */
-  static async noiLai(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
+  static noiLai(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
+    // Khối Bluetooth và lệnh vừa bấm có thể cùng đòi nối một lúc: dùng chung một lần nối, không
+    // thì lần sau đá lần trước (`dangKy`) và cả hai cùng rớt.
+    const dang = DANG_NOI.get(deviceId);
+    if (dang) return dang;
+    const lan = PhienBle.noiLaiMotLan(deviceId, maTem, serial).finally(() => DANG_NOI.delete(deviceId));
+    DANG_NOI.set(deviceId, lan);
+    return lan;
+  }
+
+  private static async noiLaiMotLan(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
     const bt = (navigator as NavCoBle).bluetooth;
     if (!bt) throw loi("khong_ho_tro");
     const ungVien: ThietBiBle[] = [];
@@ -231,7 +244,11 @@ export class PhienBle {
 
   ngat() { this.mayChu.disconnect(); this.dong(); }
 
-  private dong() {
+  /** Hai phiên trên cùng một kết nối GATT — ngắt phiên này là ngắt luôn phiên kia. */
+  cungKetNoi(khac: PhienBle) { return this.mayChu === khac.mayChu; }
+
+  /** Thôi dùng phiên (lệnh đang chờ báo `ngat`); không đụng tới kết nối. */
+  dong() {
     for (const c of this.cho.values()) { clearTimeout(c.hen); c.hong(loi("ngat")); }
     this.cho.clear();
     if (PHIEN.get(this.deviceId) === this) {
@@ -246,12 +263,16 @@ export class PhienBle {
 const PHIEN = new Map<string, PhienBle>();
 /** Máy Bluetooth đã chọn cho từng thiết bị trong lần mở trang này — để `noiLai` khỏi hỏi lại. */
 const MAY_DA_CHON = new Map<string, ThietBiBle>();
+/** Lần `noiLai` đang chạy cho từng thiết bị. */
+const DANG_NOI = new Map<string, Promise<PhienBle>>();
 /** `gt = null` nghĩa là phiên của thiết bị đó vừa đóng. */
 type Nghe = (deviceId: string, gt: Record<string, unknown> | null) => void;
 const NGHE = new Set<Nghe>();
 
 function dangKy(phien: PhienBle) {
-  PHIEN.get(phien.deviceId)?.ngat();
+  const cu = PHIEN.get(phien.deviceId);
+  // Phiên cũ trên CÙNG kết nối (nối lại máy đã chọn): chỉ thay sổ, ngắt là ngắt luôn phiên mới.
+  if (cu && cu.cungKetNoi(phien)) cu.dong(); else cu?.ngat();
   PHIEN.set(phien.deviceId, phien);
   baoNghe(phien.deviceId, {});
 }
@@ -261,6 +282,112 @@ function baoNghe(deviceId: string, gt: Record<string, unknown> | null) {
 
 export const phienBle = (deviceId: string) => PHIEN.get(deviceId);
 
+/**
+ * Máy chủ chậm vài phút mới biết mạch mất Wi-Fi (keepalive MQTT, rồi thời gian "không hoạt
+ * động" của ThingsBoard). Nên app tự đánh dấu khi chính nó thấy: lệnh qua Wi-Fi không được
+ * mạch báo lại trong `CHO_WIFI_MS`. Dấu tự hết hạn để lần bấm sau lại thử Wi-Fi, và bị gỡ
+ * ngay khi máy chủ có tin mới từ mạch (`boMatWifi`).
+ */
+const MAT_WIFI = new Map<string, { het: number; chac: boolean }>();
+const MAT_WIFI_GIU_MS = 2 * 60_000;
+/** Đợi mạch báo lại lệnh vừa gửi qua Wi-Fi bao lâu trước khi chuyển Bluetooth. */
+export const CHO_WIFI_MS = 3_000;
+
+/**
+ * `chac`: có bằng chứng (mạch mất nhịp tim, xem `soatNhipTim`) — được phép tự bật hộp chọn
+ * Bluetooth. Không `chac` chỉ là nghi (mạch không báo lại một lệnh).
+ */
+export function danhDauMatWifi(deviceId: string, chac = false) {
+  const cu = MAT_WIFI.get(deviceId);
+  const moi = { het: Date.now() + MAT_WIFI_GIU_MS, chac: chac || Boolean(cu?.chac && cu.het > Date.now()) };
+  MAT_WIFI.set(deviceId, moi);
+  if (!cu || cu.chac !== moi.chac || cu.het <= Date.now()) baoNghe(deviceId, {});
+}
+export function boMatWifi(deviceId: string) {
+  if (MAT_WIFI.delete(deviceId)) baoNghe(deviceId, {});
+}
+/**
+ * Chính điện thoại/máy tính đang mất mạng (tắt router thì thường mất cả hai). Khi đó không lệnh nào
+ * qua được máy chủ — chắc chắn phải đi Bluetooth.
+ */
+export const dienThoaiMatMang = () => typeof navigator !== "undefined" && navigator.onLine === false;
+
+/** App CHẮC lệnh không qua được Wi-Fi (không chỉ nghi): mạch mất nhịp tim, hoặc điện thoại mất mạng. */
+export function matWifiChac(deviceId: string): boolean {
+  if (dienThoaiMatMang()) return true;
+  const m = MAT_WIFI.get(deviceId);
+  return Boolean(m && m.chac && m.het > Date.now());
+}
+
+/**
+ * Nhịp tim: firmware gửi `{"hb": <giây>}` mỗi 5 giây khi còn nối máy chủ (mqtt_app.c). App
+ * ghi lại lúc cuối cùng NGHE thấy mạch (dữ liệu của nó trên máy chủ đổi, hoặc có sự kiện SSE).
+ * Mạch có nhịp tim mà `NHIP_TIM_MAT_MS` không nghe gì → chắc mất Wi-Fi, khỏi đợi máy chủ vài
+ * phút mới đổi cờ `online`. Mạch chưa có nhịp tim (firmware cũ) thì không xét theo cách này.
+ *
+ * Đo trên DEV thật (28/10/2026): `hb` chỉ tới qua luồng SSE — `/bootstrap` KHÔNG trả khoá này.
+ * Nên "mạch có nhịp tim" phải nhớ riêng (`CO_NHIP_TIM`, cả sau khi tải lại trang), và chỉ tin
+ * "im lặng" khi chính luồng SSE đang thông (`datLuongThong`): luồng đứt thì cái im là của luồng,
+ * không phải của mạch.
+ */
+const NGHE_CUOI = new Map<string, number>();
+export const NHIP_TIM_MAT_MS = 20_000;
+const khoaCoNhipTim = (deviceId: string) => `livotec-co-hb:${deviceId}`;
+const CO_NHIP_TIM = new Set<string>();
+const coNhipTim = (deviceId: string) => {
+  if (CO_NHIP_TIM.has(deviceId)) return true;
+  try { if (localStorage.getItem(khoaCoNhipTim(deviceId)) === "1") CO_NHIP_TIM.add(deviceId); } catch { /* không đọc được: coi như chưa biết */ }
+  return CO_NHIP_TIM.has(deviceId);
+};
+let luongThong = false;
+
+/** Luồng SSE vừa thông / vừa đứt. Thông lại thì cho mọi mạch đủ một khoảng trước khi xét im lặng. */
+export function datLuongThong(thong: boolean) {
+  if (thong && !luongThong) for (const id of NGHE_CUOI.keys()) NGHE_CUOI.set(id, Date.now());
+  luongThong = thong;
+}
+
+/** Vừa nghe thấy mạch (`key` là khoá vừa đổi, nếu biết). */
+export function ghiNgheMach(deviceId: string, key?: string) {
+  NGHE_CUOI.set(deviceId, Date.now());
+  if (key === "hb" && !CO_NHIP_TIM.has(deviceId)) {
+    CO_NHIP_TIM.add(deviceId);
+    try { localStorage.setItem(khoaCoNhipTim(deviceId), "1"); } catch { /* chế độ riêng tư — lần sau học lại */ }
+  }
+  boMatWifi(deviceId);
+}
+
+/** Gọi sau mỗi lần có dữ liệu thiết bị mới (hỏi lại định kỳ). */
+export function soatNhipTim(device: Pick<Device, "id" | "online" | "lastValues">) {
+  if (device.lastValues?.hb !== undefined && !CO_NHIP_TIM.has(device.id)) ghiNgheMach(device.id, "hb");
+  if (!device.online || !coNhipTim(device.id) || !luongThong) return;
+  const cuoi = NGHE_CUOI.get(device.id);
+  if (cuoi === undefined) { NGHE_CUOI.set(device.id, Date.now()); return; }   // vừa mở app: cho đủ một khoảng
+  if (Date.now() - cuoi > NHIP_TIM_MAT_MS) danhDauMatWifi(device.id, true);
+}
+
+/**
+ * Mạch đã từng báo lại một lệnh gửi qua Wi-Fi trên trình duyệt này. Chỉ với mạch như vậy, im lặng
+ * mới là dấu hiệu mất Wi-Fi (xem `guiQuaKenh`). Nhớ lâu dài: mạch đã biết báo thì vẫn biết báo.
+ */
+const khoaBaoLai = (deviceId: string) => `livotec-bao-lai:${deviceId}`;
+export function daBietBaoLai(deviceId: string): boolean {
+  try { return localStorage.getItem(khoaBaoLai(deviceId)) === "1"; } catch { return false; }
+}
+export function nhoBaoLai(deviceId: string) {
+  try { localStorage.setItem(khoaBaoLai(deviceId), "1"); } catch { /* chế độ riêng tư — lần sau học lại */ }
+}
+
+/** Thiết bị đang có Wi-Fi: máy chủ nói trực tuyến VÀ app chưa thấy nó im lặng. */
+export function coWifi(device: Pick<Device, "id" | "online">): boolean {
+  if (!device.online || dienThoaiMatMang()) return false;
+  const m = MAT_WIFI.get(device.id);
+  if (m === undefined) return true;
+  if (m.het > Date.now()) return false;
+  MAT_WIFI.delete(device.id);
+  return true;
+}
+
 export type Kenh = "ble" | "wifi" | null;
 
 /**
@@ -269,12 +396,33 @@ export type Kenh = "ble" | "wifi" | null;
  */
 export function kenhDung(device: Pick<Device, "id" | "online">): Kenh {
   const p = PHIEN.get(device.id);
-  if (p && (p.tuChon || !device.online)) return "ble";
-  return device.online ? "wifi" : null;
+  const wifi = coWifi(device);
+  if (p && (p.tuChon || !wifi)) return "ble";
+  return wifi ? "wifi" : null;
 }
+
 
 /** Phiên Bluetooth nếu lệnh của thiết bị đang phải đi Bluetooth, không thì `undefined`. */
 export const phienDung = (device: Pick<Device, "id" | "online">) => kenhDung(device) === "ble" ? PHIEN.get(device.id) : undefined;
+
+/**
+ * Máy mất Wi-Fi mà người dùng vừa bấm một nút điều khiển: tự nối Bluetooth để gửi lệnh đó.
+ * Thử nối lại không cần chạm trước (`noiLai`). Không được thì chỉ mở hộp chọn khi `moHopChon`
+ * — người gọi CHẮC mạch mất Wi-Fi (máy chủ báo ngoại tuyến, điện thoại mất mạng); chỉ nghi thì
+ * không bật hộp chọn lên mặt người dùng, khối Bluetooth sẽ nhắc chạm. Cần mã tem đã nhớ: chưa
+ * nhớ thì trả `undefined` (khối Bluetooth đang nhắc nhập).
+ */
+export async function noiTuDong(device: Device, moHopChon: boolean): Promise<PhienBle | undefined> {
+  if (!coWebBluetooth() || !coDuongBle(device)) return undefined;
+  const ma = docMaTem(device.id);
+  if (!ma) return undefined;
+  try { return await PhienBle.noiLai(device.id, ma, device.code); }
+  catch (e) { if (!(e instanceof LoiBle && e.ma === "can_cham")) throw e; }
+  return moHopChon ? PhienBle.ketNoi(device.id, ma, device.code, false) : undefined;
+}
+
+/** Bluetooth rớt hoặc im lặng (không phải máy từ chối lệnh) — máy còn Wi-Fi thì nên gửi qua Wi-Fi. */
+export const laLoiDuongBle = (error: unknown) => error instanceof LoiBle && (error.ma === "timeout" || error.ma === "ngat");
 
 /** Nghe trạng thái thiết bị qua Bluetooth, việc phiên mở/đóng và đổi `tuChon`. Trả về hàm thôi nghe. */
 export function ngheBle(f: Nghe): () => void {

@@ -11,7 +11,9 @@ import { chromium } from 'playwright';
  * `method`/`params` của catalog; máy tự báo trạng thái thì màn đổi theo; ngắt được; lần sau
  * khỏi gõ lại mã; chọn nhầm máy (serial khác) thì từ chối. Chọn kênh: có Wi-Fi thì "Ưu tiên
  * Wi-Fi" đưa lệnh về Wi-Fi, "Dùng Bluetooth" đưa lại; máy mất Wi-Fi thì nhắc chạm, lần sau tự
- * nối lại không cần hộp chọn.
+ * nối lại không cần hộp chọn; bấm nút điều khiển lúc mất Wi-Fi là tự nối rồi gửi; trình duyệt có
+ * `getDevices` thì tự nối cả sau khi tải lại trang; Bluetooth im lặng mà máy có Wi-Fi thì lệnh
+ * về Wi-Fi.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const cho = ms => new Promise(r => setTimeout(r, ms));
@@ -55,6 +57,7 @@ function mayGia({ MA, SN }) {
               const lenh = JSON.parse(dec.decode(buf));
               nhatKy.push({ lenh, tho: dec.decode(buf) });
               setTimeout(async () => {
+                if (window.__bleIm && lenh.method !== 'auth') return;   // giả máy ra khỏi tầm sóng
                 if (lenh.method === 'auth') {
                   daXacThuc = lenh.params?.mac === await hmac(MA, nonce);
                   day({ id: lenh.id, ok: daXacThuc, ...(daXacThuc ? {} : { err: 'auth' }) });
@@ -78,6 +81,8 @@ function mayGia({ MA, SN }) {
   };
   thietBi.gatt = gatt;
   const bluetooth = {
+    // Chrome chỉ có getDevices khi bật cờ quyền Bluetooth mới; bài bật bằng localStorage.
+    ...(localStorage.getItem('__bleCoGetDevices') ? { getDevices: async () => [thietBi] } : {}),
     async requestDevice(opt) {
       window.__bleLoc = opt;
       window.__bleSoLanChon = (window.__bleSoLanChon || 0) + 1;
@@ -214,7 +219,45 @@ try {
   ok('mở lại máy mất Wi-Fi → tự nối Bluetooth, không mở lại hộp chọn',
     /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await p.evaluate(() => window.__bleSoLanChon) === soLanChon);
   await dongMan(p);
+
+  /* ---------- tải lại trang (quên máy đã chọn): bấm nút lúc mất Wi-Fi → tự nối rồi gửi ---------- */
+  const taiLai = async () => {
+    await p.reload({ waitUntil: 'networkidle' }); await cho(1200);
+    await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+    await p.evaluate(() => window.__bleMay({ MA: '24680', SN: 'fan90233' }));
+  };
+  await taiLai();
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(300);
+  ok('sau tải lại, không getDevices → chưa tự nối được, nhắc chạm', /Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const chonTruoc = await p.evaluate(() => window.__bleSoLanChon || 0);
+  const nkTruoc = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button][aria-pressed=false]').first().click(); await cho(700);
+  ok('bấm chế độ lúc mất Wi-Fi → tự mở hộp chọn, nối, lệnh đi Bluetooth',
+    await p.evaluate(() => window.__bleSoLanChon || 0) === chonTruoc + 1
+    && (await p.evaluate(() => window.__bleNhatKy)).slice(nkTruoc).some(x => /^set/.test(x.lenh.method))
+    && /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()));
+  await dongMan(p);
+  await p.evaluate(() => localStorage.setItem('__bleCoGetDevices', '1'));
+  await taiLai();
+  const chonGd = await p.evaluate(() => window.__bleSoLanChon || 0);
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(500);
+  ok('trình duyệt có getDevices → mở màn là tự nối, không hộp chọn',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await p.evaluate(() => window.__bleSoLanChon || 0) === chonGd);
+  await dongMan(p);
+  await p.evaluate(() => localStorage.removeItem('__bleCoGetDevices'));
+  await taiLai();
+
+  /* ---------- đã chọn Bluetooth nhưng Bluetooth im lặng, máy còn Wi-Fi → lệnh về Wi-Fi ---------- */
   await p.evaluate(() => window.__bleMay({ MA: '12345', SN: 'fan72185' }));
+  await moThietBi(p, 'Quạt treo phòng ngủ');
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(500);
+  await p.evaluate(() => { window.__bleIm = true; });
+  const chipThuong = p.locator('.devpage .mchips [role=button]', { hasText: 'Gió tự nhiên' }).first();
+  await chipThuong.click(); await cho(4800);
+  ok('Bluetooth không trả lời, máy có Wi-Fi → lệnh đi Wi-Fi, không báo lỗi, giá trị giữ nguyên',
+    await p.locator('.devpage .form-message').count() === 0 && (await chipThuong.getAttribute('aria-pressed')) === 'true');
+  await p.evaluate(() => { window.__bleIm = false; });
+  await dongMan(p);
 
   /* ---------- điều hoà: cùng giao thức, lệnh lấy từ catalog điều hoà ---------- */
   await moThietBi(p, 'Điều hòa phòng khách');
