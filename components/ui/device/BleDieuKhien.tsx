@@ -3,23 +3,23 @@
 import { useEffect, useState } from "react";
 import { Bluetooth, BluetoothOff } from "lucide-react";
 import { useChu } from "../chu";
-import { LoiBle, PhienBleQuat, coWebBluetooth, docMaTem, laQuatBle, ngheBle, nhoMaTem, phienBle } from "@/lib/ble/quatBle";
+import { LoiBle, PhienBle, coWebBluetooth, docMaTem, coDuongBle, ngheBle, nhoMaTem, phienBle } from "@/lib/ble/dieuKhienBle";
 import type { Device } from "@/lib/types";
 
 /**
- * Khối "Điều khiển gần qua Bluetooth" trên màn chi tiết quạt — đường dự phòng khi mất mạng.
+ * Khối "Điều khiển gần qua Bluetooth" trên màn chi tiết quạt, điều hoà — đường dự phòng khi mất mạng.
  *
  * Chỉ vẽ khi trình duyệt có Web Bluetooth (Chrome/Edge trên Android, máy tính; cần HTTPS hoặc
- * localhost) và thiết bị là quạt. iPhone/iPad không có API này nên không thấy khối, thay vì
- * thấy một nút bấm vào chỉ để báo lỗi.
+ * localhost) và thiết bị có đường Bluetooth (`coDuongBle`). iPhone/iPad không có API này nên
+ * không thấy khối, thay vì thấy một nút bấm vào chỉ để báo lỗi.
  *
- * Nối xong thì MỌI lệnh trên màn (và công tắc trên thẻ) đi qua Bluetooth — `guiLenh` trong
+ * Nối xong thì MỌI lệnh trên màn chi tiết đi qua Bluetooth — `guiLenh` trong
  * `LivotecApp` hỏi `phienBle` trước khi gọi `/v1`. Rời màn chi tiết là ngắt, để không có một
- * kết nối vô hình nào còn giữ quạt.
+ * kết nối vô hình nào còn giữ thiết bị.
  */
-export default function BleQuat({ device, chan }: { device: Device; chan: boolean }) {
+export default function BleDieuKhien({ device, chan }: { device: Device; chan: boolean }) {
   const { t } = useChu();
-  const [phien, setPhien] = useState<PhienBleQuat | undefined>(() => phienBle(device.id));
+  const [phien, setPhien] = useState<PhienBle | undefined>(() => phienBle(device.id));
   const [nhapMa, setNhapMa] = useState(false);
   const [ma, setMa] = useState("");
   const [dangNoi, setDangNoi] = useState(false);
@@ -29,13 +29,13 @@ export default function BleQuat({ device, chan }: { device: Device; chan: boolea
   // Rời màn chi tiết → ngắt.
   useEffect(() => () => { phienBle(device.id)?.ngat(); }, [device.id]);
 
-  if (!coWebBluetooth() || !laQuatBle(device) || chan) return null;
+  if (!coWebBluetooth() || !coDuongBle(device) || chan) return null;
 
   async function noi(maTem: string) {
     setLoi("");
     setDangNoi(true);
     try {
-      await PhienBleQuat.ketNoi(device.id, maTem, device.code);
+      await PhienBle.ketNoi(device.id, maTem, device.code);
       nhoMaTem(device.id, maTem);
       setNhapMa(false);
     } catch (e) {
@@ -63,7 +63,7 @@ export default function BleQuat({ device, chan }: { device: Device; chan: boolea
   const maHopLe = /^\d{5}$/.test(ma);
 
   return (
-    <div className="card ble-quat">
+    <div className="card ble-dk">
       {phien ? (
         <>
           <div className="capline">

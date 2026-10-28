@@ -66,7 +66,7 @@ function dungHet() {
 // Các bài đọc chữ TIẾNG VIỆT, mà mặc định của app là tiếng Anh (như web.dev, 21/10/2026):
 // mọi nhóm build với NEXT_PUBLIC_IOTX_LANG=vi. Bài ngon-ngu.mjs tự đổi sang tiếng Anh.
 const NHOM = {
-  'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock', NEXT_PUBLIC_IOTX_LANG: 'vi' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'a11y-toi.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs', 'dang-nhap.mjs', 'menu.mjs', 'an-thiet-bi.mjs', 'tai-tho.mjs', 'ble-quat.mjs'] },
+  'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock', NEXT_PUBLIC_IOTX_LANG: 'vi' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'a11y-toi.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs', 'dang-nhap.mjs', 'menu.mjs', 'an-thiet-bi.mjs', 'tai-tho.mjs', 'ble.mjs'] },
   // Tài liệu kịch bản đòi chạy trên bản production: bản dev bật StrictMode, effect chạy hai
   // lần nên mọi phép đếm request (đúng 1 lượt refresh, nhịp hỏi vòng…) bị nhân đôi.
   'kich-ban':  { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  banProduction: true, rieng: true,

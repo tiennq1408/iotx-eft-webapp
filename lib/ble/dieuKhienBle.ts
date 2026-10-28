@@ -2,9 +2,10 @@ import type { Device } from "@/lib/types";
 import { apGiaTri } from "@/lib/iotx/mappers";
 
 /**
- * Điều khiển quạt GẦN qua Bluetooth (Web Bluetooth) — đường dự phòng khi mất mạng.
+ * Điều khiển GẦN qua Bluetooth (Web Bluetooth) — đường dự phòng khi mất mạng, cho quạt và
+ * điều hoà (xem `coDuongBle`).
  *
- * Đặc tả phía firmware ESP32-C3: `docs/viec-ble-quat.md`. Tóm tắt:
+ * Đặc tả phía firmware ESP32-C3: `docs/viec-ble.md`. Tóm tắt:
  *   - Một GATT service riêng, bốn characteristic: INFO (đọc), NONCE (đọc), CMD (ghi), EVT (notify).
  *   - Lệnh ghi vào CMD là JSON CÙNG HÌNH với RPC qua `/v1`: `{ id, method, params }`, tên lệnh
  *     và tham số lấy thẳng từ capability của catalog (`setPower`, `setSpeed`, `setMode`…), nên
@@ -17,11 +18,11 @@ import { apGiaTri } from "@/lib/iotx/mappers";
  * Phiên sống ở mức mô-đun (không trong state React) vì nhiều nơi cần tới nó: màn chi tiết
  * mở/đóng phiên, `guiLenh` trong `LivotecApp` chuyển lệnh sang đây khi có phiên, và nhịp
  * đồng bộ với máy chủ phải dán giá trị Bluetooth lên dữ liệu (máy chủ đang mất liên lạc với
- * quạt nên giá trị của nó cũ).
+ * thiết bị nên giá trị của nó cũ).
  */
 
-/** UUID cố định — phải khớp đúng với firmware (bảng trong `docs/viec-ble-quat.md`). */
-export const BLE_QUAT = {
+/** UUID cố định — phải khớp đúng với firmware (bảng trong `docs/viec-ble.md`). */
+export const BLE_GATT = {
   service: "19800001-eb16-4e87-a18d-16008870c454",
   info: "19800002-eb16-4e87-a18d-16008870c454",
   nonce: "19800003-eb16-4e87-a18d-16008870c454",
@@ -29,7 +30,7 @@ export const BLE_QUAT = {
   evt: "19800005-eb16-4e87-a18d-16008870c454",
 } as const;
 
-/** Quạt không trả lời trong khoảng này thì coi lệnh là trượt. */
+/** Thiết bị không trả lời trong khoảng này thì coi lệnh là trượt. */
 const CHO_TRA_LOI_MS = 4_000;
 
 /* ----- Web Bluetooth chưa có trong lib DOM của TypeScript; chỉ khai đúng phần dùng tới. ----- */
@@ -48,10 +49,18 @@ type NavCoBle = Navigator & {
 
 export const coWebBluetooth = () => typeof navigator !== "undefined" && Boolean((navigator as NavCoBle).bluetooth);
 
-/** Quạt nào có đường Bluetooth: theo renderer của catalog (`fan`, `fan_ac`, `fan_bldc`…). */
-export function laQuatBle(device: Device): boolean {
+/** Nhóm sản phẩm có firmware điều khiển qua Bluetooth: quạt và điều hoà. */
+const NHOM_BLE = new Set(["fan", "ac"]);
+
+/**
+ * Thiết bị nào có đường Bluetooth: `productGroup` là `fan`/`ac` — catalog thật có quạt, điều
+ * hoà không khai `ui` gì cả — hoặc renderer của catalog (`fan`, `fan_ac`, `fan_bldc`, `aircon`…).
+ * Không dựa vào `ui.archetype`: đó là khuôn vẽ, máy hút mùi cũng mượn khuôn `fan`.
+ */
+export function coDuongBle(device: Device): boolean {
   if (device.virtual) return false;
-  return /^fan(_|$)/.test(String(device.product?.ui?.renderer ?? ""));
+  const p = device.product;
+  return NHOM_BLE.has(p?.productGroup ?? "") || /^(fan|aircon)(_|$)/.test(String(p?.ui?.renderer ?? ""));
 }
 
 /** Lỗi của đường Bluetooth. `ma` là mã firmware trả về, hoặc mã do app đặt (`timeout`, `ngat`…). */
@@ -63,17 +72,18 @@ export class LoiBle extends Error {
 }
 
 const CAU_LOI: Record<string, string> = {
-  auth: "Sai mã trên tem — kiểm tra lại 5 số in trên tem quạt.",
-  locked: "Nhập sai quá nhiều lần, quạt tạm khoá Bluetooth 60 giây.",
-  bad_method: "Quạt chưa hỗ trợ lệnh này qua Bluetooth.",
-  bad_params: "Quạt từ chối giá trị này.",
-  busy: "Quạt đang bận, thử lại sau giây lát.",
-  timeout: "Quạt không trả lời qua Bluetooth. Đứng gần quạt hơn rồi thử lại.",
-  ngat: "Đã mất kết nối Bluetooth với quạt.",
-  sai_may: "Thiết bị vừa chọn không phải quạt này (serial khác).",
+  auth: "Sai mã trên tem — kiểm tra lại 5 số in trên tem thiết bị.",
+  locked: "Nhập sai quá nhiều lần, thiết bị tạm khoá Bluetooth 60 giây.",
+  bad_method: "Thiết bị chưa hỗ trợ lệnh này qua Bluetooth.",
+  bad_params: "Thiết bị từ chối giá trị này.",
+  busy: "Thiết bị đang bận, thử lại sau giây lát.",
+  timeout: "Thiết bị không trả lời qua Bluetooth. Đứng gần hơn rồi thử lại.",
+  ngat: "Đã mất kết nối Bluetooth với thiết bị.",
+  sai_may: "Máy vừa chọn không phải thiết bị này (serial khác).",
+  no_code: "Thiết bị chưa được cài mã tem nên chưa điều khiển qua Bluetooth được.",
   khong_ho_tro: "Trình duyệt này không có Web Bluetooth.",
 };
-const loi = (ma: string) => new LoiBle(ma, CAU_LOI[ma] ?? `Quạt báo lỗi: ${ma}`);
+const loi = (ma: string) => new LoiBle(ma, CAU_LOI[ma] ?? `Thiết bị báo lỗi: ${ma}`);
 
 type TraLoi = { id?: number; ok?: boolean; err?: string; t?: Record<string, unknown> };
 type ChoTraLoi = { xong: (v: TraLoi) => void; hong: (e: Error) => void; hen: ReturnType<typeof setTimeout> };
@@ -87,43 +97,43 @@ async function hmacHex(khoa: string, thongDiep: DataView): Promise<string> {
   return Array.from(chuKy, b => b.toString(16).padStart(2, "0")).join("");
 }
 
-export type ThongTinQuat = { v?: number; sn?: string; model?: string; fw?: string };
+export type ThongTinMay = { v?: number; sn?: string; model?: string; fw?: string };
 
-/** Một kết nối đã xác thực với một quạt. */
-export class PhienBleQuat {
+/** Một kết nối đã xác thực với một thiết bị (quạt, điều hoà). */
+export class PhienBle {
   private soLenh = 0;
   private readonly cho = new Map<number, ChoTraLoi>();
-  /** Giá trị cuối quạt báo qua EVT — dán lên dữ liệu máy chủ khi đồng bộ (xem `apTrangThaiBle`). */
+  /** Giá trị cuối thiết bị báo qua EVT — dán lên dữ liệu máy chủ khi đồng bộ (xem `apTrangThaiBle`). */
   readonly giaTri: Record<string, unknown> = {};
 
   private constructor(
     readonly deviceId: string,
     readonly ten: string,
-    readonly thongTin: ThongTinQuat,
+    readonly thongTin: ThongTinMay,
     private readonly mayChu: MayChu,
     private readonly cmd: DacTinh,
   ) {}
 
   /**
-   * Chọn quạt (hộp chọn của trình duyệt — phải gọi từ một cú bấm), kết nối, xác thực.
-   * `serial` có thì so với INFO để không điều khiển nhầm quạt nhà bên.
+   * Chọn thiết bị (hộp chọn của trình duyệt — phải gọi từ một cú bấm), kết nối, xác thực.
+   * `serial` có thì so với INFO để không điều khiển nhầm máy nhà bên.
    */
-  static async ketNoi(deviceId: string, maTem: string, serial?: string): Promise<PhienBleQuat> {
+  static async ketNoi(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
     const bt = (navigator as NavCoBle).bluetooth;
     if (!bt) throw loi("khong_ho_tro");
-    const thietBi = await bt.requestDevice({ filters: [{ services: [BLE_QUAT.service] }], optionalServices: [BLE_QUAT.service] });
+    const thietBi = await bt.requestDevice({ filters: [{ services: [BLE_GATT.service] }], optionalServices: [BLE_GATT.service] });
     const mayChu = await thietBi.gatt!.connect();
     try {
-      const dv = await mayChu.getPrimaryService(BLE_QUAT.service);
+      const dv = await mayChu.getPrimaryService(BLE_GATT.service);
       const [info, nonce, cmd, evt] = await Promise.all([
-        dv.getCharacteristic(BLE_QUAT.info), dv.getCharacteristic(BLE_QUAT.nonce),
-        dv.getCharacteristic(BLE_QUAT.cmd), dv.getCharacteristic(BLE_QUAT.evt),
+        dv.getCharacteristic(BLE_GATT.info), dv.getCharacteristic(BLE_GATT.nonce),
+        dv.getCharacteristic(BLE_GATT.cmd), dv.getCharacteristic(BLE_GATT.evt),
       ]);
-      let thongTin: ThongTinQuat = {};
-      try { thongTin = JSON.parse(giaiMa.decode(await info.readValue())) as ThongTinQuat; } catch { /* INFO hỏng thì bỏ qua so serial */ }
+      let thongTin: ThongTinMay = {};
+      try { thongTin = JSON.parse(giaiMa.decode(await info.readValue())) as ThongTinMay; } catch { /* INFO hỏng thì bỏ qua so serial */ }
       if (serial && thongTin.sn && thongTin.sn.toLowerCase() !== serial.toLowerCase()) throw loi("sai_may");
 
-      const phien = new PhienBleQuat(deviceId, thietBi.name || thongTin.sn || "", thongTin, mayChu, cmd);
+      const phien = new PhienBle(deviceId, thietBi.name || thongTin.sn || "", thongTin, mayChu, cmd);
       evt.addEventListener("characteristicvaluechanged", () => { if (evt.value) phien.nhan(evt.value); });
       await evt.startNotifications();
       thietBi.addEventListener("gattserverdisconnected", () => phien.dong());
@@ -138,7 +148,7 @@ export class PhienBleQuat {
     }
   }
 
-  /** Gửi một lệnh; trả về khi quạt nói `ok`, ném `LoiBle` khi quạt từ chối hoặc im lặng. */
+  /** Gửi một lệnh; trả về khi thiết bị nói `ok`, ném `LoiBle` khi thiết bị từ chối hoặc im lặng. */
   async gui(method: string, params: Record<string, unknown>): Promise<void> {
     if (!this.mayChu.connected) throw loi("ngat");
     const id = ++this.soLenh;
@@ -187,12 +197,12 @@ export class PhienBleQuat {
 
 /* ------------------------- sổ phiên dùng chung cả app ------------------------- */
 
-const PHIEN = new Map<string, PhienBleQuat>();
+const PHIEN = new Map<string, PhienBle>();
 /** `gt = null` nghĩa là phiên của thiết bị đó vừa đóng. */
 type Nghe = (deviceId: string, gt: Record<string, unknown> | null) => void;
 const NGHE = new Set<Nghe>();
 
-function dangKy(phien: PhienBleQuat) {
+function dangKy(phien: PhienBle) {
   PHIEN.get(phien.deviceId)?.ngat();
   PHIEN.set(phien.deviceId, phien);
   baoNghe(phien.deviceId, {});
@@ -203,15 +213,15 @@ function baoNghe(deviceId: string, gt: Record<string, unknown> | null) {
 
 export const phienBle = (deviceId: string) => PHIEN.get(deviceId);
 
-/** Nghe trạng thái quạt qua Bluetooth và việc phiên mở/đóng. Trả về hàm thôi nghe. */
+/** Nghe trạng thái thiết bị qua Bluetooth và việc phiên mở/đóng. Trả về hàm thôi nghe. */
 export function ngheBle(f: Nghe): () => void {
   NGHE.add(f);
   return () => { NGHE.delete(f); };
 }
 
 /**
- * Đang có phiên Bluetooth thì giá trị quạt vừa báo thắng giá trị máy chủ — máy chủ mất liên
- * lạc với quạt nên dữ liệu của nó cũ, cứ ghi đè là công tắc vừa bật lại tự tắt.
+ * Đang có phiên Bluetooth thì giá trị thiết bị vừa báo thắng giá trị máy chủ — máy chủ mất liên
+ * lạc với thiết bị nên dữ liệu của nó cũ, cứ ghi đè là công tắc vừa bật lại tự tắt.
  */
 export function apTrangThaiBle(device: Device): Device {
   const p = PHIEN.get(device.id);

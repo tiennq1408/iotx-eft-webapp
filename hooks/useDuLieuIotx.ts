@@ -7,7 +7,7 @@ import {
   giuThietBiCu, mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
 } from "@/lib/iotx";
 import { SoLenhCho } from "@/lib/iotx/soLenhCho";
-import { apTrangThaiBle, ngheBle } from "@/lib/ble/quatBle";
+import { apTrangThaiBle, ngheBle } from "@/lib/ble/dieuKhienBle";
 import type { AppData, ChiaSeNhan, UiNotification } from "@/lib/types";
 import type { IotxDevice, IotxProduct, IotxProfile, IotxRule, IotxRules, IotxStreamEvent } from "@/lib/iotx/contracts";
 import { useBoChuVaTheme } from "./useBoChuVaTheme";
@@ -172,7 +172,7 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     }));
   }, []);
 
-  /** Quạt đang nối Bluetooth báo trạng thái mới (đổi từ app, từ nút trên thân, từ remote). */
+  /** Thiết bị đang nối Bluetooth báo trạng thái mới (đổi từ app, từ nút trên thân, từ remote). */
   useEffect(() => ngheBle((deviceId, gt) => {
     if (!gt || !Object.keys(gt).length) return;
     setData(current => ({

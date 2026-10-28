@@ -7,7 +7,7 @@ import Icon from "../Icon";
 import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
 import BangThietBi, { coTheTraSerial } from "./BangThietBi";
-import BleQuat from "./BleQuat";
+import BleDieuKhien from "./BleDieuKhien";
 import VeO, { type Ngu } from "./VeO";
 import { boCucCua } from "@/lib/ui/boCuc";
 import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/ui/khuon";
@@ -287,7 +287,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
         {than}
 
         {loi && <p className="form-message" role="status">{loi}</p>}
-        <BleQuat device={device} chan={!choDieuKhien} />
+        <BleDieuKhien device={device} chan={!choDieuKhien} />
         {!choDieuKhien && <p className="small dim">{t("chan_khongQuyen")}</p>}
         {/* Máy đang ngoại tuyến: nhắc để biết lệnh có thể chưa tới ngay, nhưng vẫn bấm được. */}
         {choDieuKhien && !device.online && <p className="small dim">{t("nhac_offline")}</p>}

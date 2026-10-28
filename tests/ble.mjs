@@ -2,21 +2,24 @@ import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
- * Điều khiển quạt qua Bluetooth (lib/ble/quatBle.ts, đặc tả docs/viec-ble-quat.md).
+ * Điều khiển quạt, điều hoà qua Bluetooth (lib/ble/dieuKhienBle.ts, đặc tả docs/viec-ble.md).
  *
  * Hộp chọn thiết bị của Chromium không tự động được, nên thay `navigator.bluetooth` bằng một
- * QUẠT GIẢ chạy đúng đặc tả: bốn characteristic, kiểm HMAC-SHA256(mã tem, NONCE), trả lời
- * `{id, ok}` và đẩy trạng thái `{t:{…}}` qua EVT. Đo phía app: khối chỉ hiện với quạt và khi
- * có API, sai mã thì báo, đúng mã thì nối; lệnh trên màn đi qua Bluetooth với đúng
- * `method`/`params` của catalog; quạt tự báo trạng thái thì màn đổi theo; ngắt được; lần sau
- * khỏi gõ lại mã.
+ * MÁY GIẢ chạy đúng đặc tả: bốn characteristic, kiểm HMAC-SHA256(mã tem, NONCE), trả lời
+ * `{id, ok}` và đẩy trạng thái `{t:{…}}` qua EVT. Đo phía app: khối chỉ hiện với quạt, điều
+ * hoà và khi có API, sai mã thì báo, đúng mã thì nối; lệnh trên màn đi qua Bluetooth với đúng
+ * `method`/`params` của catalog; máy tự báo trạng thái thì màn đổi theo; ngắt được; lần sau
+ * khỏi gõ lại mã; chọn nhầm máy (serial khác) thì từ chối.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const cho = ms => new Promise(r => setTimeout(r, ms));
 const b = await chromium.launch({ executablePath: CHROMIUM });
 
-/** Quạt giả theo đặc tả — chạy trong trang. `MA` là mã 5 số trên tem, `SN` serial in trên tem. */
-function quatGia({ MA, SN }) {
+/**
+ * Máy giả theo đặc tả — chạy trong trang. `MA` là mã 5 số trên tem, `SN` serial in trên tem;
+ * đổi máy giữa chừng bằng `window.__bleMay({ MA, SN })`.
+ */
+function mayGia({ MA, SN }) {
   const SVC = '19800001-eb16-4e87-a18d-16008870c454';
   const U = { info: '19800002-eb16-4e87-a18d-16008870c454', nonce: '19800003-eb16-4e87-a18d-16008870c454', cmd: '19800004-eb16-4e87-a18d-16008870c454', evt: '19800005-eb16-4e87-a18d-16008870c454' };
   const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -31,9 +34,9 @@ function quatGia({ MA, SN }) {
     const k = await crypto.subtle.importKey('raw', enc.encode(khoa), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     return hex(new Uint8Array(await crypto.subtle.sign('HMAC', k, msg)));
   }
-  const LENH = { setPower: 'power', setSpeed: 'speed', setMode: 'mode', setSwing: 'swing', setTimer: 'timer' };
   const thietBi = new EventTarget();
-  thietBi.name = 'LVT-' + SN.slice(-4);
+  window.__bleMay = may => { ({ MA, SN } = may); thietBi.name = 'LVT-' + SN.slice(-4); };
+  window.__bleMay({ MA, SN });
   const gatt = {
     connected: false,
     async connect() { gatt.connected = true; daXacThuc = false; nonce = crypto.getRandomValues(new Uint8Array(16)); return gatt; },
@@ -42,7 +45,7 @@ function quatGia({ MA, SN }) {
       if (uuid !== SVC) throw new DOMException('no service', 'NotFoundError');
       return {
         async getCharacteristic(u) {
-          if (u === U.info) return { readValue: async () => new DataView(enc.encode(JSON.stringify({ v: 1, sn: SN, model: 'W-450', fw: '1.0.0' })).buffer) };
+          if (u === U.info) return { readValue: async () => new DataView(enc.encode(JSON.stringify({ v: 1, sn: SN, model: 'GIA', fw: '1.0.0' })).buffer) };
           if (u === U.nonce) return { readValue: async () => new DataView(nonce.slice().buffer) };
           if (u === U.evt) return evt;
           if (u === U.cmd) return {
@@ -57,8 +60,10 @@ function quatGia({ MA, SN }) {
                   return;
                 }
                 if (!daXacThuc) return day({ id: lenh.id, ok: false, err: 'auth' });
-                const key = LENH[lenh.method];
-                if (!key || !(key in (lenh.params || {}))) return day({ id: lenh.id, ok: false, err: 'bad_method' });
+                // Lệnh nào của catalog cũng nhận: `set…` với đúng một key trong params.
+                const keys = Object.keys(lenh.params || {});
+                if (!/^set/.test(lenh.method) || keys.length !== 1) return day({ id: lenh.id, ok: false, err: 'bad_method' });
+                const key = keys[0];
                 day({ id: lenh.id, ok: true });
                 day({ t: { [key]: lenh.params[key] } });
               }, 30);
@@ -94,9 +99,9 @@ const dongMan = async p => { await p.locator('.devpage .devback').click(); await
 
 try {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
-  await ctx.addInitScript(quatGia, { MA: '12345', SN: 'fan72185' });
+  await ctx.addInitScript(mayGia, { MA: '12345', SN: 'fan72185' });
   const { p, loi } = await vao(ctx);
-  const khoi = p.locator('.devpage .ble-quat');
+  const khoi = p.locator('.devpage .ble-dk');
 
   /* ---------- khối chỉ có ở quạt ---------- */
   await moThietBi(p, 'Quạt treo phòng ngủ');
@@ -152,9 +157,26 @@ try {
   ok('rời màn chi tiết → phiên đã ngắt', !/Đang điều khiển/.test(await khoi.innerText()));
   await dongMan(p);
 
-  /* ---------- không phải quạt → không có khối ---------- */
-  await moThietBi(p, 'Điều hòa');
-  ok('màn điều hoà không có khối Bluetooth', await khoi.count() === 0);
+  /* ---------- điều hoà: cùng giao thức, lệnh lấy từ catalog điều hoà ---------- */
+  await moThietBi(p, 'Điều hòa phòng khách');
+  ok('màn điều hoà có khối "Điều khiển gần qua Bluetooth"', await khoi.count() === 1);
+  // Hộp chọn trả về quạt (serial khác) → app từ chối, không điều khiển nhầm máy.
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  await oMa.fill('12345'); await nutNoi.click(); await cho(500);
+  ok('chọn nhầm máy (serial khác) → báo "không phải thiết bị này"', /không phải thiết bị này/.test(await khoi.innerText()) && !/Đang điều khiển/.test(await khoi.innerText()));
+  await p.evaluate(() => window.__bleMay({ MA: '54321', SN: 'ac30412' }));
+  await oMa.fill('54321'); await nutNoi.click(); await cho(500);
+  ok('đúng điều hoà, đúng mã → "Đang điều khiển qua Bluetooth"', /Đang điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const truocAc = (await p.evaluate(() => window.__bleNhatKy.length));
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Hút ẩm' }).first().click(); await cho(400);
+  const lenhAc = (await p.evaluate(() => window.__bleNhatKy)).slice(truocAc).map(x => x.lenh);
+  ok(`chọn "Hút ẩm" → gửi setMode {mode:"dry"} qua Bluetooth (${JSON.stringify(lenhAc.map(l => l.method))})`,
+    lenhAc.length === 1 && lenhAc[0].method === 'setMode' && lenhAc[0].params.mode === 'dry');
+  await dongMan(p);
+
+  /* ---------- thiết bị không có đường Bluetooth → không có khối ---------- */
+  await moThietBi(p, 'Bếp từ đôi');
+  ok('màn bếp từ không có khối Bluetooth', await khoi.count() === 0);
   await dongMan(p);
   ok(`không lỗi JS (${loi.join(' | ')})`, loi.length === 0);
   await ctx.close();
@@ -164,7 +186,7 @@ try {
   await ctx2.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'bluetooth', { get: () => undefined, configurable: true }); });
   const { p: p2 } = await vao(ctx2);
   await moThietBi(p2, 'Quạt treo phòng ngủ');
-  ok('không có Web Bluetooth → ẩn hẳn khối', await p2.locator('.devpage .ble-quat').count() === 0);
+  ok('không có Web Bluetooth → ẩn hẳn khối', await p2.locator('.devpage .ble-dk').count() === 0);
   await ctx2.close();
 } finally {
   await b.close();

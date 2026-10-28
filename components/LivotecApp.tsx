@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/ManChinh";
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import { capNguonCua } from "@/lib/ui/khuon";
-import { phienBle } from "@/lib/ble/quatBle";
+import { phienBle } from "@/lib/ble/dieuKhienBle";
 import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
   ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
@@ -131,7 +131,7 @@ export default function LivotecApp() {
     // Sản phẩm không khai nguồn điện thì không có lệnh nào để gửi; đoán "setPower" chỉ để
     // máy chủ từ chối. Thẻ thiết bị cũng không vẽ công tắc trong trường hợp này.
     if (isIotxMode && !capNguon?.rpc) return;
-    // Đang nối Bluetooth với quạt: lệnh đi thẳng sang quạt, cả ở chế độ mock.
+    // Đang nối Bluetooth với thiết bị: lệnh đi thẳng sang máy, cả ở chế độ mock.
     const ble = phienBle(id);
     if (ble && capNguon?.rpc) {
       suaThietBi(id, device => apGiaTri(device, { [capNguon.key]: !truoc.on }));
@@ -210,8 +210,8 @@ export default function LivotecApp() {
     const truoc = data.devices.find(device => device.id === id);
     // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
     suaThietBi(id, device => apGiaTri(device, { [capability.key]: value }));
-    // Đang nối Bluetooth với quạt: lệnh đi thẳng sang quạt, cùng `method`/`params` như RPC
-    // qua `/v1` (xem lib/ble/quatBle.ts). Quạt báo lại trạng thái qua notify.
+    // Đang nối Bluetooth với thiết bị: lệnh đi thẳng sang máy, cùng `method`/`params` như RPC
+    // qua `/v1` (xem lib/ble/dieuKhienBle.ts). Máy báo lại trạng thái qua notify.
     const ble = phienBle(id);
     if (ble) {
       try { await ble.gui(capability.rpc, { [capability.key]: value }); }
