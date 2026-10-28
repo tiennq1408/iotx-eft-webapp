@@ -10,6 +10,7 @@ import { diaChiIcon, donSacPixel, laDuongDan, laIconKho } from "@/lib/ui/assets"
 import { phimKichHoat } from "@/lib/ui/phim";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/ui/giaTriCap";
+import { biKhoaGt, biKhoaO, capBiKhoa } from "@/lib/ui/khongDung";
 import {
   CAN_CHU, CAN_DOC, CAN_NGANG, RONG_NUT, cotChipTuDong, danhSachLoi, dayNgang, lopViTri,
   phanGiaiBoCuc, tuCoNhan, type BoCuc, type OdaDung,
@@ -173,10 +174,12 @@ function Dial({ v, min, max, chu }: { v: number; min: number; max: number; chu: 
   );
 }
 
-function ONoiDung({ o, device, t, chan, gui, vatTu }: {
+function ONoiDung({ o, device, t, chan, gui, vatTu, khoaGt }: {
   o: OdaDung; device: Device; t: HamChu;
   /** Người dùng không có quyền điều khiển (chia sẻ chỉ-xem). */
   chan: boolean;
+  /** Giá trị enum đang bị `ui.khongDung` khoá (lib/ui/khongDung.ts). */
+  khoaGt: (gt: unknown) => boolean;
   gui: (cap: IotxCapability, v: unknown) => void;
   vatTu: GuiVatTu;
 }) {
@@ -274,13 +277,16 @@ function ONoiDung({ o, device, t, chan, gui, vatTu }: {
           // thẻ rỗng vẫn chiếm chỗ và đẩy nhãn tụt xuống — nhìn như chữ không căn giữa.
           // Bản tham chiếu bỏ hẳn thẻ này khi catalog không khai icon.
           const ico = diaChiIcon(o.gtIco?.[String(gt)]);
+          // `khongDung` khoá riêng giá trị này (vd. tốc độ quạt Cao khi đang Hút ẩm): như web.dev,
+          // chip mờ và KHÔNG gửi lệnh — máy đằng nào cũng không nhận.
+          const kd = khoaGt(gt);
           return (
-            // Vẫn gọi `gui` khi bị khóa: chính nó nói lý do, thay vì nuốt cú bấm im lặng.
-            <span key={String(gt)} role="button" tabIndex={khoa ? -1 : 0} aria-pressed={chon} aria-disabled={khoa} title={chu}
-              className={["bc-chip", chon ? "on" : "", lopViTri(o.gtVt?.[String(gt)])].filter(Boolean).join(" ")}
+            // Thiếu quyền thì vẫn gọi `gui`: chính nó nói lý do, thay vì nuốt cú bấm im lặng.
+            <span key={String(gt)} role="button" tabIndex={khoa || kd ? -1 : 0} aria-pressed={chon} aria-disabled={khoa || kd} title={chu}
+              className={["bc-chip", chon ? "on" : "", lopViTri(o.gtVt?.[String(gt)]), kd ? "khoa" : ""].filter(Boolean).join(" ")}
               style={coChip}
-              onClick={() => gui(cap, gt)}
-              onKeyDown={e => phimKichHoat(e, () => gui(cap, gt))}>
+              onClick={() => !kd && gui(cap, gt)}
+              onKeyDown={e => !kd && phimKichHoat(e, () => gui(cap, gt))}>
               {ico && <i aria-hidden="true"><Ico ico={ico} /></i>}
               <span>{chu}</span>
             </span>
@@ -338,6 +344,9 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
   // Lưới chỉ đổi khi catalog đổi; mỗi nhịp đồng bộ chỉ đổi giá trị, không đổi bố cục.
   const kq = useMemo(() => phanGiaiBoCuc(bc, product?.capabilities ?? [], capNguonCua(product)?.key), [bc, product]);
   const loi = kq.capBao ? danhSachLoi(kq.capBao, device.lastValues?.[kq.capBao.key]) : [];
+  const khongDung = product?.ui?.khongDung;
+  const khoaKD = useMemo(() => capBiKhoa(khongDung, device.lastValues, product?.capabilities ?? [], capNguonCua(product)?.key),
+    [khongDung, device.lastValues, product]);
 
   return (
     // `boCuc.nenAnh`: ảnh nền của CẢ lưới (khác `o.nenAnh` của từng ô) — web.dev gắn lên `.bc-wrap`.
@@ -361,8 +370,12 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
           const than = dayNgang(o.variant)
             ? { flexDirection: "column" as const, justifyContent: CAN_DOC[o.canD || "giua"], alignItems: CAN_NGANG[o.canN || "giua"] }
             : { flexDirection: "row" as const, justifyContent: CAN_NGANG[o.canN || "giua"], alignItems: CAN_DOC[o.canD || "giua"] };
+          // Cả ô bị `khongDung` khoá (vd. máy lạnh đang tắt): mờ hẳn, thân `inert` — không bấm,
+          // không Tab vào được, trình đọc màn hình bỏ qua control.
+          const khoaO = biKhoaO(khoaKD, o.cap);
           return (
-            <div key={o.key} className={lopO(o)} data-k={o.key} data-v={o.variant} style={{
+            <div key={o.key} className={khoaO ? `${lopO(o)} khoa` : lopO(o)} data-k={o.key} data-v={o.variant}
+              aria-disabled={khoaO || undefined} style={{
               gridColumn: `${o.col} / ${o.col + o.w}`,
               gridRow: `${kq.map[o.row]} / ${kq.map[o.row + o.h - 1] + 1}`,
               ...bienMauO(o),
@@ -375,8 +388,9 @@ export default function BoCucGrid({ bc, device, chan, onCommand, onVatTu }: {
                   {o.ico ? <NhanO o={o} ten={nhanCap(o.cap, t)} /> : nhanCap(o.cap, t)}
                 </div>
               )}
-              <div className="bc-body" style={than}>
-                <ONoiDung o={o} device={device} t={t} chan={chan} gui={onCommand} vatTu={onVatTu} />
+              <div className="bc-body" style={than} inert={khoaO || undefined}>
+                <ONoiDung o={o} device={device} t={t} chan={chan} gui={onCommand} vatTu={onVatTu}
+                  khoaGt={gt => biKhoaGt(khoaKD, o.key, gt)} />
               </div>
             </div>
           );

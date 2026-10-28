@@ -12,7 +12,7 @@ const TENANT = process.env.IOTX_TENANT || 'livotec';
 
 // Giữ ĐỒNG BỘ với KHOA_BIET trong lib/ui/boCuc.ts. Lệch là bài này nói dối.
 const BIET = {
-  'ui':         ['renderer','archetype','skin','controls','gauges','image','uuTien','slots','boCuc'],
+  'ui':         ['renderer','archetype','skin','controls','gauges','image','uuTien','slots','boCuc','khongDung'],
   'boCuc':      ['cot','caoHang','donHang','skin','nenAnh','alarm','o'],
   'boCuc.o':    ['key','col','row','w','h','variant','canN','canD','caoHang','moiHang','coNut',
                  'rongNut','nhan','gtIco','ico','vtIco','gtVt','mauCtl','vien','hlChon','nenAnh','mauChu'],
