@@ -9,7 +9,9 @@ import { chromium } from 'playwright';
  * `{id, ok}` và đẩy trạng thái `{t:{…}}` qua EVT. Đo phía app: khối chỉ hiện với quạt, điều
  * hoà và khi có API, sai mã thì báo, đúng mã thì nối; lệnh trên màn đi qua Bluetooth với đúng
  * `method`/`params` của catalog; máy tự báo trạng thái thì màn đổi theo; ngắt được; lần sau
- * khỏi gõ lại mã; chọn nhầm máy (serial khác) thì từ chối.
+ * khỏi gõ lại mã; chọn nhầm máy (serial khác) thì từ chối. Chọn kênh: có Wi-Fi thì "Ưu tiên
+ * Wi-Fi" đưa lệnh về Wi-Fi, "Dùng Bluetooth" đưa lại; máy mất Wi-Fi thì nhắc chạm, lần sau tự
+ * nối lại không cần hộp chọn.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const cho = ms => new Promise(r => setTimeout(r, ms));
@@ -78,6 +80,7 @@ function mayGia({ MA, SN }) {
   const bluetooth = {
     async requestDevice(opt) {
       window.__bleLoc = opt;
+      window.__bleSoLanChon = (window.__bleSoLanChon || 0) + 1;
       if (!opt.filters?.some(f => f.services?.includes(SVC))) throw new DOMException('User cancelled', 'NotFoundError');
       return thietBi;
     },
@@ -103,6 +106,20 @@ try {
   const { p, loi } = await vao(ctx);
   const khoi = p.locator('.devpage .ble-dk');
 
+  /* ---------- thẻ trong danh sách: icon kênh, có tên đọc được ---------- */
+  const icThe = ten => p.locator('.device-card', { has: p.locator(`.card-hit[aria-label*="${ten}"]`) }).locator('.kenh-ic');
+  ok('thẻ máy online có icon Wi-Fi kèm nhãn', await icThe('Quạt treo phòng ngủ').first().getAttribute('class').then(c => /wifi/.test(c))
+    && /Wi-Fi/.test(await icThe('Quạt treo phòng ngủ').first().getAttribute('aria-label')));
+  // Dữ liệu mock cho mọi máy online: đặt một quạt ngoại tuyến trong localStorage rồi tải lại.
+  await p.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('livotec-home-v5'));
+    d.devices.find(x => x.id === 'fb1').online = false;
+    localStorage.setItem('livotec-home-v5', JSON.stringify(d));
+  });
+  await p.reload({ waitUntil: 'networkidle' }); await cho(1200);
+  await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+  ok('thẻ máy ngoại tuyến có icon mất Wi-Fi', await icThe('Quạt cây phòng khách').first().getAttribute('class').then(c => /mat/.test(c)));
+
   /* ---------- khối chỉ có ở quạt ---------- */
   await moThietBi(p, 'Quạt treo phòng ngủ');
   ok('màn quạt có khối "Điều khiển gần qua Bluetooth"', await khoi.count() === 1 && /Điều khiển gần qua Bluetooth/.test(await khoi.innerText()));
@@ -122,6 +139,9 @@ try {
   /* ---------- đúng mã → nối; mã không đi qua sóng ---------- */
   await oMa.fill('12345'); await nutNoi.click(); await cho(500);
   ok('đúng mã → "Đang điều khiển qua Bluetooth"', /Đang điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const chipBle = p.locator('.devpage .dev-st .kenh-chip.ble');
+  ok('đầu màn có chip Bluetooth (icon + chữ) cạnh chip Wi-Fi', await chipBle.count() === 1 && /Bluetooth/.test(await chipBle.innerText())
+    && await chipBle.locator('svg').count() === 1 && await p.locator('.devpage .dev-st .kenh-chip.wifi').count() === 1);
   const nk = await p.evaluate(() => window.__bleNhatKy);
   const auth = nk.filter(x => x.lenh.method === 'auth');
   ok('xác thực bằng HMAC 64 ký tự hex', auth.length === 2 && /^[0-9a-f]{64}$/.test(auth[1].lenh.params.mac));
@@ -142,9 +162,27 @@ try {
   await p.evaluate(() => window.__bleDay({ mode: 'sleep' })); await cho(300);
   ok('quạt báo mode=sleep → chip "Ngủ" sáng lên', await dangChon());
 
+  /* ---------- chọn kênh khi máy có Wi-Fi: nối tay = chọn Bluetooth; "Ưu tiên Wi-Fi" đưa lệnh về Wi-Fi ---------- */
+  const chipWifi = p.locator('.devpage .dev-st .kenh-chip.wifi');
+  ok('nối tay khi có Wi-Fi → chip Bluetooth tô đặc, chip Wi-Fi chỉ viền',
+    !/(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && /(^| )cho( |$)/.test(await chipWifi.getAttribute('class')));
+  await khoi.locator('button', { hasText: 'Ưu tiên Wi-Fi' }).click(); await cho(300);
+  ok('"Ưu tiên Wi-Fi" → khối báo "Bluetooth chờ sẵn", chip đổi vai',
+    /Bluetooth chờ sẵn/.test(await khoi.innerText()) && /(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && !/(^| )cho( |$)/.test(await chipWifi.getAttribute('class')));
+  const truocWifi = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Gió tự nhiên' }).first().click(); await cho(400);
+  ok('ưu tiên Wi-Fi → lệnh KHÔNG đi Bluetooth', await p.evaluate(() => window.__bleNhatKy.length) === truocWifi);
+  await khoi.locator('button', { hasText: 'Dùng Bluetooth' }).click(); await cho(300);
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Thường' }).first().click(); await cho(400);
+  const lenhChon = (await p.evaluate(() => window.__bleNhatKy)).slice(truocWifi).map(x => x.lenh.method);
+  ok(`"Dùng Bluetooth" → lệnh lại đi Bluetooth (${JSON.stringify(lenhChon)})`, lenhChon.length === 1 && lenhChon[0] === 'setMode');
+  const nutKenh = await khoi.locator('button', { hasText: 'Ưu tiên Wi-Fi' }).boundingBox();
+  ok(`nút chọn kênh ≥44px (${Math.round(nutKenh.height)})`, nutKenh.height >= 44);
+
   /* ---------- ngắt ---------- */
   await khoi.locator('button', { hasText: 'Ngắt Bluetooth' }).click(); await cho(300);
   ok('ngắt → trở lại nút "Điều khiển gần qua Bluetooth"', /Điều khiển gần qua Bluetooth/.test(await khoi.innerText()) && !/Đang điều khiển/.test(await khoi.innerText()));
+  ok('ngắt → chip Bluetooth biến mất, còn chip Wi-Fi', await chipBle.count() === 0 && await p.locator('.devpage .dev-st .kenh-chip.wifi').count() === 1);
   const sauNgat = await p.evaluate(() => window.__bleNhatKy.length);
   await p.locator('.devpage .mchips [role=button]', { hasText: 'Thường' }).first().click(); await cho(300);
   ok('sau khi ngắt, lệnh không còn đi qua Bluetooth', await p.evaluate(() => window.__bleNhatKy.length) === sauNgat);
@@ -156,6 +194,27 @@ try {
   await moThietBi(p, 'Quạt treo phòng ngủ');
   ok('rời màn chi tiết → phiên đã ngắt', !/Đang điều khiển/.test(await khoi.innerText()));
   await dongMan(p);
+
+  /* ---------- máy mất Wi-Fi: nhắc chạm; nối rồi thì lệnh đi Bluetooth; lần sau tự nối ---------- */
+  await p.evaluate(() => window.__bleMay({ MA: '24680', SN: 'fan90233' }));
+  await moThietBi(p, 'Quạt cây phòng khách');
+  ok('máy ngoại tuyến, chưa nhớ mã → nhắc "mất Wi-Fi. Chạm để điều khiển qua Bluetooth"',
+    /mất Wi-Fi. Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()) && await khoi.locator('button.btn:not(.gh)').count() === 1);
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  await oMa.fill('24680'); await nutNoi.click(); await cho(500);
+  ok('nối lúc mất Wi-Fi → "lệnh đang đi thẳng qua Bluetooth", không có nút chọn kênh',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await khoi.locator('button', { hasText: /Ưu tiên Wi-Fi|Dùng Bluetooth/ }).count() === 0);
+  ok('chip Bluetooth tô đặc cạnh chip "Ngoại tuyến"', !/(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && await p.locator('.devpage .dev-st .kenh-chip.mat').count() === 1);
+  const truocMat = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button][aria-pressed=false]').first().click(); await cho(400);
+  ok('máy mất Wi-Fi → lệnh đi Bluetooth', (await p.evaluate(() => window.__bleNhatKy)).slice(truocMat).some(x => /^set/.test(x.lenh.method)));
+  await dongMan(p);
+  const soLanChon = await p.evaluate(() => window.__bleSoLanChon);
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(500);
+  ok('mở lại máy mất Wi-Fi → tự nối Bluetooth, không mở lại hộp chọn',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await p.evaluate(() => window.__bleSoLanChon) === soLanChon);
+  await dongMan(p);
+  await p.evaluate(() => window.__bleMay({ MA: '12345', SN: 'fan72185' }));
 
   /* ---------- điều hoà: cùng giao thức, lệnh lấy từ catalog điều hoà ---------- */
   await moThietBi(p, 'Điều hòa phòng khách');

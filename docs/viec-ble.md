@@ -226,13 +226,34 @@ cũ, **không** làm lại (tương tự `Idempotency-Key` của `/v1`).
 | Tệp | Việc |
 |---|---|
 | `lib/ble/dieuKhienBle.ts` | UUID, kết nối + xác thực HMAC, gửi lệnh chờ `{id, ok}`, nghe EVT, sổ phiên dùng chung |
-| `components/ui/device/BleDieuKhien.tsx` | Khối trên màn chi tiết quạt, điều hoà: nút nối, ô nhập mã tem, trạng thái, nút ngắt |
-| `components/LivotecApp.tsx` | `guiLenh` / `doiNguon`: có phiên BLE thì gửi qua BLE thay cho `/v1` |
+| `components/ui/device/BleDieuKhien.tsx` | Khối trên màn chi tiết quạt, điều hoà: nút nối, ô nhập mã tem, trạng thái, chọn kênh, nút ngắt, tự nối khi mất Wi-Fi |
+| `components/ui/device/KenhKetNoi.tsx` | Chip/icon kênh ở đầu màn và trên thẻ; kênh đang dùng tô đặc, kênh chờ chỉ viền |
+| `components/LivotecApp.tsx` | `guiLenh` / `doiNguon`: hỏi `phienDung` để chọn kênh; Wi-Fi hỏng vì đường truyền mà có phiên BLE thì gửi lại qua BLE |
 | `hooks/useDuLieuIotx.ts` | Áp trạng thái thiết bị báo qua BLE; giá trị BLE thắng dữ liệu máy chủ khi đang nối |
 
 Khối chỉ hiện khi: trình duyệt có Web Bluetooth, thiết bị là quạt hoặc điều hoà (`productGroup`
 là `fan`/`ac`, hoặc `ui.renderer` bắt đầu bằng `fan`/`aircon` — xem `coDuongBle`), không phải
 thiết bị ảo, và người dùng có quyền điều khiển. Rời màn chi tiết là ngắt.
+
+### Chọn kênh Wi-Fi / Bluetooth (`kenhDung`)
+
+| Thiết bị | Phiên BLE | Lệnh đi |
+|---|---|---|
+| Có Wi-Fi | không có | Wi-Fi |
+| Có Wi-Fi | có, tự động | Wi-Fi — BLE chờ sẵn |
+| Có Wi-Fi | có, người dùng chọn Bluetooth | Bluetooth |
+| Mất Wi-Fi | có | Bluetooth |
+| Mất Wi-Fi | không có | tự nối BLE (xem dưới); chưa được thì nhắc "Chạm để điều khiển qua Bluetooth" |
+
+- **Wi-Fi luôn được ưu tiên.** Nối tay khi máy đang có Wi-Fi nghĩa là người dùng chọn Bluetooth
+  (`PhienBle.tuChon`); nút "Ưu tiên Wi-Fi" / "Dùng Bluetooth" đổi qua lại. Nối lúc mất Wi-Fi thì
+  ở chế độ tự động: Wi-Fi về là lệnh về Wi-Fi.
+- **Tự nối khi mất Wi-Fi** (`PhienBle.noiLai`): Web Bluetooth bắt một cú chạm cho hộp chọn, nên
+  chỉ tự nối được máy đã chọn trong lần mở trang này, hoặc máy trình duyệt đã cho phép
+  (`navigator.bluetooth.getDevices`, nếu trình duyệt có), và cần mã tem đã nhớ. Không được thì
+  hiện lời nhắc kèm nút — một chạm là nối.
+- `online` của máy chủ có độ trễ: lệnh qua Wi-Fi hỏng vì đường truyền (mạng, 408, 5xx) mà đang có
+  phiên BLE chờ sẵn thì gửi lại qua BLE. Lỗi nghiệp vụ (quyền, giá trị sai) không chuyển.
 
 ## 12. Firmware điều hoà (bản đầu, 28/10/2026)
 

@@ -8,6 +8,7 @@ import type { GuiVatTu } from "./VatTu";
 import BoCucGrid from "./BoCucGrid";
 import BangThietBi, { coTheTraSerial } from "./BangThietBi";
 import BleDieuKhien from "./BleDieuKhien";
+import KenhKetNoi from "./KenhKetNoi";
 import VeO, { type Ngu } from "./VeO";
 import { boCucCua } from "@/lib/ui/boCuc";
 import { baoDangKeu, mauSkin, phanGiaiSanPham } from "@/lib/ui/khuon";
@@ -234,10 +235,9 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
                 </>
               )}
             </div>
-            <div className={`dev-st small${device.online ? "" : " dim"}`}>
-              <i className={`dev-dot${device.online ? " on" : ""}`} />
-              {device.online ? t("online") : t("offline")}
-              {device.shared && <> · <Icon name="users" className="ic-dong" /> {t("dev_shared")}</>}
+            <div className="dev-st small">
+              <KenhKetNoi device={device} />
+              {device.shared && <span className="dim"><Icon name="users" className="ic-dong" /> {t("dev_shared")}</span>}
             </div>
           </div>
           <button className={`fav-lon${device.fav ? " on" : ""}`} aria-pressed={Boolean(device.fav)}

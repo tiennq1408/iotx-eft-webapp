@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
 import type { Device } from "@/lib/types";
-import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
+import { IotxApiError, apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule } from "@/lib/iotx/contracts";
 import IfThenEditor from "@/components/automation/IfThenEditor";
 import VirtualPanel from "@/components/virtual/VirtualPanel";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/ManChinh";
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import { capNguonCua } from "@/lib/ui/khuon";
-import { phienBle } from "@/lib/ble/dieuKhienBle";
+import { phienBle, phienDung } from "@/lib/ble/dieuKhienBle";
 import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
   ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
@@ -108,6 +108,20 @@ export default function LivotecApp() {
   }
 
   /**
+   * Lệnh qua Wi-Fi hỏng vì đường truyền (máy chủ chưa kịp thấy máy mất Wi-Fi) mà đang có phiên
+   * Bluetooth chờ sẵn: gửi lại qua Bluetooth. Trả `true` khi Bluetooth đã nhận lệnh. Lỗi nghiệp
+   * vụ (quyền, giá trị sai…) thì không chuyển — Bluetooth cũng sẽ từ chối y như vậy.
+   */
+  async function thuQuaBle(id: string, error: unknown, method: string, params: Record<string, unknown>) {
+    const ble = phienBle(id);
+    const loiDuong = error instanceof TypeError
+      || (error instanceof IotxApiError && (error.status === 0 || error.status === 408 || error.status >= 500));
+    if (!ble || !loiDuong) return false;
+    await ble.gui(method, params);
+    return true;
+  }
+
+  /**
    * Cập nhật lạc quan: đổi giao diện trước cho nút phản hồi tức thì, rồi mới gọi máy chủ.
    * Chế độ mock không có máy chủ nên dừng sau bước đổi giao diện. Hỏng thì hoàn tác về
    * đúng ảnh chụp trước khi bấm và báo lỗi.
@@ -131,8 +145,9 @@ export default function LivotecApp() {
     // Sản phẩm không khai nguồn điện thì không có lệnh nào để gửi; đoán "setPower" chỉ để
     // máy chủ từ chối. Thẻ thiết bị cũng không vẽ công tắc trong trường hợp này.
     if (isIotxMode && !capNguon?.rpc) return;
-    // Đang nối Bluetooth với thiết bị: lệnh đi thẳng sang máy, cả ở chế độ mock.
-    const ble = phienBle(id);
+    // Lệnh đang phải đi Bluetooth (máy mất Wi-Fi, hoặc người dùng chọn Bluetooth): đi thẳng
+    // sang máy, cả ở chế độ mock. Có Wi-Fi thì Wi-Fi được ưu tiên.
+    const ble = phienDung(truoc);
     if (ble && capNguon?.rpc) {
       suaThietBi(id, device => apGiaTri(device, { [capNguon.key]: !truoc.on }));
       try { await ble.gui(capNguon.rpc, { [capNguon.key]: !truoc.on }); }
@@ -150,7 +165,10 @@ export default function LivotecApp() {
         const { key, rpc } = capNguon!;
         ghiNhanLenh(id, key, !truoc.on);
         try { await iotxClient.rpc(id, rpc!, { [key]: !truoc.on }); }
-        catch (error) { boGhiNhanLenh(id, key); throw error; }
+        catch (error) {
+          boGhiNhanLenh(id, key);
+          if (!(await thuQuaBle(id, error, rpc!, { [key]: !truoc.on }))) throw error;
+        }
       },
       () => suaThietBi(id, () => truoc),
     );
@@ -210,9 +228,10 @@ export default function LivotecApp() {
     const truoc = data.devices.find(device => device.id === id);
     // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
     suaThietBi(id, device => apGiaTri(device, { [capability.key]: value }));
-    // Đang nối Bluetooth với thiết bị: lệnh đi thẳng sang máy, cùng `method`/`params` như RPC
-    // qua `/v1` (xem lib/ble/dieuKhienBle.ts). Máy báo lại trạng thái qua notify.
-    const ble = phienBle(id);
+    // Lệnh đang phải đi Bluetooth (máy mất Wi-Fi, hoặc người dùng chọn Bluetooth): đi thẳng sang
+    // máy, cùng `method`/`params` như RPC qua `/v1` (xem lib/ble/dieuKhienBle.ts). Máy báo lại
+    // trạng thái qua notify. Có Wi-Fi thì Wi-Fi được ưu tiên.
+    const ble = truoc ? phienDung(truoc) : phienBle(id);
     if (ble) {
       try { await ble.gui(capability.rpc, { [capability.key]: value }); }
       catch (error) {
@@ -227,6 +246,11 @@ export default function LivotecApp() {
     try { await iotxClient.rpc(id, capability.rpc, { [capability.key]: value }); }
     catch (error) {
       boGhiNhanLenh(id, capability.key);
+      try { if (await thuQuaBle(id, error, capability.rpc, { [capability.key]: value })) return; }
+      catch (loiBle) {
+        if (truoc) suaThietBi(id, () => truoc);
+        throw loiBle;
+      }
       if (truoc) suaThietBi(id, () => truoc);
       throw error;
     }

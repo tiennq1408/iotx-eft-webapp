@@ -16,9 +16,13 @@ import { apGiaTri } from "@/lib/iotx/mappers";
  * iPhone/iPad không có — giao diện ẩn hẳn phần này ở đó.
  *
  * Phiên sống ở mức mô-đun (không trong state React) vì nhiều nơi cần tới nó: màn chi tiết
- * mở/đóng phiên, `guiLenh` trong `LivotecApp` chuyển lệnh sang đây khi có phiên, và nhịp
+ * mở/đóng phiên, `guiLenh` trong `LivotecApp` hỏi `kenhDung` để chọn đường, và nhịp
  * đồng bộ với máy chủ phải dán giá trị Bluetooth lên dữ liệu (máy chủ đang mất liên lạc với
  * thiết bị nên giá trị của nó cũ).
+ *
+ * Chọn kênh: Wi-Fi luôn được ưu tiên. Lệnh chỉ đi Bluetooth khi thiết bị mất Wi-Fi, hoặc khi
+ * người dùng tự chọn Bluetooth (`PhienBle.tuChon`). Mất Wi-Fi thì màn chi tiết tự nối lại máy
+ * đã chọn trước đó (`PhienBle.noiLai`), không cần mở lại hộp chọn.
  */
 
 /** UUID cố định — phải khớp đúng với firmware (bảng trong `docs/viec-ble.md`). */
@@ -44,7 +48,11 @@ type DichVu = { getCharacteristic(uuid: string): Promise<DacTinh> };
 type MayChu = { connected: boolean; connect(): Promise<MayChu>; disconnect(): void; getPrimaryService(uuid: string): Promise<DichVu> };
 type ThietBiBle = EventTarget & { name?: string; gatt?: MayChu };
 type NavCoBle = Navigator & {
-  bluetooth?: { requestDevice(opt: { filters: Array<{ services?: string[]; name?: string }>; optionalServices?: string[] }): Promise<ThietBiBle> };
+  bluetooth?: {
+    requestDevice(opt: { filters: Array<{ services?: string[]; name?: string }>; optionalServices?: string[] }): Promise<ThietBiBle>;
+    /** Máy trình duyệt đã cho phép từ trước — nối lại không cần hộp chọn. Chưa phải trình duyệt nào cũng có. */
+    getDevices?(): Promise<ThietBiBle[]>;
+  };
 };
 
 export const coWebBluetooth = () => typeof navigator !== "undefined" && Boolean((navigator as NavCoBle).bluetooth);
@@ -82,6 +90,7 @@ const CAU_LOI: Record<string, string> = {
   sai_may: "Máy vừa chọn không phải thiết bị này (serial khác).",
   no_code: "Thiết bị chưa được cài mã tem nên chưa điều khiển qua Bluetooth được.",
   khong_ho_tro: "Trình duyệt này không có Web Bluetooth.",
+  can_cham: "Trình duyệt cần bạn chạm để chọn thiết bị Bluetooth.",
 };
 const loi = (ma: string) => new LoiBle(ma, CAU_LOI[ma] ?? `Thiết bị báo lỗi: ${ma}`);
 
@@ -112,16 +121,52 @@ export class PhienBle {
     readonly thongTin: ThongTinMay,
     private readonly mayChu: MayChu,
     private readonly cmd: DacTinh,
+    private chon: boolean,
   ) {}
+
+  /** Người dùng tự chọn Bluetooth: lệnh đi Bluetooth cả khi thiết bị đang có Wi-Fi. */
+  get tuChon() { return this.chon; }
+  datTuChon(co: boolean) {
+    if (this.chon === co) return;
+    this.chon = co;
+    baoNghe(this.deviceId, {});
+  }
 
   /**
    * Chọn thiết bị (hộp chọn của trình duyệt — phải gọi từ một cú bấm), kết nối, xác thực.
-   * `serial` có thì so với INFO để không điều khiển nhầm máy nhà bên.
+   * `serial` có thì so với INFO để không điều khiển nhầm máy nhà bên. `tuChon`: xem getter.
    */
-  static async ketNoi(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
+  static async ketNoi(deviceId: string, maTem: string, serial?: string, tuChon = false): Promise<PhienBle> {
     const bt = (navigator as NavCoBle).bluetooth;
     if (!bt) throw loi("khong_ho_tro");
     const thietBi = await bt.requestDevice({ filters: [{ services: [BLE_GATT.service] }], optionalServices: [BLE_GATT.service] });
+    return PhienBle.moPhien(thietBi, deviceId, maTem, serial, tuChon);
+  }
+
+  /**
+   * Nối lại KHÔNG cần cú bấm — dùng khi thiết bị vừa mất Wi-Fi. Thử máy đã chọn trong lần mở
+   * trang này, rồi tới các máy trình duyệt đã cho phép (`getDevices`, nếu có). Không máy nào
+   * khớp serial thì ném `can_cham`: trình duyệt bắt người dùng tự mở hộp chọn.
+   */
+  static async noiLai(deviceId: string, maTem: string, serial?: string): Promise<PhienBle> {
+    const bt = (navigator as NavCoBle).bluetooth;
+    if (!bt) throw loi("khong_ho_tro");
+    const ungVien: ThietBiBle[] = [];
+    const daChon = MAY_DA_CHON.get(deviceId);
+    if (daChon) ungVien.push(daChon);
+    try { for (const may of (await bt.getDevices?.()) ?? []) if (may !== daChon) ungVien.push(may); }
+    catch { /* getDevices bị chặn: chỉ còn máy đã chọn */ }
+    for (const may of ungVien) {
+      try { return await PhienBle.moPhien(may, deviceId, maTem, serial, false); }
+      catch (e) {
+        // Sai mã, bị khoá, máy chưa có mã: thử máy khác cũng vô ích, báo luôn.
+        if (e instanceof LoiBle && ["auth", "locked", "no_code"].includes(e.ma)) throw e;
+      }
+    }
+    throw loi("can_cham");
+  }
+
+  private static async moPhien(thietBi: ThietBiBle, deviceId: string, maTem: string, serial: string | undefined, tuChon: boolean): Promise<PhienBle> {
     const mayChu = await thietBi.gatt!.connect();
     try {
       const dv = await mayChu.getPrimaryService(BLE_GATT.service);
@@ -133,13 +178,14 @@ export class PhienBle {
       try { thongTin = JSON.parse(giaiMa.decode(await info.readValue())) as ThongTinMay; } catch { /* INFO hỏng thì bỏ qua so serial */ }
       if (serial && thongTin.sn && thongTin.sn.toLowerCase() !== serial.toLowerCase()) throw loi("sai_may");
 
-      const phien = new PhienBle(deviceId, thietBi.name || thongTin.sn || "", thongTin, mayChu, cmd);
+      const phien = new PhienBle(deviceId, thietBi.name || thongTin.sn || "", thongTin, mayChu, cmd, tuChon);
       evt.addEventListener("characteristicvaluechanged", () => { if (evt.value) phien.nhan(evt.value); });
       await evt.startNotifications();
       thietBi.addEventListener("gattserverdisconnected", () => phien.dong());
 
       const mac = await hmacHex(maTem, await nonce.readValue());
       await phien.gui("auth", { mac });
+      MAY_DA_CHON.set(deviceId, thietBi);
       dangKy(phien);
       return phien;
     } catch (e) {
@@ -198,6 +244,8 @@ export class PhienBle {
 /* ------------------------- sổ phiên dùng chung cả app ------------------------- */
 
 const PHIEN = new Map<string, PhienBle>();
+/** Máy Bluetooth đã chọn cho từng thiết bị trong lần mở trang này — để `noiLai` khỏi hỏi lại. */
+const MAY_DA_CHON = new Map<string, ThietBiBle>();
 /** `gt = null` nghĩa là phiên của thiết bị đó vừa đóng. */
 type Nghe = (deviceId: string, gt: Record<string, unknown> | null) => void;
 const NGHE = new Set<Nghe>();
@@ -213,7 +261,22 @@ function baoNghe(deviceId: string, gt: Record<string, unknown> | null) {
 
 export const phienBle = (deviceId: string) => PHIEN.get(deviceId);
 
-/** Nghe trạng thái thiết bị qua Bluetooth và việc phiên mở/đóng. Trả về hàm thôi nghe. */
+export type Kenh = "ble" | "wifi" | null;
+
+/**
+ * Lệnh của thiết bị đang đi kênh nào. Wi-Fi được ưu tiên; Bluetooth khi máy mất Wi-Fi hoặc
+ * người dùng tự chọn Bluetooth; `null` khi không còn kênh nào.
+ */
+export function kenhDung(device: Pick<Device, "id" | "online">): Kenh {
+  const p = PHIEN.get(device.id);
+  if (p && (p.tuChon || !device.online)) return "ble";
+  return device.online ? "wifi" : null;
+}
+
+/** Phiên Bluetooth nếu lệnh của thiết bị đang phải đi Bluetooth, không thì `undefined`. */
+export const phienDung = (device: Pick<Device, "id" | "online">) => kenhDung(device) === "ble" ? PHIEN.get(device.id) : undefined;
+
+/** Nghe trạng thái thiết bị qua Bluetooth, việc phiên mở/đóng và đổi `tuChon`. Trả về hàm thôi nghe. */
 export function ngheBle(f: Nghe): () => void {
   NGHE.add(f);
   return () => { NGHE.delete(f); };

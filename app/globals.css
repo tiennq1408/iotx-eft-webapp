@@ -234,6 +234,27 @@ input, select, textarea{font-family:inherit;}
 .status-dot{width:8px;height:8px;border-radius:50%;background:#2E9E63;flex-shrink:0;}
 .status-dot.off{background:var(--faint);}
 .droom{font-size:11.5px;color:var(--faint);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Kênh kết nối (components/ui/device/KenhKetNoi.tsx): Bluetooth / Wi-Fi / mất kết nối.
+   Màu chữ trên nền chip đạt 4.5:1 ở cả hai giao diện. */
+:root{
+  --kenh-ble:#1D4ED8; --kenh-ble-nen:#E3ECFF;
+  --kenh-wifi:#1B7A4B; --kenh-wifi-nen:#E2F4EA;
+}
+.kenh{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.35rem;min-width:0;}
+.kenh-chip{display:inline-flex;align-items:center;gap:.25rem;padding:1px 8px 1px 6px;border-radius:999px;font-weight:600;line-height:1.5;white-space:nowrap;}
+.kenh-chip svg{width:1.05em;height:1.05em;flex:none;}
+.kenh-chip.ble{background:var(--kenh-ble-nen);color:var(--kenh-ble);}
+.kenh-chip.wifi{background:var(--kenh-wifi-nen);color:var(--kenh-wifi);}
+.kenh-chip.mat{padding-left:0;color:var(--dim,var(--muted));}
+/* Kênh có sẵn nhưng lệnh không đi đường này (Wi-Fi được ưu tiên, hoặc người dùng chọn Bluetooth). */
+.kenh-chip.cho{background:transparent;box-shadow:inset 0 0 0 1px currentColor;font-weight:500;}
+.kenh.gon{flex:none;flex-wrap:nowrap;gap:4px;margin-left:auto;}
+.kenh-ic{display:inline-flex;}
+.kenh-ic svg{width:13px;height:13px;}
+.kenh-ic.ble{color:var(--kenh-ble);}
+.kenh-ic.wifi{color:var(--kenh-wifi);}
+.kenh-ic.mat{color:var(--faint);}
 .dvisual{height:72px;width:100%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;overflow:hidden;border-radius:10px;background:#fff;padding:4px;}
 .dvisual img{width:100%;height:100%;object-fit:contain;border-radius:8px;}
 .dvisual .dvisual-bt{
@@ -774,9 +795,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .dev-giua{flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:1px;}
 .devpage .dev-tenhang{display:flex; align-items:center; gap:.35rem; min-width:0;}
 .devpage .dev-ten{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:1rem; font-weight:600;}
-.devpage .dev-st{display:flex; align-items:center; gap:.35rem;}
-.devpage .dev-dot{flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:var(--dim); display:inline-block;}
-.devpage .dev-dot.on{background:var(--ok);}
+.devpage .dev-st{display:flex; align-items:center; flex-wrap:wrap; gap:.35rem;}
 
 .devpage .btn{
   width:100%; min-height:44px; padding:.55rem .9rem; border:0; border-radius:11px;
@@ -791,6 +810,7 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .ble-dk .small{margin:0;}
 .devpage .ble-dk .frow .btn{flex:0 0 auto; width:auto;}
 .devpage .ble-dk .fsel{font-size:1rem; letter-spacing:.2em; text-align:center;}
+.devpage .ble-dk .ble-nhac{font-weight:600;}
 
 /* Lựa chọn dạng chip — ô chạm cao 44px như bản tham chiếu. */
 .devpage .mchips{display:flex; flex-wrap:wrap; gap:.4rem;}
@@ -1031,7 +1051,11 @@ html[data-co-chu="lon"] .devpage .dev-ten,html[data-co-chu="ratLon"] .devpage .d
 /* Giao diện tối. Biến đặt trên <body> chứ không trên <html>: `apDungTheme` ghi màu hãng
    thẳng vào style của <html>, đặt cùng chỗ thì style nội dòng thắng và nền nhạt của hãng
    (`--teal-soft`) lọt vào giao diện tối. */
-html[data-giao-dien="toi"]{color-scheme:dark;}
+html[data-giao-dien="toi"]{
+  color-scheme:dark;
+  --kenh-ble:#93B4FF; --kenh-ble-nen:#1B2A4A;
+  --kenh-wifi:#5FD39A; --kenh-wifi-nen:#163326;
+}
 html[data-giao-dien="toi"] body{
   --nen-san:#080F0E;
   --vien-san:#2B3A36;

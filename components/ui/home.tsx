@@ -4,6 +4,7 @@ import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 import Icon from "./Icon";
 import { useChu, type HamChu } from "./chu";
+import KenhKetNoi from "./device/KenhKetNoi";
 import { EMOJI_SANG_ICON, IMG, anhDaiDienSanPham } from "@/lib/ui/assets";
 import { capNguonCua, phanGiaiSanPham } from "@/lib/ui/khuon";
 import { nhanCap, nhanGiaTriCap } from "@/lib/ui/nhanCap";
@@ -193,6 +194,7 @@ export const DeviceCard = memo(function DeviceCard({ device, hanhDong }: {
         {/* Nhà/phòng vẫn hiện khi máy ngoại tuyến — nơi đặt máy không đổi vì mất kết nối.
             Lọc chuỗi rỗng để nhà chưa gán không để lại dấu " · " cụt đầu dòng. */}
         <span className="droom">{[device.house, device.room || t("unassigned_room")].filter(Boolean).join(" · ")}</span>
+        <KenhKetNoi device={device} gon />
       </div>
       <div className="dvisual">
         {/* Ảnh của catalog nằm ở máy chủ media của hãng, địa chỉ chỉ biết lúc chạy, nên
