@@ -47,6 +47,12 @@ export type PropsMan = {
   spaces: SpaceState;
   /** Sửa chính thiết bị: đổi tên, gán chỗ, ghim. Một cửa `PATCH /devices/{id}` lo cả bốn. */
   onSua: (patch: { label?: string; house?: string; room?: string; grp?: string; fav?: boolean }) => Promise<void>;
+  /**
+   * Chỗ cắm cho đường Bluetooth (components/ble/KetNoiBle.tsx): nút cạnh nút thông tin, và băng
+   * trạng thái trên lưới. Màn này không biết gì về BLE.
+   */
+  nutBle?: React.ReactNode;
+  bangBle?: React.ReactNode;
 };
 
 /* ------------------------------------------------------------------ */
@@ -77,7 +83,7 @@ function tomTatHenGio(tq: IotxHenGioTongQuan | null, t: HamChu): string {
   return t("hg_chua_dat");
 }
 
-export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienLai, onHenGio, onVatTu, spaces, onSua }: PropsMan) {
+export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienLai, onHenGio, onVatTu, spaces, onSua, nutBle, bangBle }: PropsMan) {
   const { t } = useChu();
   const [loi, setLoi] = useState("");
   const [doiTen, setDoiTen] = useState(false);
@@ -249,6 +255,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
               <Icon name="info" />
             </button>
           )}
+          {nutBle}
         </div>
 
         {/* Gán nhà / phòng / nhóm ngay tại đây, không phải lặn vào màn quản lý. */}
@@ -284,6 +291,7 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
         {/* Không có capability nào để vẽ: nói thẳng thay vì một màn trống không giải thích. */}
         {!bc && !kq && <p className="small dim">{t("khong_co_khuon")}</p>}
 
+        {bangBle}
         {than}
 
         {loi && <p className="form-message" role="status">{loi}</p>}

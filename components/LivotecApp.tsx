@@ -28,6 +28,8 @@ import {
   NHAN_CO_CHU, NHAN_GIAO_DIEN, type MucChon, type MucMenu,
 } from "@/components/ui/modals";
 import DeviceDetail from "@/components/ui/device/DeviceDetail";
+import { BangBle, NutKetNoiBle } from "@/components/ble/KetNoiBle";
+import { bleDangNoi, rpcTheoDuong } from "@/lib/iotx/ble";
 import HenGioPanel from "@/components/ui/device/HenGioPanel";
 import LoginScreen from "@/components/ui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
@@ -63,6 +65,7 @@ export default function LivotecApp() {
 
   const {
     hydrated, data, setData, signedIn, setSignedIn, profile, theme, boChu, lang, loiDongBo, setLoiDongBo,
+    matMayChu, thuKetNoiLai,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, taiLuat,
     doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh, choXacNhan,
@@ -138,6 +141,14 @@ export default function LivotecApp() {
    */
   async function guiQuaKenh(id: string, truoc: Device | undefined, method: string, key: string, value: unknown) {
     const params = { [key]: value };
+    // Đang "Kết nối trực tiếp" (components/ble/KetNoiBle.tsx, GATT theo docs/yeu-cau-firmware-ble.md):
+    // lệnh đi kênh đó; đứt giữa chừng thì `rpcTheoDuong` tự gửi lại qua /v1 với cùng khoá.
+    if (isIotxMode && bleDangNoi(id)) {
+      ghiNhanLenh(id, key, value);
+      try { await rpcTheoDuong(id, method, params); }
+      catch (error) { boGhiNhanLenh(id, key); throw error; }
+      return;
+    }
     let daQuaBle = false;
     // Nhật ký từng quyết định — để soát trên máy thật khi kênh chọn sai (F12 → Console, lọc "[kenh]").
     if (truoc) console.info("[kenh]", id, "bấm", method, {
@@ -540,8 +551,16 @@ export default function LivotecApp() {
 
             <BottomNav active={man} onChon={next => { setMan(next); dongPanel(); }} />
 
-            {(thongBaoLoi || loiDongBo) && (
-              <div className="toast-loi" role="status">
+            {/* Mất máy chủ (docs/viec-pwa.md 3.3): dải cố định thay cho toast lỗi đồng bộ — câu đó
+                giờ thừa, dải đã nói rồi. Lỗi lệnh (`thongBaoLoi`) vẫn hiện, xếp phía trên dải. */}
+            {matMayChu && (
+              <div className="mat-ket-noi" role="status">
+                <span><strong>{chu.mat_ket_noi}</strong>{chu.mat_ket_noi_mo_ta}</span>
+                <button onClick={() => void thuKetNoiLai()}>{chu.bh_thu_lai}</button>
+              </div>
+            )}
+            {(thongBaoLoi || (loiDongBo && !matMayChu)) && (
+              <div className={matMayChu ? "toast-loi tren-dai" : "toast-loi"} role="status">
                 <span>{thongBaoLoi || loiDongBo}</span>
                 <button aria-label={chu.toast_close} onClick={() => { setThongBaoLoi(""); setLoiDongBo(""); }}>×</button>
               </div>
@@ -600,6 +619,8 @@ export default function LivotecApp() {
                 onHenGio={() => setPanel({ loai: "hengio", id: thietBiDangMo.id, tuChiTiet: true })}
                 spaces={data.spaces}
                 onSua={patch => suaThongTinThietBi(thietBiDangMo.id, patch)}
+                nutBle={<NutKetNoiBle device={thietBiDangMo} />}
+                bangBle={<BangBle device={thietBiDangMo} />}
               />
             )}
 

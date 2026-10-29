@@ -12,6 +12,7 @@ import type { CaiDat, CoChu, GiaoDien } from "@/lib/ui/caiDat";
 import { DOI_MAT_KHAU_CHUA_BAT, HO_SO_CHUA_BAT, IotxApiError, iotxClient, moTaLoi } from "@/lib/iotx";
 import type { UiNotification } from "@/lib/types";
 import { TAT_CA } from "@/lib/ui/boLoc";
+import NutCaiApp from "../NutCaiApp";
 
 export type MucMenu = "spaces" | "members" | "add" | "virtual" | "timers" | "devices";
 
@@ -134,6 +135,7 @@ export function TaiKhoanPopup({ ten, email, lang, caiDat, onCaiDat, onClose, onD
             </span>
             <span className={`switch${caiDat.thongBao ? " on" : ""}`} aria-hidden="true" />
           </button>
+          <NutCaiApp />
         </div>
 
         <button className="btn-full danger menu-dang-xuat" onClick={onDangXuat}>{t("logout")}</button>

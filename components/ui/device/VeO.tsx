@@ -2,6 +2,7 @@
 
 import type { HamChu } from "../chu";
 import { VatTuBlock, type GuiVatTu } from "./VatTu";
+import { IconNguon } from "./BoCucGrid";
 import type { O } from "@/lib/ui/khuon";
 import { coSo, doSo, laBat, rong } from "@/lib/iotx/giaTri";
 import { chuSoCap, thongSoMuc } from "@/lib/ui/giaTriCap";
@@ -150,7 +151,7 @@ export default function VeO({ o, ngu, nhan = true }: { o: O; ngu: Ngu; nhan?: bo
       return (
         <div className="card ctl-pwr">
           <div className="capline">
-            <button className={`ctl-pwrbtn${bat ? " on" : ""}`} aria-label={ten} aria-pressed={bat} disabled={khoa} onClick={() => gui(cap, !bat)}>⏻</button>
+            <button className={`ctl-pwrbtn${bat ? " on" : ""}`} aria-label={ten} aria-pressed={bat} disabled={khoa} onClick={() => gui(cap, !bat)}><IconNguon /></button>
             <span>{ten}</span>
             <span className="dim small">{bat ? t("on") : t("off")}</span>
           </div>

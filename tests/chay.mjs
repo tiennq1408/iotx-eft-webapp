@@ -75,7 +75,11 @@ const NHOM = {
   // và kết quả của nó phụ thuộc sadmin chứ không phụ thuộc mã trong repo. Không cần app
   // (`canApp: false`) — bài chỉ đọc `/v1/products`, nên chạy được cả khi `next dev` đang mở.
   'that':      { moiTruong: {}, canMayGia: false, canApp: false, rieng: true, bai: ['khoa-la.mjs'] },
-  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'loi-la.mjs', 'ngon-ngu.mjs', 'power02.mjs', 'otp.mjs', 'bang-thiet-bi.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs', 'ble-wifi.mjs'] },
+  // Tầng hỏi–đáp BLE (lib/iotx/bleKenh.ts): thuần logic, không cần app.
+  'don-vi':    { moiTruong: {}, canMayGia: false, canApp: false, bai: ['ble-kenh.mjs'] },
+  // Service worker chỉ đăng ký ở bản production (components/DangKySW.tsx).
+  'pwa':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  banProduction: true, bai: ['ngoai-tuyen.mjs'] },
+  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'loi-la.mjs', 'ngon-ngu.mjs', 'power02.mjs', 'khong-dung.mjs', 'ble-truc-tiep.mjs', 'otp.mjs', 'bang-thiet-bi.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs', 'ble-wifi.mjs'] },
 };
 
 const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM).filter(k => !NHOM[k].rieng);

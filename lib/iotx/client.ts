@@ -110,7 +110,7 @@ function choDocCoHanGio<T>(promise: Promise<T>, ms: number): Promise<T> {
  * "Không kết nối được máy chủ" — báo sai hoàn toàn, mạng không hề hỏng.
  * `crypto.getRandomValues` thì có ở mọi ngữ cảnh, nên dựng tay v4 từ nó.
  */
-function khoaMotLan(): string {
+export function khoaMotLan(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   const b = new Uint8Array(16);
   crypto.getRandomValues(b);
@@ -135,6 +135,8 @@ export class IotxClient {
    * nhập lại) hoặc email và thiết bị của người vừa rời đi.
    */
   private theHe = 0;
+  /** Trong lần mở trang này đã từng nhận được phản hồi nào từ máy chủ chưa (xem `laLoiDuongTruyen`). */
+  private daGoiDuoc = false;
   private readonly nguoiNgheHetPhien = new Set<() => void>();
 
   /**
@@ -155,6 +157,22 @@ export class IotxClient {
     this.tokens.clear();
     xoaCacheNguoiDung();
     if (conPhien) for (const nghe of this.nguoiNgheHetPhien) nghe();
+  }
+
+  /**
+   * `fetch` ném TypeError: đường truyền hỏng, hay trình duyệt không chịu gửi? (docs/viec-pwa.md 3.4)
+   *
+   * KHÔNG tin `navigator.onLine` một mình: điện thoại nối Wi-Fi của thiết bị (chế độ cục bộ) thì
+   * nó vẫn `true` — "có nối vào một mạng", không phải "ra được Internet". Coi là đường truyền khi:
+   * - `navigator.onLine === false`;
+   * - đã từng gọi được máy chủ trong lần mở trang này mà giờ hỏng — trình duyệt rõ ràng gửi được;
+   * - trang chạy trong secure context (https/localhost). Câu "trình duyệt không gửi được" chỉ để
+   *   chẩn đoán trường hợp mở bằng http:// trên máy khác; app cài (PWA) luôn ở https.
+   */
+  private laLoiDuongTruyen(): boolean {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+    if (this.daGoiDuoc) return true;
+    return typeof window !== "undefined" && window.isSecureContext;
   }
 
   /** Request bắt đầu ở thế hệ `theHe` mà phiên đã đổi — bỏ kết quả của nó. */
@@ -198,12 +216,11 @@ export class IotxClient {
     }).catch((loi: unknown) => {
       // Máy MẤT MẠNG thì `fetch` cũng ném TypeError — nhưng đó là lỗi đường truyền, không phải
       // lỗi trình duyệt. Quy về status 0 để `moTaLoi` nói "Không kết nối được máy chủ" thay vì
-      // khuyên đổi sang https. Còn mạng mà vẫn hỏng thì giữ nguyên TypeError cho nhánh trình duyệt.
-      if (loi instanceof TypeError && typeof navigator !== "undefined" && navigator.onLine === false) {
-        throw new IotxApiError(0, "offline");
-      }
+      // khuyên đổi sang https. Chỉ lỗi thật sự của trình duyệt mới giữ TypeError.
+      if (loi instanceof TypeError && this.laLoiDuongTruyen()) throw new IotxApiError(0, "offline");
       throw loi;
     });
+    this.daGoiDuoc = true;
     this.kiemTheHe(theHe);
 
     if (response.status === 401 && auth && tokenSet) {

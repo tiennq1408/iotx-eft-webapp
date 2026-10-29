@@ -49,7 +49,7 @@ async function phien({ w = 390, h = 844, traLoi, treMs = 0, suaBs, tz } = {}) {
   await p.locator('.device-card').filter({ hasText: TB }).first().locator('.card-hit').click(); await cho(900);
   return { ctx, p, goi };
 }
-const nut = p => p.locator('.devdau .tt-lon');
+const nut = p => p.locator('.devdau .tt-lon[aria-haspopup="dialog"]');
 const bang = p => p.locator('.drawer.tt');
 const dong = (p, nhan) => bang(p).locator('.tt-dong').filter({ has: p.locator(`dt:text-is("${nhan}")`) }).locator('dd');
 const moBang = async (p, doi = 900) => { await nut(p).click(); await cho(doi); };

@@ -66,6 +66,8 @@ export type IotxProduct = {
       keoTheo?: Array<{ key: string; giaTri: "max" | "min" | number }>;
       [key: string]: unknown;
     }>;
+    /** Nguồn → giá trị → đích không dùng được. Xem lib/ui/khongDung.ts. */
+    khongDung?: Record<string, Record<string, string[]>>;
     [key: string]: unknown;
   } | null;
   /** `tatCap` liệt kê KEY capability bị loại khỏi hẹn giờ (spec: cùng miền với `capChoPhep`). */
