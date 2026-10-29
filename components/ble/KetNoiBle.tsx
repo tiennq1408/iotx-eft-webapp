@@ -69,8 +69,8 @@ export function NutKetNoiBle({ device }: { device: Device }) {
 
   return (
     <>
-      <button className={`tt-lon ble-nut${daNoi ? " on" : ""}`} aria-label={t(daNoi ? "ble_ngat_noi" : "ble_ket_noi")}
-        title={t(daNoi ? "ble_ngat_noi" : "ble_ket_noi")} aria-pressed={daNoi} aria-busy={dangNoi || undefined} onClick={bam}>
+      <button className={`tt-lon ble-nut${daNoi ? " on" : ""}`} aria-label={t(daNoi ? "bltt_ngat_noi" : "bltt_ket_noi")}
+        title={t(daNoi ? "bltt_ngat_noi" : "bltt_ket_noi")} aria-pressed={daNoi} aria-busy={dangNoi || undefined} onClick={bam}>
         {daNoi ? <BluetoothConnected /> : <Bluetooth />}
       </button>
       {moNhap && <NhapBiMat serial={serial} cauLoi={moNhap.cau} onNoi={noi} onClose={() => setMoNhap(null)} />}
@@ -93,26 +93,26 @@ function NhapBiMat({ serial, cauLoi, onNoi, onClose }: {
 
   const nhan = (text: string) => {
     setMa(text);
-    setLoi(docBiMatTem(text) ? "" : t("ble_ma_khong_hop_le"));
+    setLoi(docBiMatTem(text) ? "" : t("bltt_ma_khong_hop_le"));
   };
   const xacNhan = () => {
-    if (!biMat) { setLoi(t("ble_ma_khong_hop_le")); return; }
+    if (!biMat) { setLoi(t("bltt_ma_khong_hop_le")); return; }
     ghiBleBiMat(serial, base64(biMat));
     onNoi(biMat);
   };
 
   return (
-    <Sheet title={t("ble_ket_noi")} onClose={onClose}>
-      <h2 className="modal-title">{t("ble_ket_noi")}</h2>
-      {cauLoi && <p className="form-message" role="alert">{cauLoi} {t("ble_quet_lai")}</p>}
-      <p className="hint">{t("ble_huong_dan", { serial })}</p>
-      <QuetQR tieuDe={t("ble_quet_tem")} onDoc={nhan} />
-      <label className="field"><span>{t("ble_nhap_tay")}</span>
+    <Sheet title={t("bltt_ket_noi")} onClose={onClose}>
+      <h2 className="modal-title">{t("bltt_ket_noi")}</h2>
+      {cauLoi && <p className="form-message" role="alert">{cauLoi} {t("bltt_quet_lai")}</p>}
+      <p className="hint">{t("bltt_huong_dan", { serial })}</p>
+      <QuetQR tieuDe={t("bltt_quet_tem")} onDoc={nhan} />
+      <label className="field"><span>{t("bltt_nhap_tay")}</span>
         <input value={ma} autoComplete="off" spellCheck={false} aria-invalid={Boolean(loi) || undefined}
           onChange={e => { setMa(e.target.value); setLoi(""); }} />
       </label>
       {loi && <p className="form-message" role="status">{loi}</p>}
-      <button className="primary full" disabled={!ma.trim()} onClick={xacNhan}>{t("ble_noi")}</button>
+      <button className="primary full" disabled={!ma.trim()} onClick={xacNhan}>{t("bltt_noi")}</button>
     </Sheet>
   );
 }
@@ -126,18 +126,18 @@ export function BangBle({ device }: { device: Device }) {
   const tt = useTrangThai();
   const loi = useLoi();
   if (tt.loai !== "nghi" && tt.deviceId === device.id) {
-    if (tt.loai === "dangNoi") return <div className="ble-bang" role="status"><span>{t("ble_dang_noi")}</span></div>;
+    if (tt.loai === "dangNoi") return <div className="ble-bang" role="status"><span>{t("bltt_dang_noi")}</span></div>;
     if (tt.loai === "daNoi") {
       return (
         <div className="ble-bang on" role="status">
-          <BluetoothConnected aria-hidden="true" /><span>{t("ble_da_noi")}</span>
-          <button onClick={() => bleClient.ngat()}>{t("ble_ngat")}</button>
+          <BluetoothConnected aria-hidden="true" /><span>{t("bltt_da_noi")}</span>
+          <button onClick={() => bleClient.ngat()}>{t("bltt_ngat")}</button>
         </div>
       );
     }
     return (
       <div className="ble-bang vang" role="alert">
-        <span>{t("ble_mat")}</span>
+        <span>{t("bltt_mat")}</span>
         <button aria-label={t("close")} onClick={boBaoBle}>×</button>
       </div>
     );

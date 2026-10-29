@@ -1,181 +1,299 @@
-import { GOC, CHROMIUM, anh } from './chung.mjs';
+import { GOC, CHROMIUM } from './chung.mjs';
 import { chromium } from 'playwright';
 
 /**
- * Nối BLE ở màn chi tiết (docs/viec-ble-webapp.md, nghiệm thu mục 9 bước 1–4, 7, 10).
+ * Điều khiển quạt, điều hoà qua Bluetooth (lib/ble/dieuKhienBle.ts, đặc tả docs/viec-ble.md).
  *
- * Không có mạch thật: `navigator.bluetooth` được thay bằng một GATT GIẢ chạy ngay trong trang,
- * đóng vai firmware theo đúng hợp đồng docs/yeu-cau-firmware-ble.md mục 2–3 — đẩy nonce khi nối,
- * TỰ TÍNH HMAC-SHA256 để so chữ ký (sai thì ngắt), trả `resp` theo `id`, chặn mọi `op` trước bắt
- * tay. Thứ duy nhất không thử được ở đây là sóng thật và hộp chọn thiết bị của Chrome.
+ * Hộp chọn thiết bị của Chromium không tự động được, nên thay `navigator.bluetooth` bằng một
+ * MÁY GIẢ chạy đúng đặc tả: bốn characteristic, kiểm HMAC-SHA256(mã tem, NONCE), trả lời
+ * `{id, ok}` và đẩy trạng thái `{t:{…}}` qua EVT. Đo phía app: khối chỉ hiện với quạt, điều
+ * hoà và khi có API, sai mã thì báo, đúng mã thì nối; lệnh trên màn đi qua Bluetooth với đúng
+ * `method`/`params` của catalog; máy tự báo trạng thái thì màn đổi theo; ngắt được; lần sau
+ * khỏi gõ lại mã; chọn nhầm máy (serial khác) thì từ chối. Chọn kênh: có Wi-Fi thì "Ưu tiên
+ * Wi-Fi" đưa lệnh về Wi-Fi, "Dùng Bluetooth" đưa lại; máy mất Wi-Fi thì nhắc chạm, lần sau tự
+ * nối lại không cần hộp chọn; bấm nút điều khiển lúc mất Wi-Fi là tự nối rồi gửi; trình duyệt có
+ * `getDevices` thì tự nối cả sau khi tải lại trang; Bluetooth im lặng mà máy có Wi-Fi thì lệnh
+ * về Wi-Fi.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const cho = ms => new Promise(r => setTimeout(r, ms));
-const BI_MAT = '00112233445566778899aabbccddeeff';
-const BI_MAT_MAY_KHAC = 'ffeeddccbbaa99887766554433221100';
-
-/** Mạch giả. `window.__mach`: bí mật thật của mạch, nhật ký `cmd`, và nút giả "đi xa". */
-const GATT_GIA = (biMat) => {
-  const UUID = n => `${n}b77b-8b45-4e98-8517-ab86cddd0995`;
-  const enc = o => { const b = new TextEncoder().encode(JSON.stringify(o)); return new DataView(b.buffer); };
-  const tuHex = h => Uint8Array.from(h.match(/../g).map(x => parseInt(x, 16)));
-  const m = window.__mach = { biMat, nhatKy: [], boLoc: null, seq: 100, daBatTay: false };
-  class DacTinh extends EventTarget {
-    constructor(uuid, may) { super(); this.uuid = uuid; this.may = may; this.value = undefined; }
-    async readValue() { return enc({ serial: this.may.serial, model: 'ac_1', label: null, fw: '0.0.1-gia' }); }
-    async startNotifications() {
-      if (this.uuid === UUID('0004')) setTimeout(() => this.may.day('resp', { op: 'nonce', giaTri: btoa(String.fromCharCode(...this.may.nonce)) }), 30);
-      return this;
-    }
-    async writeValueWithoutResponse(buf) {
-      const thu = JSON.parse(new TextDecoder().decode(buf));
-      m.nhatKy.push(thu);
-      const may = this.may;
-      if (thu.op === 'auth') {
-        const khoa = await crypto.subtle.importKey('raw', tuHex(m.biMat), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-        const dung = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign('HMAC', khoa, may.nonce))));
-        if (dung === thu.chuKy) { m.daBatTay = true; may.day('resp', { ok: true }); } else may.dut();   // sai → NGẮT
-        return;
-      }
-      if (!m.daBatTay) { may.day('resp', { id: thu.id, ok: false, loi: 'unauthorized' }); return; }
-      if (thu.op === 'rpc') { m.seq++; may.day('resp', { id: thu.id, ok: true, seq: m.seq, v: thu.params }); }
-    }
-  }
-  class May extends EventTarget {
-    constructor(serial) {
-      super(); this.serial = serial; this.name = 'LIVOTEC-A1B2C3';
-      this.nonce = crypto.getRandomValues(new Uint8Array(16));
-      this.dt = Object.fromEntries(['0001', '0002', '0003', '0004'].map(n => [UUID(n), new DacTinh(UUID(n), this)]));
-      const gatt = {
-        connected: false,
-        connect: async () => { gatt.connected = true; return { getPrimaryService: async () => ({ getCharacteristic: async u => this.dt[u] }) }; },
-        disconnect: () => { if (!gatt.connected) return; gatt.connected = false; setTimeout(() => this.dispatchEvent(new Event('gattserverdisconnected')), 0); },
-      };
-      this.gatt = gatt;
-    }
-    day(ten, thu) { const d = this.dt[UUID(ten === 'resp' ? '0004' : '0002')]; d.value = enc(thu); d.dispatchEvent(new Event('characteristicvaluechanged')); }
-    dut() { m.daBatTay = false; this.gatt.disconnect(); }
-  }
-  Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: {
-    async requestDevice(o) {
-      m.boLoc = o;
-      // Firmware phát serial trong Manufacturer Data → hộp chọn chỉ hiện đúng máy đó.
-      const md = o.filters.find(f => f.manufacturerData)?.manufacturerData[0];
-      const may = new May(new TextDecoder().decode(md.dataPrefix));
-      m.may = may; m.daBatTay = false;
-      return may;
-    },
-  } });
-};
-
 const b = await chromium.launch({ executablePath: CHROMIUM });
-const loi = [];
 
-async function moChiTiet(p) {
-  await p.goto(GOC, { waitUntil: 'load' }); await cho(1500);
-  await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
-  if (await p.locator('#dn-id').count()) {
-    await p.locator('#dn-id').fill('p@p.vn'); await p.locator('#dn-pw').fill('x');
-    await p.locator('button.login-btn').click(); await cho(2000);
+/**
+ * Máy giả theo đặc tả — chạy trong trang. `MA` là mã 5 số trên tem, `SN` serial in trên tem;
+ * đổi máy giữa chừng bằng `window.__bleMay({ MA, SN })`.
+ */
+function mayGia({ MA, SN }) {
+  const SVC = '19800001-eb16-4e87-a18d-16008870c454';
+  const U = { info: '19800002-eb16-4e87-a18d-16008870c454', nonce: '19800003-eb16-4e87-a18d-16008870c454', cmd: '19800004-eb16-4e87-a18d-16008870c454', evt: '19800005-eb16-4e87-a18d-16008870c454' };
+  const enc = new TextEncoder(); const dec = new TextDecoder();
+  const nhatKy = []; window.__bleNhatKy = nhatKy;
+  let daXacThuc = false; let nonce = new Uint8Array(16);
+  const evt = new EventTarget();
+  evt.startNotifications = async () => evt;
+  const day = obj => { evt.value = new DataView(enc.encode(JSON.stringify(obj)).buffer); evt.dispatchEvent(new Event('characteristicvaluechanged')); };
+  window.__bleDay = t => day({ t });
+  const hex = u8 => Array.from(u8, x => x.toString(16).padStart(2, '0')).join('');
+  async function hmac(khoa, msg) {
+    const k = await crypto.subtle.importKey('raw', enc.encode(khoa), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return hex(new Uint8Array(await crypto.subtle.sign('HMAC', k, msg)));
   }
-  await p.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await cho(800);
-  await p.locator('.device-card').filter({ hasText: 'Quạt mới' }).first().locator('.card-hit').click(); await cho(1200);
+  const thietBi = new EventTarget();
+  window.__bleMay = may => { ({ MA, SN } = may); thietBi.name = 'LVT-' + SN.slice(-4); };
+  window.__bleMay({ MA, SN });
+  const gatt = {
+    connected: false,
+    async connect() { gatt.connected = true; daXacThuc = false; nonce = crypto.getRandomValues(new Uint8Array(16)); return gatt; },
+    disconnect() { if (!gatt.connected) return; gatt.connected = false; thietBi.dispatchEvent(new Event('gattserverdisconnected')); },
+    async getPrimaryService(uuid) {
+      if (uuid !== SVC) throw new DOMException('no service', 'NotFoundError');
+      return {
+        async getCharacteristic(u) {
+          if (u === U.info) return { readValue: async () => new DataView(enc.encode(JSON.stringify({ v: 1, sn: SN, model: 'GIA', fw: '1.0.0' })).buffer) };
+          if (u === U.nonce) return { readValue: async () => new DataView(nonce.slice().buffer) };
+          if (u === U.evt) return evt;
+          if (u === U.cmd) return {
+            async writeValueWithResponse(buf) {
+              const lenh = JSON.parse(dec.decode(buf));
+              nhatKy.push({ lenh, tho: dec.decode(buf) });
+              setTimeout(async () => {
+                if (window.__bleIm && lenh.method !== 'auth') return;   // giả máy ra khỏi tầm sóng
+                if (lenh.method === 'auth') {
+                  daXacThuc = lenh.params?.mac === await hmac(MA, nonce);
+                  day({ id: lenh.id, ok: daXacThuc, ...(daXacThuc ? {} : { err: 'auth' }) });
+                  if (daXacThuc) day({ t: { power: true, speed: 2, mode: 'normal' } });
+                  return;
+                }
+                if (!daXacThuc) return day({ id: lenh.id, ok: false, err: 'auth' });
+                // Lệnh nào của catalog cũng nhận: `set…` với đúng một key trong params.
+                const keys = Object.keys(lenh.params || {});
+                if (!/^set/.test(lenh.method) || keys.length !== 1) return day({ id: lenh.id, ok: false, err: 'bad_method' });
+                const key = keys[0];
+                day({ id: lenh.id, ok: true });
+                day({ t: { [key]: lenh.params[key] } });
+              }, 30);
+            },
+          };
+          throw new DOMException('no char', 'NotFoundError');
+        },
+      };
+    },
+  };
+  thietBi.gatt = gatt;
+  const bluetooth = {
+    // Chrome chỉ có getDevices khi bật cờ quyền Bluetooth mới; bài bật bằng localStorage.
+    ...(localStorage.getItem('__bleCoGetDevices') ? { getDevices: async () => [thietBi] } : {}),
+    async requestDevice(opt) {
+      window.__bleLoc = opt;
+      window.__bleSoLanChon = (window.__bleSoLanChon || 0) + 1;
+      if (!opt.filters?.some(f => f.services?.includes(SVC))) throw new DOMException('User cancelled', 'NotFoundError');
+      return thietBi;
+    },
+  };
+  Object.defineProperty(Navigator.prototype, 'bluetooth', { get: () => bluetooth, configurable: true });
 }
 
-/* ---- Bước 1: trình duyệt không có Web Bluetooth (iPhone, Firefox) ---- */
-{
+async function vao(ctx) {
+  const p = await ctx.newPage();
+  const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 140)));
+  await p.goto(GOC, { waitUntil: 'networkidle' });
+  await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+  await p.locator('#dn-id').fill('p@p.vn'); await p.locator('#dn-pw').fill('x');
+  await p.locator('button.login-btn').click(); await cho(2000);
+  return { p, loi };
+}
+const moThietBi = async (p, ten) => { await p.locator(`.device-card .card-hit[aria-label*="${ten}"]`).first().click(); await cho(700); };
+const dongMan = async p => { await p.locator('.devpage .devback').click(); await cho(400); };
+
+try {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
-  await ctx.addInitScript(() => Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: undefined }));
-  const p = await ctx.newPage(); p.on('pageerror', e => loi.push(String(e).slice(0, 160)));
-  await moChiTiet(p);
-  ok('không có navigator.bluetooth → nút "Kết nối trực tiếp" KHÔNG hiện', await p.locator('.ble-nut').count() === 0 && await p.locator('.tt-lon').count() >= 1);
-  ok('…và không có băng BLE, không có lỗi', await p.locator('.ble-bang').count() === 0);
+  await ctx.addInitScript(mayGia, { MA: '12345', SN: 'fan72185' });
+  const { p, loi } = await vao(ctx);
+  const khoi = p.locator('.devpage .ble-dk');
+
+  /* ---------- thẻ trong danh sách: icon kênh, có tên đọc được ---------- */
+  const icThe = ten => p.locator('.device-card', { has: p.locator(`.card-hit[aria-label*="${ten}"]`) }).locator('.kenh-ic');
+  ok('thẻ máy online có icon Wi-Fi kèm nhãn', await icThe('Quạt treo phòng ngủ').first().getAttribute('class').then(c => /wifi/.test(c))
+    && /Wi-Fi/.test(await icThe('Quạt treo phòng ngủ').first().getAttribute('aria-label')));
+  // Dữ liệu mock cho mọi máy online: đặt một quạt ngoại tuyến trong localStorage rồi tải lại.
+  await p.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('livotec-home-v5'));
+    d.devices.find(x => x.id === 'fb1').online = false;
+    localStorage.setItem('livotec-home-v5', JSON.stringify(d));
+  });
+  await p.reload({ waitUntil: 'networkidle' }); await cho(1200);
+  await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+  ok('thẻ máy ngoại tuyến có icon mất Wi-Fi', await icThe('Quạt cây phòng khách').first().getAttribute('class').then(c => /mat/.test(c)));
+
+  /* ---------- khối chỉ có ở quạt ---------- */
+  await moThietBi(p, 'Quạt treo phòng ngủ');
+  ok('màn quạt có khối "Điều khiển gần qua Bluetooth"', await khoi.count() === 1 && /Điều khiển gần qua Bluetooth/.test(await khoi.innerText()));
+  const hop = await khoi.locator('button').first().boundingBox();
+  ok(`nút mở ≥44px (${Math.round(hop.height)})`, hop.height >= 44);
+
+  /* ---------- lần đầu: hỏi mã tem; sai mã thì báo ---------- */
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  const oMa = khoi.locator('input');
+  ok('lần đầu hỏi 5 số trên tem', await oMa.count() === 1);
+  const nutNoi = khoi.locator('button', { hasText: 'Kết nối' });
+  await oMa.fill('123'); ok('chưa đủ 5 số → nút Kết nối khoá', await nutNoi.isDisabled());
+  await oMa.fill('11111'); await nutNoi.click(); await cho(500);
+  ok('sai mã → báo "Sai mã trên tem", vẫn hỏi lại mã', /Sai mã trên tem/.test(await khoi.innerText()) && await oMa.count() === 1);
+  ok('lọc hộp chọn theo service UUID của quạt', await p.evaluate(() => JSON.stringify(window.__bleLoc.filters)).then(s => s.includes('19800001-eb16-4e87-a18d-16008870c454')));
+
+  /* ---------- đúng mã → nối; mã không đi qua sóng ---------- */
+  await oMa.fill('12345'); await nutNoi.click(); await cho(500);
+  ok('đúng mã → "Đang điều khiển qua Bluetooth"', /Đang điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const chipBle = p.locator('.devpage .dev-st .kenh-chip.ble');
+  ok('đầu màn có chip Bluetooth (icon + chữ) cạnh chip Wi-Fi', await chipBle.count() === 1 && /Bluetooth/.test(await chipBle.innerText())
+    && await chipBle.locator('svg').count() === 1 && await p.locator('.devpage .dev-st .kenh-chip.wifi').count() === 1);
+  const nk = await p.evaluate(() => window.__bleNhatKy);
+  const auth = nk.filter(x => x.lenh.method === 'auth');
+  ok('xác thực bằng HMAC 64 ký tự hex', auth.length === 2 && /^[0-9a-f]{64}$/.test(auth[1].lenh.params.mac));
+  ok('mã tem KHÔNG nằm trong gói nào gửi đi', nk.every(x => !x.tho.includes('12345') && !x.tho.includes('11111')));
+
+  /* ---------- lệnh trên màn đi qua Bluetooth, đúng method/params của catalog ---------- */
+  const truoc = (await p.evaluate(() => window.__bleNhatKy.length));
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Gió tự nhiên' }).first().click(); await cho(400);
+  const lenhMoi = (await p.evaluate(() => window.__bleNhatKy)).slice(truoc).map(x => x.lenh);
+  ok(`chọn "Gió tự nhiên" → gửi setMode {mode:"nature"} qua Bluetooth (${JSON.stringify(lenhMoi.map(l => l.method))})`,
+    lenhMoi.length === 1 && lenhMoi[0].method === 'setMode' && lenhMoi[0].params.mode === 'nature' && typeof lenhMoi[0].id === 'number');
+  ok('không hiện lỗi sau lệnh', await p.locator('.devpage > .devbody > .form-message').count() === 0);
+
+  /* ---------- quạt tự báo trạng thái (bấm nút trên thân, remote) → màn đổi theo ---------- */
+  const chipNgu = p.locator('.devpage .mchips [role=button]', { hasText: /^Ngủ$/ }).first();
+  const dangChon = async () => (await chipNgu.getAttribute('aria-pressed')) === 'true';
+  ok('trước khi quạt báo: "Ngủ" chưa chọn', !(await dangChon()));
+  await p.evaluate(() => window.__bleDay({ mode: 'sleep' })); await cho(300);
+  ok('quạt báo mode=sleep → chip "Ngủ" sáng lên', await dangChon());
+
+  /* ---------- chọn kênh khi máy có Wi-Fi: nối tay = chọn Bluetooth; "Ưu tiên Wi-Fi" đưa lệnh về Wi-Fi ---------- */
+  const chipWifi = p.locator('.devpage .dev-st .kenh-chip.wifi');
+  ok('nối tay khi có Wi-Fi → chip Bluetooth tô đặc, chip Wi-Fi chỉ viền',
+    !/(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && /(^| )cho( |$)/.test(await chipWifi.getAttribute('class')));
+  await khoi.locator('button', { hasText: 'Ưu tiên Wi-Fi' }).click(); await cho(300);
+  ok('"Ưu tiên Wi-Fi" → khối báo "Bluetooth chờ sẵn", chip đổi vai',
+    /Bluetooth chờ sẵn/.test(await khoi.innerText()) && /(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && !/(^| )cho( |$)/.test(await chipWifi.getAttribute('class')));
+  const truocWifi = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Gió tự nhiên' }).first().click(); await cho(400);
+  ok('ưu tiên Wi-Fi → lệnh KHÔNG đi Bluetooth', await p.evaluate(() => window.__bleNhatKy.length) === truocWifi);
+  await khoi.locator('button', { hasText: 'Dùng Bluetooth' }).click(); await cho(300);
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Thường' }).first().click(); await cho(400);
+  const lenhChon = (await p.evaluate(() => window.__bleNhatKy)).slice(truocWifi).map(x => x.lenh.method);
+  ok(`"Dùng Bluetooth" → lệnh lại đi Bluetooth (${JSON.stringify(lenhChon)})`, lenhChon.length === 1 && lenhChon[0] === 'setMode');
+  const nutKenh = await khoi.locator('button', { hasText: 'Ưu tiên Wi-Fi' }).boundingBox();
+  ok(`nút chọn kênh ≥44px (${Math.round(nutKenh.height)})`, nutKenh.height >= 44);
+
+  /* ---------- ngắt ---------- */
+  await khoi.locator('button', { hasText: 'Ngắt Bluetooth' }).click(); await cho(300);
+  ok('ngắt → trở lại nút "Điều khiển gần qua Bluetooth"', /Điều khiển gần qua Bluetooth/.test(await khoi.innerText()) && !/Đang điều khiển/.test(await khoi.innerText()));
+  ok('ngắt → chip Bluetooth biến mất, còn chip Wi-Fi', await chipBle.count() === 0 && await p.locator('.devpage .dev-st .kenh-chip.wifi').count() === 1);
+  const sauNgat = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Thường' }).first().click(); await cho(300);
+  ok('sau khi ngắt, lệnh không còn đi qua Bluetooth', await p.evaluate(() => window.__bleNhatKy.length) === sauNgat);
+
+  /* ---------- lần sau khỏi gõ mã; rời màn là ngắt ---------- */
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(500);
+  ok('lần sau nối thẳng, không hỏi lại mã', await oMa.count() === 0 && /Đang điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  await dongMan(p);
+  await moThietBi(p, 'Quạt treo phòng ngủ');
+  ok('rời màn chi tiết → phiên đã ngắt', !/Đang điều khiển/.test(await khoi.innerText()));
+  await dongMan(p);
+
+  /* ---------- máy mất Wi-Fi: nhắc chạm; nối rồi thì lệnh đi Bluetooth; lần sau tự nối ---------- */
+  await p.evaluate(() => window.__bleMay({ MA: '24680', SN: 'fan90233' }));
+  await moThietBi(p, 'Quạt cây phòng khách');
+  ok('máy ngoại tuyến, chưa nhớ mã → nhắc "mất Wi-Fi. Chạm để điều khiển qua Bluetooth"',
+    /mất Wi-Fi. Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()) && await khoi.locator('button.btn:not(.gh)').count() === 1);
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  await oMa.fill('24680'); await nutNoi.click(); await cho(500);
+  ok('nối lúc mất Wi-Fi → "lệnh đang đi thẳng qua Bluetooth", không có nút chọn kênh',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await khoi.locator('button', { hasText: /Ưu tiên Wi-Fi|Dùng Bluetooth/ }).count() === 0);
+  ok('chip Bluetooth tô đặc cạnh chip "Ngoại tuyến"', !/(^| )cho( |$)/.test(await chipBle.getAttribute('class')) && await p.locator('.devpage .dev-st .kenh-chip.mat').count() === 1);
+  const truocMat = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button][aria-pressed=false]').first().click(); await cho(400);
+  ok('máy mất Wi-Fi → lệnh đi Bluetooth', (await p.evaluate(() => window.__bleNhatKy)).slice(truocMat).some(x => /^set/.test(x.lenh.method)));
+  await dongMan(p);
+  const soLanChon = await p.evaluate(() => window.__bleSoLanChon);
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(500);
+  ok('mở lại máy mất Wi-Fi → tự nối Bluetooth, không mở lại hộp chọn',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await p.evaluate(() => window.__bleSoLanChon) === soLanChon);
+  await dongMan(p);
+
+  /* ---------- tải lại trang (quên máy đã chọn): bấm nút lúc mất Wi-Fi → tự nối rồi gửi ---------- */
+  const taiLai = async () => {
+    await p.reload({ waitUntil: 'networkidle' }); await cho(1200);
+    await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+    await p.evaluate(() => window.__bleMay({ MA: '24680', SN: 'fan90233' }));
+  };
+  await taiLai();
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(300);
+  ok('sau tải lại, không getDevices → chưa tự nối được, nhắc chạm', /Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const chonTruoc = await p.evaluate(() => window.__bleSoLanChon || 0);
+  const nkTruoc = await p.evaluate(() => window.__bleNhatKy.length);
+  await p.locator('.devpage .mchips [role=button][aria-pressed=false]').first().click(); await cho(700);
+  ok('bấm chế độ lúc mất Wi-Fi → tự mở hộp chọn, nối, lệnh đi Bluetooth',
+    await p.evaluate(() => window.__bleSoLanChon || 0) === chonTruoc + 1
+    && (await p.evaluate(() => window.__bleNhatKy)).slice(nkTruoc).some(x => /^set/.test(x.lenh.method))
+    && /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()));
+  await dongMan(p);
+  await p.evaluate(() => localStorage.setItem('__bleCoGetDevices', '1'));
+  await taiLai();
+  const chonGd = await p.evaluate(() => window.__bleSoLanChon || 0);
+  await moThietBi(p, 'Quạt cây phòng khách'); await cho(500);
+  ok('trình duyệt có getDevices → mở màn là tự nối, không hộp chọn',
+    /mất Wi-Fi nên lệnh đang đi thẳng qua Bluetooth/.test(await khoi.innerText()) && await p.evaluate(() => window.__bleSoLanChon || 0) === chonGd);
+  await dongMan(p);
+  await p.evaluate(() => localStorage.removeItem('__bleCoGetDevices'));
+  await taiLai();
+
+  /* ---------- đã chọn Bluetooth nhưng Bluetooth im lặng, máy còn Wi-Fi → lệnh về Wi-Fi ---------- */
+  await p.evaluate(() => window.__bleMay({ MA: '12345', SN: 'fan72185' }));
+  await moThietBi(p, 'Quạt treo phòng ngủ');
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(500);
+  await p.evaluate(() => { window.__bleIm = true; });
+  const chipThuong = p.locator('.devpage .mchips [role=button]', { hasText: 'Gió tự nhiên' }).first();
+  await chipThuong.click(); await cho(4800);
+  ok('Bluetooth không trả lời, máy có Wi-Fi → lệnh đi Wi-Fi, không báo lỗi, giá trị giữ nguyên',
+    await p.locator('.devpage .form-message').count() === 0 && (await chipThuong.getAttribute('aria-pressed')) === 'true');
+  await p.evaluate(() => { window.__bleIm = false; });
+  await dongMan(p);
+
+  /* ---------- điều hoà: cùng giao thức, lệnh lấy từ catalog điều hoà ---------- */
+  await moThietBi(p, 'Điều hòa phòng khách');
+  ok('màn điều hoà có khối "Điều khiển gần qua Bluetooth"', await khoi.count() === 1);
+  // Hộp chọn trả về quạt (serial khác) → app từ chối, không điều khiển nhầm máy.
+  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  await oMa.fill('12345'); await nutNoi.click(); await cho(500);
+  ok('chọn nhầm máy (serial khác) → báo "không phải thiết bị này"', /không phải thiết bị này/.test(await khoi.innerText()) && !/Đang điều khiển/.test(await khoi.innerText()));
+  await p.evaluate(() => window.__bleMay({ MA: '54321', SN: 'ac30412' }));
+  await oMa.fill('54321'); await nutNoi.click(); await cho(500);
+  ok('đúng điều hoà, đúng mã → "Đang điều khiển qua Bluetooth"', /Đang điều khiển qua Bluetooth/.test(await khoi.innerText()));
+  const truocAc = (await p.evaluate(() => window.__bleNhatKy.length));
+  await p.locator('.devpage .mchips [role=button]', { hasText: 'Hút ẩm' }).first().click(); await cho(400);
+  const lenhAc = (await p.evaluate(() => window.__bleNhatKy)).slice(truocAc).map(x => x.lenh);
+  ok(`chọn "Hút ẩm" → gửi setMode {mode:"dry"} qua Bluetooth (${JSON.stringify(lenhAc.map(l => l.method))})`,
+    lenhAc.length === 1 && lenhAc[0].method === 'setMode' && lenhAc[0].params.mode === 'dry');
+  await dongMan(p);
+
+  /* ---------- thiết bị không có đường Bluetooth → không có khối ---------- */
+  await moThietBi(p, 'Bếp từ đôi');
+  ok('màn bếp từ không có khối Bluetooth', await khoi.count() === 0);
+  await dongMan(p);
+  ok(`không lỗi JS (${loi.join(' | ')})`, loi.length === 0);
   await ctx.close();
+
+  /* ---------- trình duyệt không có Web Bluetooth (iPhone) → không có khối ---------- */
+  const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx2.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'bluetooth', { get: () => undefined, configurable: true }); });
+  const { p: p2 } = await vao(ctx2);
+  await moThietBi(p2, 'Quạt treo phòng ngủ');
+  ok('không có Web Bluetooth → ẩn hẳn khối', await p2.locator('.devpage .ble-dk').count() === 0);
+  await ctx2.close();
+} finally {
+  await b.close();
 }
-
-/* ---- Bước 2, 3, 4, 7, 10 với GATT giả ---- */
-const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
-await ctx.addInitScript(GATT_GIA, BI_MAT);
-const p = await ctx.newPage(); p.on('pageerror', e => loi.push(String(e).slice(0, 160)));
-const rpcV1 = []; p.on('request', q => { if (/\/v1\/devices\/[^/]+\/rpc/.test(q.url())) rpcV1.push(q.url()); });
-await moChiTiet(p);
-const serial = await p.evaluate(() => document.querySelector('.ble-nut') && true);
-ok('có Web Bluetooth → nút "Kết nối trực tiếp" hiện cùng hàng nút thông tin', serial && await p.locator('.devdau .ble-nut, .dev-tenhang ~ .ble-nut, .ble-nut').count() === 1);
-ok('nút ≥44px', (await p.locator('.ble-nut').evaluate(n => Math.min(n.getBoundingClientRect().width, n.getBoundingClientRect().height))) >= 44);
-const biMatDaCat = () => p.evaluate(() => JSON.parse(localStorage.getItem('livotec-iotx-cache-v2') || '{}').bleBiMat || {});
-
-// Bước 2: lần đầu → màn quét QR (dùng lại QuetQR), gõ mã tay, nối.
-await p.locator('.ble-nut').click(); await cho(300);
-const man = p.locator('.modal-sheet');
-ok('lần đầu bấm → mở màn nhập mã có khung quét QR (QuetQR)', await man.count() === 1 && await man.locator('.scanner').count() === 1);
-await man.locator('input').fill(BI_MAT);
-await man.locator('button.primary').click(); await cho(800);
-const bang = p.locator('.ble-bang');
-ok(`nối xong → băng "${(await bang.innerText().catch(() => '')).split('\n')[0]}"`, /trực tiếp qua Bluetooth/.test(await bang.innerText().catch(() => '')));
-const boLoc = await p.evaluate(() => window.__mach.boLoc);
-ok('hộp chọn lọc theo serial trong Manufacturer Data, kèm namePrefix "LIVOTEC-" dự phòng, xin service b77b',
-  boLoc.filters[0].manufacturerData?.[0].companyIdentifier === 0xffff && boLoc.filters[1].namePrefix === 'LIVOTEC-' && boLoc.optionalServices[0].startsWith('0000b77b'));
-const cat = await biMatDaCat();
-const serialMay = await p.evaluate(() => window.__mach.may.serial);
-ok(`bí mật cất theo serial ${serialMay} (base64)`, Object.keys(cat).length === 1 && Buffer.from(cat[serialMay], 'base64').toString('hex') === BI_MAT);
-ok('bắt tay gửi op:auth với chữ ký HMAC (mạch giả tự tính và chấp nhận)', await p.evaluate(() => window.__mach.daBatTay && window.__mach.nhatKy[0].op === 'auth'));
-await p.screenshot({ path: anh('ble-da-noi') });
-
-// Lệnh đi BLE, không đi /v1.
-const nut = p.locator('.devpage .bc-tile [role=switch], .devpage .bc-tile button[aria-pressed]').first();
-await nut.click(); await cho(600);
-const rpc = await p.evaluate(() => window.__mach.nhatKy.filter(x => x.op === 'rpc'));
-ok(`bấm điều khiển → lệnh đi qua BLE (${rpc[0]?.method} ${JSON.stringify(rpc[0]?.params)}), có id và Idempotency-Key trong thân`,
-  rpc.length === 1 && typeof rpc[0].id === 'number' && /^[0-9a-f-]{36}$/.test(rpc[0].khoa));
-ok('…và KHÔNG gọi /v1/devices/{id}/rpc', rpcV1.length === 0);
-
-// Bước 3: ngắt, bấm lại → nối thẳng, không hỏi mã.
-await bang.locator('button').click(); await cho(300);
-ok('bấm Ngắt → băng biến mất (không phải băng vàng)', await bang.count() === 0);
-await p.locator('.ble-nut').click(); await cho(800);
-ok('lần hai → KHÔNG hỏi lại mã, nối thẳng', await man.count() === 0 && /trực tiếp qua Bluetooth/.test(await bang.innerText().catch(() => '')));
-
-// Bước 7: đi xa giữa chừng → băng vàng, lệnh quay về /v1.
-await p.evaluate(() => window.__mach.may.dut()); await cho(300);
-ok(`mất sóng → băng vàng "${await bang.innerText().catch(() => '')}"`, /Mất kết nối Bluetooth/.test(await bang.innerText().catch(() => '')) && await bang.evaluate(n => n.classList.contains('vang')));
-const truoc = rpcV1.length;
-await nut.click(); await cho(900);
-ok('lệnh kế tiếp tự đi đường máy chủ /v1', rpcV1.length === truoc + 1);
-await bang.locator('button').click(); await cho(200);
-
-// Bước 4: quét nhầm mã của máy khác → "Mã trên tem không đúng", xoá mã đã cất, hỏi lại.
-await p.evaluate(() => { const c = JSON.parse(localStorage.getItem('livotec-iotx-cache-v2')); c.bleBiMat = {}; localStorage.setItem('livotec-iotx-cache-v2', JSON.stringify(c)); });
-await p.reload({ waitUntil: 'load' }); await cho(2500);
-await p.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await cho(600);
-await p.locator('.device-card').filter({ hasText: 'Quạt mới' }).first().locator('.card-hit').click(); await cho(1000);
-await p.locator('.ble-nut').click(); await cho(300);
-await man.locator('input').fill(BI_MAT_MAY_KHAC);
-await man.locator('button.primary').click(); await cho(1200);
-ok(`mã sai → màn nhập mở lại với "${await man.locator('[role=alert]').innerText().catch(() => '')}"`,
-  await man.count() === 1 && /Mã trên tem không đúng/.test(await man.locator('[role=alert]').innerText().catch(() => '')));
-ok('mã sai → đã XOÁ mã cất cho serial đó', Object.keys(await biMatDaCat()).length === 0);
-ok('mạch giả đã ngắt, app không coi là đang nối', await p.locator('.ble-bang.on').count() === 0);
-await p.screenshot({ path: anh('ble-ma-sai') });
-await man.locator('input').fill(BI_MAT);
-await man.locator('button.primary').click(); await cho(800);
-ok('nhập lại mã đúng → nối được', /trực tiếp qua Bluetooth/.test(await bang.innerText().catch(() => '')));
-
-// Bước 10: đăng xuất bằng nút thật rồi đăng nhập lại → bí mật vẫn còn, nối thẳng không hỏi mã.
-await p.locator('.devback').click(); await cho(500);
-await p.locator('.top-bar .profile-chip').click(); await cho(400);
-await p.locator('.menu-dang-xuat').click(); await cho(1200);
-ok('đã đăng xuất (về màn đăng nhập, phiên bị xoá)', await p.locator('button.login-btn').count() === 1
-  && await p.evaluate(() => localStorage.getItem('livotec-iotx-session') === null));
-ok('sau đăng xuất bí mật BLE VẪN CÒN', Object.keys(await biMatDaCat()).length === 1);
-await p.locator('#dn-id').fill('p@p.vn'); await p.locator('#dn-pw').fill('x');
-await p.locator('button.login-btn').click(); await cho(2000);
-await p.locator('.bn-item', { hasText: 'Thiết bị' }).click(); await cho(600);
-await p.locator('.device-card').filter({ hasText: 'Quạt mới' }).first().locator('.card-hit').click(); await cho(1000);
-ok('đăng xuất đã ngắt luôn kết nối BLE của phiên cũ', await p.locator('.ble-bang').count() === 0);
-await p.locator('.ble-nut').click(); await cho(800);
-ok('đăng nhập lại → bấm nút nối thẳng, không hỏi mã', await man.count() === 0 && /trực tiếp qua Bluetooth/.test(await bang.innerText().catch(() => '')));
 
 console.log(R.join('\n'));
-console.log('Lỗi JS:', loi.length ? [...new Set(loi)].join(' | ') : 'không có');
-console.log(`${R.filter(r => r.startsWith('PASS')).length}/${R.length} đạt`);
-await b.close();
+console.log(`\n${R.filter(x => x.startsWith('PASS')).length}/${R.length} PASS`);
+if (R.some(x => x.startsWith('FAIL'))) process.exit(1);

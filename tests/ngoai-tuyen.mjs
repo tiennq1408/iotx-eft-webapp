@@ -21,6 +21,9 @@ const CAU_TRINH_DUYET = 'Trình duyệt không gửi được yêu cầu';
 
 const b = await chromium.launch({ executablePath: CHROMIUM });
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+// Máy không có Web Bluetooth (như iPhone): có thì lệnh quạt mất mạng tự chuyển sang Bluetooth
+// (`guiQuaKenh`) thay vì báo lỗi, và ca "lệnh hỏng khi không tới máy chủ" không còn gì để đo.
+await ctx.addInitScript(() => { delete Navigator.prototype.bluetooth; });
 const p = await ctx.newPage();
 const loi = []; p.on('pageerror', e => loi.push(String(e).slice(0, 160)));
 const v1 = []; p.on('request', q => { const u = new URL(q.url()); if (u.pathname.startsWith('/v1/')) v1.push({ t: Date.now(), path: u.pathname }); });

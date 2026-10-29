@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
 import type { Device } from "@/lib/types";
-import { apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
+import { IotxApiError, apGiaTri, iotxClient, iotxConfig, isIotxMode, moTaLoi } from "@/lib/iotx";
 import type { IotxCapability, IotxLenhVatTu, IotxMucVatTu, IotxRule } from "@/lib/iotx/contracts";
 import IfThenEditor from "@/components/automation/IfThenEditor";
 import VirtualPanel from "@/components/virtual/VirtualPanel";
@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/ManChinh";
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import { capNguonCua } from "@/lib/ui/khuon";
+import {
+  CHO_WIFI_MS, LoiBle, coDuongBle, coWebBluetooth, coWifi, daBietBaoLai, danhDauMatWifi, laLoiDuongBle, loiBle, matWifiChac, nhoBaoLai,
+  noiTuDong, phienBle, phienDung,
+} from "@/lib/ble/dieuKhienBle";
 import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
   ChonModal, DevicePickerModal, XemTruocCoChu, DoiAnhModal, DoiMatKhauModal, DoiTenModal, LocPickerModal, MenuDrawer, NotifModal, PlaceholderModal, TaiKhoanPopup,
@@ -25,7 +29,7 @@ import {
 } from "@/components/ui/modals";
 import DeviceDetail from "@/components/ui/device/DeviceDetail";
 import { BangBle, NutKetNoiBle } from "@/components/ble/KetNoiBle";
-import { rpcTheoDuong } from "@/lib/iotx/ble";
+import { bleDangNoi, rpcTheoDuong } from "@/lib/iotx/ble";
 import HenGioPanel from "@/components/ui/device/HenGioPanel";
 import LoginScreen from "@/components/ui/LoginScreen";
 import { useDuLieuIotx, tenHienThi } from "@/hooks/useDuLieuIotx";
@@ -64,7 +68,7 @@ export default function LivotecApp() {
     matMayChu, thuKetNoiLai,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, taiLuat,
-    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
+    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh, choXacNhan,
   } = useDuLieuIotx({ xemKy: panel?.loai === "device" });
 
   // Giao diện tối, cỡ/kiểu chữ chỉ áp sau đăng nhập — màn đăng nhập có bảng màu riêng.
@@ -109,6 +113,113 @@ export default function LivotecApp() {
     setData(current => ({ ...current, devices: current.devices.map(device => device.id === id ? sua(device) : device) }));
   }
 
+  /** Lỗi do đường truyền (mạng, 408, 5xx) — khác lỗi nghiệp vụ (quyền, giá trị sai) mà Bluetooth cũng từ chối y vậy. */
+  const laLoiDuongWifi = (error: unknown) => error instanceof TypeError
+    || (error instanceof IotxApiError && (error.status === 0 || error.status === 408 || error.status >= 500));
+
+  /**
+   * Gửi MỘT lệnh tới thiết bị qua kênh hợp lý — một cú bấm là đủ, người dùng không phải tự đổi kênh:
+   *
+   *   1. Lệnh đang phải đi Bluetooth (`phienDung`: mất Wi-Fi, hoặc người dùng chọn Bluetooth) →
+   *      Bluetooth. Bluetooth rớt/im lặng mà máy còn Wi-Fi → xuống bước 3.
+   *   2. Máy mất Wi-Fi, chưa có phiên → tự nối Bluetooth ngay trong cú bấm (`noiTuDong`) rồi gửi.
+   *      Hộp chọn Bluetooth chỉ tự bật khi CHẮC mất Wi-Fi: máy chủ báo ngoại tuyến, mạch mất nhịp
+   *      tim (`soatNhipTim`), hoặc chính điện thoại không gửi được yêu cầu. Chỉ nghi (bước 3) thì nối ngầm nếu được, không thì khối
+   *      Bluetooth nhắc chạm — và lần bấm sau vẫn thử Wi-Fi lại, đúng thì tự gỡ nghi.
+   *   3. Wi-Fi. Máy chủ chậm vài phút mới biết mạch mất Wi-Fi, nên với máy có đường Bluetooth app
+   *      đợi mạch báo lại đúng giá trị vừa đặt (`CHO_WIFI_MS`, hỏi lại sớm cho nhanh). Không thấy,
+   *      hoặc lỗi đường truyền → coi như mạch mất Wi-Fi: đánh dấu (`danhDauMatWifi`), nối Bluetooth
+   *      — vẫn trong cú bấm nên được mở hộp chọn — rồi gửi lại lệnh qua đó. Chưa ghép (chưa có mã
+   *      tem) thì báo để người dùng ghép một lần ở khối Bluetooth.
+   *
+   *      Im lặng chỉ được tính là mất Wi-Fi với mạch ĐÃ TỪNG báo lại lệnh qua Wi-Fi (`daBietBaoLai`).
+   *      Mạch chưa báo lại lần nào — mạch thử chưa nối điều hoà, mạch chưa có telemetry — thì im lặng
+   *      là chuyện thường của nó; coi là mất Wi-Fi thì lần bấm nào cũng bật hộp chọn Bluetooth. Lần
+   *      đầu mạch báo lại, app ghi nhớ (`nhoBaoLai`).
+   *
+   * Ném lỗi khi không kênh nào nhận lệnh; người gọi hoàn tác giao diện.
+   */
+  async function guiQuaKenh(id: string, truoc: Device | undefined, method: string, key: string, value: unknown) {
+    const params = { [key]: value };
+    // Đang "Kết nối trực tiếp" (components/ble/KetNoiBle.tsx, GATT theo docs/yeu-cau-firmware-ble.md):
+    // lệnh đi kênh đó; đứt giữa chừng thì `rpcTheoDuong` tự gửi lại qua /v1 với cùng khoá.
+    if (isIotxMode && bleDangNoi(id)) {
+      ghiNhanLenh(id, key, value);
+      try { await rpcTheoDuong(id, method, params); }
+      catch (error) { boGhiNhanLenh(id, key); throw error; }
+      return;
+    }
+    let daQuaBle = false;
+    // Nhật ký từng quyết định — để soát trên máy thật khi kênh chọn sai (F12 → Console, lọc "[kenh]").
+    if (truoc) console.info("[kenh]", id, "bấm", method, {
+      mayChuNoiTrucTuyen: truoc.online, coWifi: coWifi(truoc), chacMatWifi: matWifiChac(id),
+      phienBle: Boolean(phienBle(id)), phienDung: Boolean(phienDung(truoc)),
+    });
+    const ble = !truoc ? phienBle(id)
+      : phienDung(truoc) ?? (coWifi(truoc) ? undefined : await noiTuDong(truoc, !truoc.online || matWifiChac(id)).catch(error => {
+        console.info("[kenh]", id, "tự nối Bluetooth hỏng:", error instanceof Error ? `${error.name}: ${error.message}` : error);
+        return undefined;
+      }));
+    if (truoc && !coWifi(truoc)) console.info("[kenh]", id, ble ? "gửi qua Bluetooth" : "chưa có Bluetooth — thử Wi-Fi");
+    if (ble) {
+      try { await ble.gui(method, params); return; }
+      catch (error) {
+        if (!(truoc && coWifi(truoc) && laLoiDuongBle(error))) throw error;
+        daQuaBle = true;
+      }
+    }
+    if (!isIotxMode) return;
+
+    const coDuongLui = !daQuaBle && truoc !== undefined && coWebBluetooth() && coDuongBle(truoc);
+    // Đặt lại đúng giá trị máy đang có thì mạch chẳng có gì mới để báo — đợi là báo nhầm.
+    const doiXacNhan = coDuongLui && String(truoc.lastValues?.[key] ?? "") !== String(value ?? "")
+      ? choXacNhan(id, key, value, CHO_WIFI_MS) : undefined;
+    if (doiXacNhan) void doiXacNhan.then(ok => { if (ok) nhoBaoLai(id); });
+    // Chỉ chờ (và coi im lặng là mất Wi-Fi) khi mạch đã từng báo lại; chưa thì vẫn đợi ngầm để học.
+    const xacNhan = doiXacNhan && daBietBaoLai(id) ? doiXacNhan : undefined;
+    // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
+    ghiNhanLenh(id, key, value);
+    const ketQuaRpc = iotxClient.rpc(id, method, params).then(() => undefined, (error: unknown) => error ?? new Error("rpc"));
+    if (doiXacNhan) for (const sau of [1_200, 2_400]) setTimeout(() => { void refreshDevices().catch(() => undefined); }, sau);
+    const ketQua = await new Promise<{ ok: boolean; loi?: unknown }>(xong => {
+      void ketQuaRpc.then(loi => { if (loi) xong({ ok: false, loi }); else if (!xacNhan) xong({ ok: true }); });
+      void xacNhan?.then(ok => xong({ ok }));
+    });
+    if (ketQua.ok) return;
+    if (ketQua.loi !== undefined && !(coDuongLui && laLoiDuongWifi(ketQua.loi))) {
+      boGhiNhanLenh(id, key);
+      throw ketQua.loi;
+    }
+    if (!coDuongLui) return;
+
+    // Điện thoại không gửi nổi yêu cầu (TypeError) là CHẮC; máy chủ trả 5xx/hết giờ hay mạch không
+    // báo lại chỉ là NGHI — mạch có thể vẫn còn Wi-Fi mà không báo trạng thái.
+    // `iotxClient` gói "máy mất mạng" thành IotxApiError(0, "offline") — cũng là CHẮC.
+    const chacChan = ketQua.loi instanceof TypeError
+      || (ketQua.loi instanceof IotxApiError && ketQua.loi.status === 0) || matWifiChac(id);
+    console.info("[kenh]", id, chacChan ? "điện thoại mất mạng" : "nghi mạch mất Wi-Fi:",
+      ketQua.loi !== undefined ? moTaLoi(ketQua.loi) : `không thấy mạch báo lại ${key}=${String(value)} trong ${CHO_WIFI_MS} ms`);
+
+    // Mạch im lặng qua Wi-Fi → Bluetooth. Khối Bluetooth đổi theo dấu này: chưa ghép thì nó nhắc
+    // nhập mã tem một lần; lệnh qua Wi-Fi khi đó vẫn được giữ như thường (`SoLenhCho`).
+    danhDauMatWifi(id);
+    let phien = phienBle(id);
+    if (!phien) {
+      try { phien = await noiTuDong(truoc, chacChan); }
+      catch (error) {
+        console.info("[kenh]", id, "nối Bluetooth hỏng:", error instanceof Error ? `${error.name}: ${error.message}` : error);
+        boGhiNhanLenh(id, key);
+        // Sai mã, bị khoá… thì nói đúng lỗi đó; hộp chọn bị đóng hay hết hạn cú bấm thì nhắc chạm.
+        throw error instanceof LoiBle && error.ma !== "can_cham" ? error : loiBle("khong_phan_hoi");
+      }
+    }
+    console.info("[kenh]", id, phien ? "gửi lại qua Bluetooth" : "không nối được Bluetooth (chưa có mã tem, hoặc cần chạm)");
+    if (!phien) return;
+    // Giá trị giờ đến từ Bluetooth (`apTrangThaiBle`), không đợi máy chủ nữa.
+    boGhiNhanLenh(id, key);
+    await phien.gui(method, params);
+  }
+
   /**
    * Cập nhật lạc quan: đổi giao diện trước cho nút phản hồi tức thì, rồi mới gọi máy chủ.
    * Chế độ mock không có máy chủ nên dừng sau bước đổi giao diện. Hỏng thì hoàn tác về
@@ -133,18 +244,16 @@ export default function LivotecApp() {
     // Sản phẩm không khai nguồn điện thì không có lệnh nào để gửi; đoán "setPower" chỉ để
     // máy chủ từ chối. Thẻ thiết bị cũng không vẽ công tắc trong trường hợp này.
     if (isIotxMode && !capNguon?.rpc) return;
-    await lacQuan(
-      () => suaThietBi(id, device => ({ ...device, on: !device.on, lastValues: { ...device.lastValues, [capNguon?.key || "power"]: !device.on } })),
-      async () => {
-        // Ghi sổ như `guiLenh`: không thì nhịp hỏi lại về trước phản hồi của mạch sẽ lật
-        // công tắc trên thẻ về trạng thái cũ, rồi một giây sau lại bật — đúng bệnh nháy.
-        const { key, rpc } = capNguon!;
-        ghiNhanLenh(id, key, !truoc.on);
-        try { await iotxClient.rpc(id, rpc!, { [key]: !truoc.on }); }
-        catch (error) { boGhiNhanLenh(id, key); throw error; }
-      },
-      () => suaThietBi(id, () => truoc),
-    );
+    // Đổi giao diện trước cho nút phản hồi tức thì; kênh gửi do `guiQuaKenh` chọn.
+    suaThietBi(id, device => ({ ...device, on: !device.on, lastValues: { ...device.lastValues, [capNguon?.key || "power"]: !device.on } }));
+    if (!capNguon?.rpc) return;
+    // Ghi sổ như `guiLenh` (trong `guiQuaKenh`): không thì nhịp hỏi lại về trước phản hồi của
+    // mạch sẽ lật công tắc trên thẻ về trạng thái cũ, rồi một giây sau lại bật — đúng bệnh nháy.
+    try { await guiQuaKenh(id, truoc, capNguon.rpc, capNguon.key, !truoc.on); }
+    catch (error) {
+      suaThietBi(id, () => truoc);
+      setThongBaoLoi(moTaLoi(error));
+    }
   }
 
   async function doiGhim(id: string) {
@@ -201,12 +310,10 @@ export default function LivotecApp() {
     const truoc = data.devices.find(device => device.id === id);
     // Cùng một hàm suy với /bootstrap và với SSE — không so tên khóa tại chỗ nữa.
     suaThietBi(id, device => apGiaTri(device, { [capability.key]: value }));
-    if (!isIotxMode) return;
-    // Ghi sổ để nhịp hỏi lại không đè giá trị cũ của máy chủ lên nút vừa bấm.
-    ghiNhanLenh(id, capability.key, value);
-    try { await rpcTheoDuong(id, capability.rpc, { [capability.key]: value }); }
+    // Kênh do `guiQuaKenh` chọn: Wi-Fi ưu tiên, Bluetooth khi mạch mất Wi-Fi hoặc người dùng chọn.
+    // Bluetooth dùng cùng `method`/`params` như RPC qua `/v1` (xem lib/ble/dieuKhienBle.ts).
+    try { await guiQuaKenh(id, truoc, capability.rpc, capability.key, value); }
     catch (error) {
-      boGhiNhanLenh(id, capability.key);
       if (truoc) suaThietBi(id, () => truoc);
       throw error;
     }
