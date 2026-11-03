@@ -66,7 +66,7 @@ function dungHet() {
 // Các bài đọc chữ TIẾNG VIỆT, mà mặc định của app là tiếng Anh (như web.dev, 21/10/2026):
 // mọi nhóm build với NEXT_PUBLIC_IOTX_LANG=vi. Bài ngon-ngu.mjs tự đổi sang tiếng Anh.
 const NHOM = {
-  'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock', NEXT_PUBLIC_IOTX_LANG: 'vi' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'a11y-toi.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs', 'dang-nhap.mjs', 'menu.mjs', 'an-thiet-bi.mjs', 'tai-tho.mjs'] },
+  'giao-dien': { moiTruong: { NEXT_PUBLIC_IOTX_MODE: 'mock', NEXT_PUBLIC_IOTX_LANG: 'vi' }, canMayGia: false, bai: ['e2e.mjs', 'a11y.mjs', 'a11y-toi.mjs', 'vat-tu.mjs', 'thanh-loc.mjs', 'khoa-chu.mjs', 'khung.mjs', 'goc-ngoai.mjs', 'dang-nhap.mjs', 'menu.mjs', 'an-thiet-bi.mjs', 'tai-tho.mjs', 'ble.mjs'] },
   // Tài liệu kịch bản đòi chạy trên bản production: bản dev bật StrictMode, effect chạy hai
   // lần nên mọi phép đếm request (đúng 1 lượt refresh, nhịp hỏi vòng…) bị nhân đôi.
   'kich-ban':  { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  banProduction: true, rieng: true,
@@ -79,7 +79,7 @@ const NHOM = {
   'don-vi':    { moiTruong: {}, canMayGia: false, canApp: false, bai: ['ble-kenh.mjs'] },
   // Service worker chỉ đăng ký ở bản production (components/DangKySW.tsx).
   'pwa':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  banProduction: true, bai: ['ngoai-tuyen.mjs'] },
-  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'loi-la.mjs', 'ngon-ngu.mjs', 'power02.mjs', 'khong-dung.mjs', 'ble.mjs', 'otp.mjs', 'bang-thiet-bi.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs'] },
+  'api':       { moiTruong: { IOTX_API_UPSTREAM: GOC_GIA, NEXT_PUBLIC_IOTX_LANG: 'vi' },    canMayGia: true,  bai: ['rpc.mjs', 'dong-bo.mjs', 'anh-dai-dien.mjs', 'bo-cuc.mjs', 'cao-hang.mjs', 'loi-la.mjs', 'ngon-ngu.mjs', 'power02.mjs', 'khong-dung.mjs', 'ble-truc-tiep.mjs', 'otp.mjs', 'bang-thiet-bi.mjs', 'nhip-hoi.mjs', 'hen-gio.mjs', 'catalog-song.mjs', 'phien.mjs', 'bao-ve.mjs', 'sua-loi.mjs', 'quyet-dinh.mjs', 'dau-man.mjs', 'them-thiet-bi.mjs', 'quet-ma.mjs', 'dang-nhap-api.mjs', 'ble-wifi.mjs'] },
 };
 
 const muon = process.argv[2] ? [process.argv[2]] : Object.keys(NHOM).filter(k => !NHOM[k].rieng);

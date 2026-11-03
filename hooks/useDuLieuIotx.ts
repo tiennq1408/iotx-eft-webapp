@@ -7,6 +7,7 @@ import {
   giuThietBiCu, mapShareDaCap, mapShareNhanDuoc, mergeBootstrap, moTaLoi,
 } from "@/lib/iotx";
 import { SoLenhCho } from "@/lib/iotx/soLenhCho";
+import { apTrangThaiBle, ghiNgheMach, ngheBle, soatNhipTim } from "@/lib/ble/dieuKhienBle";
 import type { AppData, ChiaSeNhan, UiNotification } from "@/lib/types";
 import type { IotxDevice, IotxProduct, IotxProfile, IotxRule, IotxRules, IotxStreamEvent } from "@/lib/iotx/contracts";
 import { useBoChuVaTheme } from "./useBoChuVaTheme";
@@ -78,6 +79,8 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
   /** Ngôn ngữ của catalog đang giữ — nhãn capability là chữ đã dịch, đổi lang là tải lại. */
   const langProductsRef = useRef<string | undefined>(undefined);
   const soLenhCho = useRef(new SoLenhCho());
+  /** Dữ liệu thô máy chủ trả về lần trước cho từng thiết bị — đổi nghĩa là mạch vừa báo qua Wi-Fi. */
+  const vetTho = useRef(new Map<string, string>());
 
   /** Catalog theo nhãn phiên bản: bản đã lưu cho đúng nhãn đó, không có thì tải và lưu lại. */
   const napCatalog = useCallback(async (nhan: string | undefined) => {
@@ -96,8 +99,17 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
    * Thiết bị từ máy chủ → thiết bị của app: gắn catalog, giữ lệnh đang chờ. Máy đã ẩn vẫn
    * giữ lại (cờ `hidden`) để nút "thiết bị đã ẩn" trên hàng lọc tìm được và hiện lại được.
    */
-  const mapThietBi = useCallback((devices: IotxDevice[]) => devices
-    .map(device => soLenhCho.current.apLen(mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product }))), []);
+  const mapThietBi = useCallback((devices: IotxDevice[]) => devices.map(device => {
+    // Mạch vừa báo giá trị mới lên máy chủ = nó còn Wi-Fi: gỡ dấu "mất Wi-Fi" app tự đặt. Mạch có
+    // nhịp tim mà lâu không nghe thấy thì ngược lại: chắc mất Wi-Fi (`soatNhipTim`).
+    const vet = JSON.stringify(device.lastValues ?? {});
+    const cu = vetTho.current.get(device.id);
+    vetTho.current.set(device.id, vet);
+    if (cu !== undefined && cu !== vet) ghiNgheMach(device.id);
+    const moi = mapIotxDevice({ ...device, product: productsRef.current[device.type] || device.product });
+    soatNhipTim(moi);
+    return apTrangThaiBle(soLenhCho.current.apLen(moi));
+  }), []);
 
   const syncRemote = useCallback(async () => {
     const bootstrap = await iotxClient.bootstrap(langHienTai());
@@ -133,6 +145,8 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
 
   const ghiNhanLenh = useCallback((id: string, key: string, gt: unknown) => soLenhCho.current.ghi(id, key, gt), []);
   const boGhiNhanLenh = useCallback((id: string, key: string) => soLenhCho.current.bo(id, key), []);
+  /** Đợi máy chủ báo lại đúng giá trị vừa gửi (xem `SoLenhCho.choXacNhan`). */
+  const choXacNhan = useCallback((id: string, key: string, gt: unknown, ms: number) => soLenhCho.current.choXacNhan(id, key, gt, ms), []);
 
   /**
    * Một nhịp đồng bộ: trạng thái thiết bị VÀ phiên bản catalog, bằng một lời gọi.
@@ -181,13 +195,25 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
    * với "power" thì thiết bị bật ở web khác không bao giờ sáng lên ở đây.
    */
   const nhanSuKien = useCallback((event: IotxStreamEvent) => {
-    // Máy chủ đã lên tiếng về đúng khóa này: nhả nó khỏi sổ giữ, đừng đè lên tin mới.
+    // Máy chủ đã lên tiếng về đúng khóa này: nhả nó khỏi sổ giữ, đừng đè lên tin mới. Tin từ
+    // mạch tới được máy chủ nghĩa là mạch còn Wi-Fi.
     soLenhCho.current.bo(event.deviceId, event.key);
+    soLenhCho.current.nghe(event.deviceId, event.key, event.value);
+    ghiNgheMach(event.deviceId, event.key);
     setData(current => ({
       ...current,
       devices: current.devices.map(device => device.id === event.deviceId ? apGiaTri(device, { [event.key]: event.value }) : device),
     }));
   }, []);
+
+  /** Thiết bị đang nối Bluetooth báo trạng thái mới (đổi từ app, từ nút trên thân, từ remote). */
+  useEffect(() => ngheBle((deviceId, gt) => {
+    if (!gt || !Object.keys(gt).length) return;
+    setData(current => ({
+      ...current,
+      devices: current.devices.map(device => device.id === deviceId ? apGiaTri(device, gt) : device),
+    }));
+  }), []);
 
   /**
    * Phiên kết thúc (đăng xuất, hoặc refresh cũng hỏng): về màn đăng nhập và bỏ hết dữ liệu
@@ -257,6 +283,6 @@ export function useDuLieuIotx({ xemKy = false }: { xemKy?: boolean } = {}) {
     matMayChu, thuKetNoiLai,
     notifications, setNotifications, chiaSeNhanDuoc, chiaSeDaCap,
     luat, setLuat, luatTuThietBi, taiLuat,
-    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh,
+    doiNgonNgu, syncRemote, taiChiaSe, refreshDevices, ghiNhanLenh, boGhiNhanLenh, choXacNhan,
   };
 }
