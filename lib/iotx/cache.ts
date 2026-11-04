@@ -11,6 +11,8 @@ type NoiDungCache = {
   theme?: { nhan?: string; theme: IotxTheme };
   /** ETag đã nhận kèm thân phản hồi, để gửi lại If-None-Match và dùng lại khi máy chủ trả 304. */
   etag?: Record<string, { etag: string; data: unknown }>;
+  /** Bí mật BLE in trên tem, theo serial. KHÔNG phải token phiên — không xoá khi đăng xuất. */
+  bleBiMat?: Record<string, string>;      // serial → base64 16 byte
 };
 
 // v2: catalog xếp theo ngôn ngữ. Bản v1 có hình dạng khác, đọc vào sẽ sai — để khóa mới.
@@ -42,12 +44,14 @@ function ghi(value: NoiDungCache) {
 }
 
 /**
- * Catalog đang giữ, chỉ trả về khi nhãn phiên bản còn khớp với nhãn bootstrap vừa báo.
- * Lệch nhãn nghĩa là hãng đã đổi catalog — phải tải lại.
+ * Catalog đang giữ. Biết nhãn phiên bản mà lệch nghĩa là hãng đã đổi catalog — phải tải lại.
+ * Chưa biết nhãn (mất mạng nên `/bootstrap` hỏng) thì cứ dùng bản đang giữ, như `docI18n`:
+ * trả null ở đây là app trắng màn dù catalog vẫn nằm nguyên trong localStorage.
  */
 export function docProducts(lang: string, nhan: string | undefined): Record<string, IotxProduct> | null {
   const muc = doc().products?.[lang];
-  if (!muc || !nhan || muc.nhan !== nhan) return null;
+  if (!muc) return null;
+  if (nhan !== undefined && muc.nhan !== nhan) return null;
   return muc.products;
 }
 
@@ -88,6 +92,32 @@ export function docTheme(nhan: string | undefined): IotxTheme | null {
 export function ghiTheme(nhan: string | undefined, theme: IotxTheme) {
   const cache = doc();
   ghi({ ...cache, theme: { nhan, theme } });
+}
+
+/* ------------------------------------------------------------------ */
+/* Bí mật BLE (docs/viec-ble-webapp.md mục 4)                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bí mật thuộc về cái máy trong nhà, không thuộc về phiên đăng nhập: `xoaCacheNguoiDung` KHÔNG
+ * đụng tới, đăng xuất rồi đăng nhập lại không phải quét tem lần nữa.
+ */
+export function docBleBiMat(serial: string): string | null {
+  return doc().bleBiMat?.[serial] ?? null;
+}
+
+export function ghiBleBiMat(serial: string, biMat: string) {
+  const cache = doc();
+  ghi({ ...cache, bleBiMat: { ...cache.bleBiMat, [serial]: biMat } });
+}
+
+/** Bắt tay sai: bỏ mã đã cất để lần sau hỏi lại, đừng để khách kẹt với một mã sai vĩnh viễn. */
+export function xoaBleBiMat(serial: string) {
+  const cache = doc();
+  if (!cache.bleBiMat?.[serial]) return;
+  const conLai = { ...cache.bleBiMat };
+  delete conLai[serial];
+  ghi({ ...cache, bleBiMat: conLai });
 }
 
 /* ------------------------------------------------------------------ */

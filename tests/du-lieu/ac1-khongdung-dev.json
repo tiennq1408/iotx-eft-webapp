@@ -1,0 +1,616 @@
+{
+ "ui": {
+  "boCuc": {
+   "cot": 4,
+   "o": [
+    {
+     "key": "ac_eco_mode",
+     "col": 3,
+     "row": 11,
+     "w": 2,
+     "h": 1,
+     "canN": "giua",
+     "ico": "@eco",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_eco_mode-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_fan_speed",
+     "col": 1,
+     "row": 7,
+     "w": 4,
+     "h": 2,
+     "moiHang": 4,
+     "hlChon": "vien",
+     "rongNut": "nho",
+     "vtIco": "trai",
+     "vien": "#ffffff",
+     "caoHang": 72,
+     "nhan": {
+      "co": "lon",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "gtIco": {
+      "Auto": "@auto"
+     },
+     "gtVt": {
+      "Auto": "trai"
+     }
+    },
+    {
+     "key": "ac_ifeel_mode",
+     "col": 3,
+     "row": 13,
+     "w": 2,
+     "h": 1,
+     "ico": "@i-feel",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_ifeel_mode-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_is_iclean",
+     "col": 1,
+     "row": 12,
+     "w": 2,
+     "h": 1,
+     "ico": "@auto-clean",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_is_iclean-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_is_sleep_mode",
+     "col": 3,
+     "row": 12,
+     "w": 2,
+     "h": 1,
+     "ico": "@sleep",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_is_sleep_mode-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_mil_mode",
+     "col": 1,
+     "row": 13,
+     "w": 2,
+     "h": 1,
+     "ico": "@anti-mildew",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_mil_mode-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_mute_mode",
+     "col": 1,
+     "row": 11,
+     "w": 2,
+     "h": 1,
+     "ico": "@buzzer",
+     "vien": "#ffffff",
+     "nhan": {
+      "co": "nho",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_mute_mode-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_ope_mode",
+     "col": 1,
+     "row": 4,
+     "w": 4,
+     "h": 2,
+     "canN": "giua",
+     "canD": "giua",
+     "moiHang": 4,
+     "hlChon": "vien",
+     "vtIco": "duoi",
+     "vien": "#ffffff",
+     "caoHang": 72,
+     "nhan": {
+      "can": "giua",
+      "co": "lon",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "gtIco": {
+      "Dry": "@dry",
+      "Fan": "@fan",
+      "Auto": "@auto",
+      "Cool": "@cool",
+      "Heat": "@heat"
+     },
+     "gtVt": {
+      "Dry": "trai",
+      "Fan": "trai",
+      "Auto": "trai",
+      "Cool": "trai",
+      "Heat": "trai"
+     }
+    },
+    {
+     "key": "ac_power_status",
+     "col": 1,
+     "row": 6,
+     "w": 4,
+     "h": 1,
+     "variant": "power02",
+     "canD": "giua",
+     "caoHang": 56,
+     "nhan": {
+      "co": "lon",
+      "mau": "#414042"
+     }
+    },
+    {
+     "key": "ac_room_temp",
+     "col": 1,
+     "row": 14,
+     "w": 4,
+     "h": 1,
+     "vien": "#ffffff",
+     "nhan": {
+      "dam": true,
+      "mau": "#414042"
+     },
+     "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/o-ac_room_temp-60d1b9e55e8c.jpg"
+    },
+    {
+     "key": "ac_swing_mode",
+     "col": 1,
+     "row": 9,
+     "w": 4,
+     "h": 2,
+     "moiHang": 3,
+     "rongNut": "nho",
+     "vien": "#ffffff",
+     "caoHang": 72,
+     "nhan": {
+      "co": "lon",
+      "dam": true,
+      "mau": "#414042"
+     },
+     "gtIco": {
+      "Auto": "@auto"
+     },
+     "gtVt": {
+      "Auto": "trai"
+     }
+    },
+    {
+     "key": "ac_temp_setting",
+     "col": 1,
+     "row": 1,
+     "w": 4,
+     "h": 3,
+     "variant": "dial01",
+     "canN": "giua",
+     "canD": "tren",
+     "vien": "#ffffff",
+     "mauCtl": "#2dc3b4",
+     "nhan": {
+      "can": "giua",
+      "co": "lon",
+      "dam": true,
+      "mau": "#414042"
+     }
+    }
+   ],
+   "skin": "#2dc3b4",
+   "nenAnh": "https://media.dev.happibot.net/media/san-pham/ac_1/man-3a9cb3b70b37.jpg",
+   "alarm": {
+    "key": "ac_error_catalog"
+   }
+  },
+  "khongDung": {
+   "ac_ope_mode": {
+    "Dry": [
+     "ac_eco_mode",
+     "ac_fan_speed:Mid",
+     "ac_fan_speed:High",
+     "ac_fan_speed:Turbo",
+     "ac_fan_speed:Auto",
+     "ac_mute_mode"
+    ],
+    "Fan": [
+     "ac_eco_mode",
+     "ac_mil_mode"
+    ],
+    "Auto": [
+     "ac_eco_mode",
+     "ac_mil_mode",
+     "ac_mute_mode"
+    ],
+    "Heat": [
+     "ac_mil_mode"
+    ]
+   },
+   "ac_power_status": {
+    "off": [
+     "ac_IoT_status",
+     "ac_coil_temp",
+     "ac_com_temp",
+     "ac_current",
+     "ac_dk_firmware_version",
+     "ac_dk_status",
+     "ac_eco_mode",
+     "ac_error_catalog",
+     "ac_fan_speed:Low",
+     "ac_fan_speed:Mid",
+     "ac_fan_speed:High",
+     "ac_fan_speed:Turbo",
+     "ac_fan_speed:Auto",
+     "ac_frequency",
+     "ac_heater_temp",
+     "ac_hot_temp",
+     "ac_idu_speed",
+     "ac_ifeel_mode",
+     "ac_is_sleep_mode",
+     "ac_mil_mode",
+     "ac_mute_mode",
+     "ac_odu_speed",
+     "ac_ope_mode:Cool",
+     "ac_ope_mode:Dry",
+     "ac_ope_mode:Fan",
+     "ac_ope_mode:Heat",
+     "ac_ope_mode:Auto",
+     "ac_room_temp",
+     "ac_swing_mode:A20",
+     "ac_swing_mode:A35",
+     "ac_swing_mode:A55",
+     "ac_swing_mode:A70",
+     "ac_swing_mode:A80",
+     "ac_swing_mode:Auto",
+     "ac_temp_setting",
+     "ac_temp_setting_max",
+     "ac_temp_setting_min",
+     "ac_timer_control",
+     "ac_voltage"
+    ]
+   },
+   "ac_is_sleep_mode": {
+    "on": [
+     "ac_eco_mode"
+    ]
+   }
+  }
+ },
+ "icon": "https://media.dev.happibot.net/media/san-pham/ac_1/dai-dien-f9a39ef2a682.png",
+ "henGio": {
+  "bat": true,
+  "tatCap": []
+ },
+ "nameEn": "Air Conditioner (L1)",
+ "nameVi": "Air Conditioner (L1)",
+ "category": "other",
+ "telemetry": [
+  "ac_IoT_status",
+  "ac_coil_temp",
+  "ac_com_temp",
+  "ac_current",
+  "ac_dk_firmware_version",
+  "ac_dk_status",
+  "ac_eco_mode",
+  "ac_error_catalog",
+  "ac_fan_speed",
+  "ac_frequency",
+  "ac_heater_temp",
+  "ac_hot_temp",
+  "ac_idu_speed",
+  "ac_ifeel_mode",
+  "ac_is_iclean",
+  "ac_is_sleep_mode",
+  "ac_mil_mode",
+  "ac_mute_mode",
+  "ac_odu_speed",
+  "ac_ope_mode",
+  "ac_power_status",
+  "ac_room_temp",
+  "ac_swing_mode",
+  "ac_temp_setting",
+  "ac_temp_setting_max",
+  "ac_temp_setting_min",
+  "ac_timer_control",
+  "ac_voltage"
+ ],
+ "capabilities": [
+  {
+   "key": "ac_IoT_status",
+   "kind": "sensor",
+   "label": "IoT Status"
+  },
+  {
+   "key": "ac_coil_temp",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Coil Temperature"
+  },
+  {
+   "key": "ac_com_temp",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Compressor Discharge Temp"
+  },
+  {
+   "key": "ac_current",
+   "kind": "sensor",
+   "label": "Current"
+  },
+  {
+   "key": "ac_dk_firmware_version",
+   "kind": "sensor",
+   "label": "DK Firmware version"
+  },
+  {
+   "key": "ac_dk_status",
+   "kind": "sensor",
+   "label": "DK Status"
+  },
+  {
+   "key": "ac_eco_mode",
+   "rpc": "setEcoMode",
+   "kind": "onoff",
+   "label": "Eco Mode"
+  },
+  {
+   "key": "ac_error_catalog",
+   "kind": "sensor",
+   "label": "Error Catalog",
+   "values": [
+    "C3",
+    "C5",
+    "E3",
+    "E2",
+    "E4",
+    "U0",
+    "E1",
+    "E0",
+    "C2",
+    "L6",
+    "L1",
+    "L4",
+    "L0",
+    "L8",
+    "L9",
+    "U8",
+    "U9",
+    "U7",
+    "L2",
+    "E5",
+    "L5",
+    "U3",
+    "E6",
+    "E7",
+    "U2"
+   ],
+   "labels": {
+    "C3": "Communication error between IDU and ODU",
+    "C5": "IDU EEPROM error",
+    "E3": "ODU pipe temperature sensor open / short circuit",
+    "E2": "ODU ambient temperature sensor open / short circuit",
+    "E4": "ODU discharge temperature sensor open / short circuit",
+    "U0": "ODU EEPROM malfunction",
+    "E1": "IDU pipe temperature sensor open / short circuit",
+    "E0": "IDU ambient temperature sensor open / short circuit",
+    "C2": "IDU fan motor error",
+    "L6": "Compressor current sensing circuit malfunction protection",
+    "L1": "Compressor start failure/phase loss protection",
+    "L4": "Compressor IPM protection",
+    "L0": "Compressor non-synchronism protection",
+    "L8": "ODU DC fan motor fault",
+    "L9": "ODU DC fan motor current sensing circuit malfunction protection",
+    "U8": "ODU PFC current sensing circuit malfunction protection",
+    "U9": "PFC protection",
+    "U7": "ODU AC RMS current overhigh protection",
+    "L2": "Compressor peak current protection",
+    "E5": "Discharge temperature overheat protection",
+    "L5": "Compressor IPM overheat protection",
+    "U3": "ODU DC voltage overhigh/overlow protection",
+    "E6": "Anti-freezing protection",
+    "E7": "System overload protection(ODU coil temperature overheat protection)",
+    "U2": "ODU AC voltage abnormal protection"
+   }
+  },
+  {
+   "key": "ac_fan_speed",
+   "rpc": "setSpeed",
+   "kind": "enum",
+   "label": "Fan Speed",
+   "values": [
+    "Low",
+    "Mid",
+    "High",
+    "Turbo",
+    "Auto"
+   ],
+   "labels": {
+    "Low": "Low",
+    "Mid": "Mid",
+    "High": "High",
+    "Turbo": "Turbo",
+    "Auto": "Auto"
+   }
+  },
+  {
+   "key": "ac_frequency",
+   "kind": "sensor",
+   "unit": "Hz",
+   "label": "Frequency"
+  },
+  {
+   "key": "ac_heater_temp",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Heater Temperature"
+  },
+  {
+   "key": "ac_hot_temp",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Hot Ambient Temp"
+  },
+  {
+   "key": "ac_idu_speed",
+   "kind": "sensor",
+   "unit": "V/phút",
+   "label": "Idu Speed",
+   "unitSpace": true
+  },
+  {
+   "key": "ac_ifeel_mode",
+   "rpc": "setIfeelMode",
+   "kind": "onoff",
+   "label": "I-feel"
+  },
+  {
+   "key": "ac_is_iclean",
+   "rpc": "setIclean",
+   "kind": "onoff",
+   "label": "Iclean"
+  },
+  {
+   "key": "ac_is_sleep_mode",
+   "rpc": "setSleepMode",
+   "kind": "onoff",
+   "label": "Sleep mode"
+  },
+  {
+   "key": "ac_mil_mode",
+   "rpc": "setMildewMode",
+   "kind": "onoff",
+   "label": "Anti-Mildew"
+  },
+  {
+   "key": "ac_mute_mode",
+   "rpc": "setMuteMode",
+   "kind": "onoff",
+   "label": "Mute"
+  },
+  {
+   "key": "ac_odu_speed",
+   "kind": "sensor",
+   "unit": "V/phút",
+   "label": "Odu Speed",
+   "unitSpace": true
+  },
+  {
+   "key": "ac_ope_mode",
+   "rpc": "setMode",
+   "kind": "enum",
+   "label": "Operation Mode",
+   "values": [
+    "Cool",
+    "Dry",
+    "Fan",
+    "Heat",
+    "Auto"
+   ],
+   "labels": {
+    "Cool": "Cool",
+    "Dry": "Dry",
+    "Fan": "Fan",
+    "Heat": "Heat",
+    "Auto": "Auto"
+   }
+  },
+  {
+   "key": "ac_power_status",
+   "rpc": "setPower",
+   "kind": "onoff",
+   "label": "Power"
+  },
+  {
+   "key": "ac_room_temp",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Room Temp"
+  },
+  {
+   "key": "ac_swing_mode",
+   "rpc": "setSwingMode",
+   "kind": "enum",
+   "label": "Swing mode",
+   "values": [
+    "A20",
+    "A35",
+    "A55",
+    "A70",
+    "A80",
+    "Auto"
+   ],
+   "labels": {
+    "A20": "Angle 20°",
+    "A35": "Angle 35°",
+    "A55": "Angle 55°",
+    "A70": "Angle 70°",
+    "A80": "Angle 80°",
+    "Auto": "Auto"
+   }
+  },
+  {
+   "key": "ac_temp_setting",
+   "max": 31,
+   "min": 16,
+   "rpc": "setTempTarget",
+   "kind": "level",
+   "step": 1,
+   "unit": "°C",
+   "label": "Temp Target"
+  },
+  {
+   "key": "ac_temp_setting_max",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Temp Max"
+  },
+  {
+   "key": "ac_temp_setting_min",
+   "kind": "sensor",
+   "unit": "°C",
+   "label": "Temp Min"
+  },
+  {
+   "key": "ac_timer_control",
+   "max": 100,
+   "min": 0,
+   "rpc": "setTimer",
+   "kind": "level",
+   "step": 15,
+   "unit": "phút",
+   "label": "Timer",
+   "unitSpace": true
+  },
+  {
+   "key": "ac_voltage",
+   "kind": "sensor",
+   "unit": "V",
+   "label": "Voltage"
+  }
+ ],
+ "productGroup": "ac",
+ "version": 201
+}

@@ -20,21 +20,32 @@ import { datLuongThong } from "@/lib/ble/dieuKhienBle";
  */
 const NHIP_XEM_KY_MS = 2_500;    // đang mở màn chi tiết: người dùng nhìn chằm chằm vào một máy
 const NHIP_THUONG_MS = 10_000;   // đang ở danh sách: thưa hơn cho đỡ tốn
+/**
+ * Mất máy chủ: dò lại thưa dần 15 → 30 → 60 giây (rồi giữ 60). Không dò thì đổi từ Wi-Fi của
+ * thiết bị về Wi-Fi nhà không có sự kiện `online` nào báo — app kẹt ở dải mất kết nối mãi.
+ */
+const DO_LAI_MS = [15_000, 30_000, 60_000];
 
 /**
  * Ba đường giữ dữ liệu thiết bị tươi khi đã đăng nhập ở chế độ IoTX: luồng SSE, đồng bộ
  * khi quay lại tab / có mạng lại, và nhịp hỏi định kỳ.
  */
-export function useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien, onHetPhien }: {
+export function useDongBoNen({ signedIn, xemKy, matMayChu, dongBoNhip, onSuKien, onHetPhien }: {
   signedIn: boolean;
   /** Đang mở màn chi tiết: hỏi dày hơn. */
   xemKy: boolean;
+  /**
+   * Mất máy chủ (docs/viec-pwa.md 3.3): dừng HẲN SSE và nhịp hỏi `/bootstrap` — hỏng liên tục
+   * chỉ tốn pin, đầy log và che mất lỗi thật. Thay bằng một lần dò thưa (`DO_LAI_MS`) cộng
+   * `online`/quay lại tab; dò được là cờ này tắt, SSE nối lại và nhịp hỏi chạy lại như cũ.
+   */
+  matMayChu: boolean;
   dongBoNhip: () => Promise<void>;
   onSuKien: (event: IotxStreamEvent) => void;
   onHetPhien: () => void;
 }) {
   useEffect(() => {
-    if (!isIotxMode || !signedIn) return;
+    if (!isIotxMode || !signedIn || matMayChu) return;
     const controller = new AbortController();
     void iotxClient.subscribe(onSuKien, {
       signal: controller.signal,
@@ -42,7 +53,7 @@ export function useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien, onHetPhien
       onThong: datLuongThong,
     }).catch(error => { if (laHetPhien(error)) onHetPhien(); });
     return () => controller.abort();
-  }, [signedIn, dongBoNhip, onSuKien, onHetPhien]);
+  }, [signedIn, matMayChu, dongBoNhip, onSuKien, onHetPhien]);
 
   /**
    * Đồng bộ lại khi người dùng quay lại tab, và khi máy có mạng trở lại.
@@ -82,7 +93,8 @@ export function useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien, onHetPhien
     if (!isIotxMode || !signedIn) return;
     let dungLai = false;
     let hen: ReturnType<typeof setTimeout>;
-    const nhip = () => (xemKy ? NHIP_XEM_KY_MS : NHIP_THUONG_MS);
+    let lanDo = 0;
+    const nhip = () => (matMayChu ? DO_LAI_MS[Math.min(lanDo++, DO_LAI_MS.length - 1)] : xemKy ? NHIP_XEM_KY_MS : NHIP_THUONG_MS);
     const vong = async () => {
       if (dungLai) return;
       // Tab chạy nền thì không hỏi: trình duyệt bóp nghẹt hẹn giờ, và đã có lần đồng bộ
@@ -93,5 +105,5 @@ export function useDongBoNen({ signedIn, xemKy, dongBoNhip, onSuKien, onHetPhien
     };
     hen = setTimeout(vong, nhip());
     return () => { dungLai = true; clearTimeout(hen); };
-  }, [signedIn, dongBoNhip, xemKy]);
+  }, [signedIn, dongBoNhip, xemKy, matMayChu]);
 }

@@ -38,6 +38,16 @@ export function moTaLoi(error: unknown): string {
   return CAU_MANG;
 }
 
+/**
+ * Không với tới máy chủ: mất mạng, đang nối Wi-Fi của thiết bị, hoặc cửa ngõ trả 502/503/504.
+ * `phien_da_doi` cũng mang status 0 nhưng là request bị bỏ vì phiên đổi — không phải mất mạng.
+ */
+export function laLoiMang(error: unknown): boolean {
+  if (!(error instanceof IotxApiError)) return false;
+  if (error.status === 0) return error.message !== "phien_da_doi";
+  return error.status === 502 || error.status === 503 || error.status === 504;
+}
+
 /** Phiên đã chết hẳn: client chỉ ném 401 ra ngoài sau khi đã thử làm mới token mà vẫn hỏng. */
 export function laHetPhien(error: unknown): boolean {
   return error instanceof IotxApiError && error.status === 401;

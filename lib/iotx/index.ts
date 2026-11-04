@@ -6,7 +6,7 @@ export { docI18n, docProducts, docTheme, ghiI18n, ghiProducts, ghiTheme, docAnhC
 export { DOI_MAT_KHAU_CHUA_BAT, HO_SO_CHUA_BAT, GOOGLE_CHUA_BAT, IotxClient, browserTokenStore, iotxClient, type TokenStore, type ViecOtp, type BaoHanhSerial } from "./client";
 export * from "./config";
 export * from "./contracts";
-export { IotxApiError, laHetPhien, laLoiDangNhap, moTaLoi } from "./errors";
+export { IotxApiError, laHetPhien, laLoiDangNhap, laLoiMang, moTaLoi } from "./errors";
 export * from "./i18n";
 export { coSo, doSo, laBat, rong } from "./giaTri";
 export * from "./mappers";
