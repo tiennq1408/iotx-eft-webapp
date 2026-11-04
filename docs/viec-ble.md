@@ -319,3 +319,170 @@ Lưu ý khi thử:
   bị trên IoTX: hai giá trị phải trùng, nếu không app báo "không phải thiết bị này".
 - Đảo gió: catalog `ac_1` gửi `r20`…, firmware chỉ hiểu `A20`… — cả MQTT lẫn BLE trả `bad_params`
   cho tới khi một bên được sửa.
+
+## 13. Một chế độ mỗi lúc: Wi-Fi HOẶC Bluetooth (29/10/2026)
+
+Firmware không còn chạy song song hai đường:
+
+| Tình huống | Mạch làm gì |
+|---|---|
+| Khởi động, đã có Wi-Fi lưu | Chỉ Wi-Fi; Bluetooth khởi tạo nhưng KHÔNG quảng bá |
+| Mất Wi-Fi 10 giây (`WIFI_LOST_TO_BLE_US`) | Tắt hẳn Wi-Fi (`esp_wifi_stop`), bật quảng bá Bluetooth |
+| App gửi `setWifi` qua Bluetooth | Trả `ok`, ngắt Bluetooth, nối Wi-Fi (mạng mới hoặc mạng đã lưu) |
+| `setWifi` mà 30 giây không có IP (`WIFI_TRY_BACK_US`) | Quay lại Bluetooth để vẫn điều khiển được |
+| Chưa có Wi-Fi nào (mạch mới) | Mạng cài đặt `mzService_…`, Bluetooth không quảng bá |
+
+Lệnh mới trên CMD: `{"id":n,"method":"setWifi","params":{"ssid":"…","password":"…"}}`. `ssid`
+trống/không có = dùng mạng đã lưu. `bad_params` khi ssid > 32 ký tự, mật khẩu 1–7 hoặc > 64 ký tự,
+hoặc có mật khẩu mà không có ssid; `busy` khi mạch không ở chế độ Bluetooth.
+
+Sau mỗi lệnh điều khiển thành công qua Bluetooth, mạch đẩy ngay `{"t":{<khoá>:<giá trị vừa đặt>}}`
+để nút trên app sáng đúng, không đợi điều hoà trả lời qua UART.
+
+App: ghép tay giờ là **nối máy trước, nhập mã tem sau** (`PhienBle.chonMay` rồi `xacThuc`; mã đã
+nhớ thì xác thực luôn, sai thì giữ kết nối để nhập lại). Đang nối Bluetooth có nút **Pair Wi-Fi**
+(`components/ui/device/BleDieuKhien.tsx`). App coi mạch mất Wi-Fi sau 15 giây không có nhịp tim
+(`NHIP_TIM_MAT_MS`) — lúc đó mạch đã bật Bluetooth (10 giây).
+
+Thử trên mạch thật (bleak, `thu-che-do.py`): router không có → 10 giây sau tự sang Bluetooth;
+`setEcoMode` được trả `ok` và đẩy ngay `{"t":{"ac_eco_mode":true}}`; `setWifi` mật khẩu ngắn →
+`bad_params`; `setWifi {}` → `ok`, Bluetooth ngắt sau 0,6 giây, không quảng bá trong lúc thử Wi-Fi,
+mạng cũ không có → Bluetooth bật lại sau ~31 giây.
+
+**Luồng tính năng ở chế độ Bluetooth giống Wi-Fi.** Điều hoà chỉ gửi lại toàn bộ tính năng khi mạch
+báo "đã kết nối" (`0x76 = 0x02`, lúc MQTT nối). Ở chế độ Bluetooth, điện thoại xác thực xong thì
+mạch cũng gửi `0x02` (ngắt Bluetooth thì `0x00`), điều hoà gửi lại đủ tính năng, từng giá trị đi
+qua `esp_send` → `ble_state_listener` → app, và log in `BLE state: {...}` như `MQTT accepted`.
+Thử trên mạch thật: 25 tính năng về điện thoại trong 10 giây sau khi xác thực.
+
+App: trạng thái thường của khối Bluetooth có hai nút — **Điều khiển gần qua Bluetooth** và **Cài đặt
+Wi-Fi** (nối Bluetooth rồi mở luôn form Wi-Fi).
+
+**Nút "Cài đặt Wi-Fi" = luồng cài đặt ban đầu.** App nối Bluetooth (nếu chưa) rồi gửi
+`{"method":"startWifiSetup"}`. Mạch trả `ok`, khởi động lại với cờ `force_prov`
+(`wifi_prov_request_reprovision`): tắt Bluetooth, phát mạng `mzService_<serial>` và trang cài đặt
+`http://172.217.28.1/` (không giới hạn thời gian). Người dùng chọn Wi-Fi ở đó; mạch vào mạng mới ở
+chế độ Wi-Fi. Ở chế độ Bluetooth, Wi-Fi tắt hẳn và chỉ bật lại bằng nút này. Thử trên mạch thật:
+`provisioned=0 reprovision=1` → `START PROVISION` → `Provisioning AP: mzService_DHL0000010A2`, quét
+Bluetooth không còn thấy mạch. (`setWifi` vẫn còn trong firmware cho ai cần gửi mạng thẳng qua Bluetooth.)
+
+## 14. Một luồng điều khiển mỗi lúc, Bluetooth luôn chờ sẵn (29/10/2026)
+
+- Bluetooth **luôn quảng bá chờ** (kể cả khi đang Wi-Fi) để nút "Điều khiển gần qua Bluetooth" nối
+  được. Chờ thì không điều khiển gì.
+- Điện thoại xác thực Bluetooth đúng mã → `wifi_prov_use_ble`: mạch **tắt Wi-Fi** (hoặc tắt mạng cài
+  đặt nếu đang phát), chỉ Bluetooth điều khiển. Nối hỏng thì Wi-Fi vẫn chạy như cũ.
+- Mất Wi-Fi 10 giây → chế độ Bluetooth (Wi-Fi tắt), như trước.
+- Về Wi-Fi: nút "Cài đặt Wi-Fi" → mạng cài đặt `mzService_…`. Cài xong (hoặc Wi-Fi nhận lại quyền) →
+  ngắt điện thoại Bluetooth (`ble_ctl_drop_client`), Bluetooth lại chờ.
+- App: có phiên Bluetooth là lệnh đi Bluetooth (`kenhDung`); bỏ hai nút "Ưu tiên Wi-Fi / Dùng Bluetooth".
+- Độ trễ: bỏ chờ cứng 1 giây sau mỗi khung UART (chỉ giữ cách nhau 150 ms) và tắt Wi-Fi modem sleep
+  (`WIFI_PS_NONE`). Ping tới mạch qua hotspot: trước 3–1663 ms (TB 474 ms), sau 2–56 ms (TB 20 ms);
+  khi Bluetooth quảng bá chờ: TB 33 ms, tối đa 79 ms.
+
+
+## 15. OTA an toàn (29/10/2026)
+
+Bản sao lưu trước khi sửa: `D:\esp\sao-luu\ESP_AirConditioner_C3-truoc-ota-20261029`. Build ở
+`D:\esp\build-ota` (sdkconfig chép từ `build-ble-thu`, thêm rollback).
+
+| Lỗi | Sửa |
+|---|---|
+| Bảng phân vùng `factory` + `ota_0`: chạy `ota_0` rồi thì không còn ô trống, mọi lần OTA sau hỏng (`ESP_ERR_OTA_PARTITION_CONFLICT`) | `partitions.csv` đổi thành `ota_0` + `ota_1`, **giữ nguyên địa chỉ** (0x10000, 0x190000). Chỉ có tác dụng với mạch nạp qua cáp. |
+| Mạch đã xuất xưởng (bảng cũ) | `zota.c`: chạy `ota_0` mà không còn ô trống thì ghi dấu `bounce_sha` vào `device_nvs`, khởi động vào ảnh factory; factory tải bản mới vào `ota_0`. Về lại `ota_0` thì dấu chuyển thành `done_sha` (mỗi yêu cầu chỉ vòng một lần). |
+| Firebase GET hỏng hoặc thiếu trường `ota` → `xSemaphoreTake(portMAX_DELAY)` treo mãi, MQTT không bao giờ chạy | Bỏ semaphore; `firebase_get_data()` vốn đồng bộ. |
+| Điện thoại nối Bluetooth đúng mã giữa lúc tải → `wifi_prov_use_ble` tắt Wi-Fi, bản tải hỏng | `zapp.c` tắt Bluetooth trong lúc `zota_update`, hỏng thì bật lại. |
+| Ảnh mới lỗi khởi động → lặp khởi động, không cứu được | Bật `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`; `zota_open()` (sau khi có Wi-Fi) gọi `esp_ota_mark_app_valid_cancel_rollback()`. Reset trước lúc đó thì về ảnh cũ. Bootloader chỉ thay khi nạp cáp. |
+
+| Firebase có `ota_id` nhưng firmware nhận diện theo URL: thay file ở cùng URL thì mạch coi như đã cập nhật | `zapp.c` gọi `zota_update_with_id(url, ota_id)`. Mạch đã cập nhật theo URL sẽ tải lại **một lần** khi `ota` còn `true`. |
+
+Bộ nhớ: log `Heap before OTA` / `OTA failed` in heap trống, khối liên tục lớn nhất, mức thấp nhất.
+Ảnh 0x149890 = 1,35 MB (+2 KB), còn 14 % trống; bootloader 0x5260, còn 36 % trống; DRAM tĩnh dùng
+143 704 / 321 296 byte.
+
+Thử trên mạch thật (DHL0000010A2, mạng pnckt): nạp cáp → khởi động `ota_0`, Firebase, MQTT bình
+thường. OTA tới DieuHoa.bin (1,27 MB, bản 22/10) qua Dropbox: ghi `ota_1` trong ~64 s, khởi động
+`ota_1`, bản cũ báo đã cập nhật, không tải lại. Heap trước OTA: trống 78 180, khối lớn nhất 23 552,
+thấp nhất 29 292 byte — **sát**: TLS cần một khối ~16 KB; bước chuyển hướng Dropbox mất ~33 s.
+Reset → bootloader rollback về `ota_0` vì bản 22/10 không gọi `esp_ota_mark_app_valid_cancel_rollback`.
+
+OTA lần 2 (`ota_id` V1.0.4, cùng DieuHoa.bin): bản mới ghi `ota_1` rồi khởi động bản 22/10. Bản
+22/10 nhận diện theo URL nên tưởng là yêu cầu mới, tải tiếp vào `ota_0` (vẫn đổi ô đúng), nhưng
+đứt ở 442 KB (`errno 128`) và OTA hỏng. Nạp lại cáp; bản mới thấy V1.0.4 đã xong, không tải lại.
+Tải chậm vì mỗi khung 512 byte in một dòng log (~2 500 dòng mỗi lần tải) → nay chỉ in mỗi 64 KB.
+
+**Quy tắc phát hành:** từ giờ mọi ảnh OTA phải build từ mã có `zota_open()` mới (gọi mark valid);
+ảnh cũ chạy được tới lần reset sau rồi tự quay về bản trước.
+
+Còn mở: mạch **đang chạy `ota_0` với firmware cũ** (chưa có đoạn vòng qua factory) không OTA được nữa
+— phải nạp cáp. `components/app/ota/ble_ota.c` và `ota.c` không được biên dịch (không nằm trong
+`CMakeLists.txt`).
+
+## 16. Đổi chế độ bằng một chạm: hàng nút "Wi-Fi | Bluetooth" (30/10/2026)
+
+Vẫn **một đường điều khiển mỗi lúc**, nhưng người dùng tự chọn và đổi qua lại bằng hàng nút ở đầu khối
+điều khiển (`BleDieuKhien`, lớp `.ble-chedo`, dùng lại `.seg-btn`, cao 44 px, `aria-pressed`):
+
+| Đang ở | Bấm | App làm | Mạch (firmware ≥ 1.1.4) làm |
+|---|---|---|---|
+| Wi-Fi | **Bluetooth** | Hộp chọn / nối ngầm, xác thực mã tem (mã đã nhớ thì không hỏi) | Tắt Wi-Fi, lệnh đi Bluetooth |
+| Bluetooth | **Wi-Fi** | Gửi `setWifi {}` rồi ngắt Bluetooth; báo "đang chuyển về Wi-Fi"; không tự nối Bluetooth lại cho tới khi máy có Wi-Fi | Về mạng đã lưu ngay (không khởi động lại), ngắt điện thoại; 30 s không có IP thì bật lại Bluetooth |
+| Bluetooth | (điện thoại ngắt / ra khỏi tầm) | — | Thử lại Wi-Fi sau **2 s** (trước: chờ lượt 60 s) |
+
+Lúc khởi động cả hai cùng sẵn: mạch đã có Wi-Fi thì vào Wi-Fi và Bluetooth quảng bá chờ; mạch mới thì
+vừa phát mạng cài đặt vừa bật Bluetooth. "Cài đặt Wi-Fi" giờ chỉ để đổi sang mạng khác
+(`startWifiSetup`). Bỏ nút "Ngắt Bluetooth" (nút Wi-Fi thay nó).
+
+Thử trên mạch thật (1.1.4): `setWifi {}` → `Back to Wi-Fi mode` và ngắt điện thoại sau 30 ms; mạng
+không có → 30 s sau về Bluetooth. Điện thoại bị ngắt → `trying the stored Wi-Fi again` đúng 2,0 s sau.
+Test: `ble.mjs` 45/45, `ble-wifi.mjs` 23/23.
+
+### 16.1 Mất Wi-Fi: khung cảnh báo với hai lựa chọn (30/10/2026)
+
+Không có Wi-Fi mà chưa điều khiển qua Bluetooth → khung `.ble-canh-bao` (`role="alert"`, viền vàng):
+"Thiết bị mất Wi-Fi" (hoặc "không phản hồi qua Wi-Fi" khi mới nghi), hướng dẫn hai cách và hai nút
+44 px: **Điều khiển gần qua Bluetooth** (ở gần, khoảng 10 m) và **Cài đặt Wi-Fi** (vào lại Wi-Fi hoặc
+đổi mạng). Không nút chế độ nào sáng khi mất Wi-Fi.
+
+Đã từng ghép Bluetooth (mã tem đã nhớ) → app tự chuyển như trước; trong lúc nối khung báo "đang tự
+chuyển sang Bluetooth…", xong thì báo "app đã tự chuyển sang điều khiển qua Bluetooth". Trình duyệt bắt
+chạm (không `getDevices`) → khung vẫn hiện, người dùng chạm nút.
+
+Vừa bấm Wi-Fi: 40 s đầu (firmware thử mạng 30 s + vào lại máy chủ) không hiện cảnh báo, chỉ dòng "đang
+chuyển về Wi-Fi" khi app chưa thấy Wi-Fi. Test: `ble.mjs` 48/48, `ble-wifi.mjs` 23/23.
+
+### 16.2 Nối tự động không tắt Wi-Fi (firmware 1.1.5, 30/10/2026)
+
+Lỗi gặp khi thử: Wi-Fi đã nối mà mạch vẫn sang Bluetooth, phải "Cài đặt Wi-Fi" mới về. Nguyên nhân: mạch
+khởi động lại (hoặc mạng chập chờn) làm nhịp tim ngắt quá `NHIP_TIM_MAT_MS` (15 s) → app tự nối Bluetooth
+dự phòng → firmware coi MỌI lần xác thực là người dùng chọn Bluetooth → `wifi_prov_use_ble()` tắt Wi-Fi
+vừa nối xong (hoặc đóng luôn mạng cài đặt).
+
+Sửa: `auth` có thêm `"chon": true` khi người dùng tự bấm (`PhienBle.tuChon`: hộp chọn, nút Bluetooth,
+"Cài đặt Wi-Fi"); nối tự động (`noiLai` từ khối mất Wi-Fi, `guiQuaKenh`) thì không gửi.
+Firmware ≥ 1.1.5: chỉ `chon` mới tắt Wi-Fi / đóng mạng cài đặt và dừng tự thử lại Wi-Fi; phiên tự động
+để Wi-Fi chạy tiếp, chế độ Bluetooth vẫn thử lại Wi-Fi mỗi 60 s (`try_stored_wifi`: không ngắt điện thoại
+khi bắt đầu thử, chỉ ngắt khi đã có IP). App: có Wi-Fi lại thì tự ngắt phiên tự động; phiên người dùng
+chọn thì giữ tới khi họ bấm Wi-Fi. Test: `ble.mjs` 50/50 (kiểm `chon` có/không), `ble-wifi.mjs` 23/23.
+
+Trên mạch (1.1.5, không có Wi-Fi): một kết nối giữ suốt 150 s mà mạch vẫn thử lại Wi-Fi ở giây 75 và
+165 (1.1.4 dừng thử khi có điện thoại). Bước xác thực chưa kiểm trên máy tính được: Windows đọc thiếu
+dịch vụ GATT (cả với 1.1.4 đã chạy tốt trước đó) — phải thử bằng điện thoại.
+
+## 17. Dọn firmware và tăng độ ổn định (firmware 1.1.6, 03/11/2026)
+
+Bản sao lưu trước khi dọn: `D:\esp\sao-luu\ESP_AirConditioner_C3-truoc-don-20261103` (firmware không có git).
+
+Bỏ code không build hoặc không ai gọi: quạt (`send_frame`), `dc_motor`, `btn`, cảm biến nhiệt, OLED, ESP-NOW,
+SmartConfig, `esp_frame`, `utility`, `app/ota`, `desktop.ini`. Bỏ NTP và `zschedule`: không gì đặt lịch, không gì
+khác dùng đồng hồ, TLS không kiểm ngày (`MBEDTLS_HAVE_TIME_DATE` tắt), và lịch cũ gửi lệnh tốc độ quạt `0x03`
+cho điều hoà. Bỏ `AT`, `AT+GMR`, `AT+CWMODE?` gửi xuống điều hoà lúc khởi động.
+
+| Vấn đề | Sửa |
+|---|---|
+| `uart_read_bytes(256 byte, 100 ms)` chỉ trả về khi đủ 256 byte hoặc hết hạn: mọi trạng thái điều hoà tới trễ ~100 ms | Ngủ tới byte đầu rồi lấy hết phần đang có |
+| Tự nối lại MQTT cả khi Wi-Fi tắt: mỗi lần chặn ~19 s ở DNS, Wi-Fi về rồi MQTT vẫn có thể trễ ~29 s | `disable_auto_reconnect`; `mqtt_app_tick` nối lại ngay khi có IP, rồi mỗi 10 s, không có IP thì không thử |
+| Nhịp tim chạy trong `esp_timer`, có thể bị khoá MQTT chặn trong lúc ghi TLS, kéo theo timer Wi-Fi và NimBLE | Task riêng `zapp_tick` |
+| `sys_evt` 2304 byte mà nay gọi vào Bluetooth; task UART 4096 byte mà ghi TLS và đẩy Bluetooth | `sys_evt` 4096, UART 6144 |
+| Không biết còn bao nhiêu RAM và stack khi chạy thật | Log `Health:` sau 1 phút rồi mỗi 5 phút: heap (trống, thấp nhất, khối lớn nhất), stack còn lại từng task |
+| Log `PUBLISHED`, `DISCONNECTED` lặp mỗi lần thử | `PUBLISHED` hạ xuống debug; `DISCONNECTED` chỉ khi đang nối mà rớt |

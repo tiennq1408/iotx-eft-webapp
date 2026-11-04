@@ -71,10 +71,10 @@ try {
   const chip = loai => p.locator(`.devpage .dev-st .kenh-chip.${loai}`);
 
   await vao();
-  /* ---------- ghép một lần (nhập mã tem), rồi ngắt ---------- */
-  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(200);
+  /* ---------- ghép một lần (nhập mã tem), rồi chọn lại Wi-Fi ---------- */
+  await khoi.locator('.ble-chedo button', { hasText: 'Bluetooth' }).click(); await cho(200);
   await khoi.locator('input').fill('12345'); await khoi.locator('button', { hasText: 'Kết nối' }).click(); await cho(500);
-  await khoi.locator('button', { hasText: 'Ngắt Bluetooth' }).click(); await cho(300);
+  await khoi.locator('.ble-chedo button', { hasText: 'Wi-Fi' }).click(); await cho(300);
   ok('ghép xong rồi ngắt: còn chip Wi-Fi, không chip Bluetooth', await chip('wifi').count() === 1 && await chip('ble').count() === 0);
 
   // Tốc độ về giữa thang, để "+" luôn đổi được giá trị (đặt lại đúng giá trị thì mạch chẳng có gì để báo).
@@ -117,10 +117,11 @@ try {
   await cong.click(); await cho(600);
   ok('bấm tiếp → đi thẳng Bluetooth ngay, không thử Wi-Fi', await ble() === b0 + 1 && rpc() === r0);
 
-  /* ---------- mạch có Wi-Fi lại (máy chủ nhận tin từ mạch) → về Wi-Fi ---------- */
+  /* ---------- ngắt Bluetooth, mạch có Wi-Fi lại (máy chủ nhận tin từ mạch) → về Wi-Fi ---------- */
   await lamNgo(false);
+  await khoi.locator('.ble-chedo button', { hasText: 'Wi-Fi' }).click(); await cho(300);
   await fetch(`${GOC_GIA}/v1/__phat?id=${QUAT}&key=speed&value=5`); await cho(800);
-  ok('mạch báo lại qua máy chủ → icon Wi-Fi tô đặc, Bluetooth chờ', await chip('wifi').count() === 1 && /(^| )cho( |$)/.test(await chip('ble').count() ? await chip('ble').getAttribute('class') : 'khong-co'));
+  ok('ngắt Bluetooth, mạch báo lại qua máy chủ → icon Wi-Fi tô đặc', await chip('wifi').count() === 1 && await chip('ble').count() === 0);
   r0 = rpc(); b0 = await ble();
   await tru.click(); await cho(3600);
   ok('Wi-Fi về → lệnh lại đi Wi-Fi', rpc() === r0 + 1 && await ble() === b0);
@@ -135,7 +136,7 @@ try {
   await cong.click(); await cho(4200);
   ok('sau tải lại, mạch im lặng → KHÔNG tự bật hộp chọn; khối Bluetooth nhắc "không phản hồi qua Wi-Fi. Chạm…"',
     await p.evaluate(() => window.__bleChon) === chon0 && await ble() === b0
-    && /không phản hồi qua Wi-Fi. Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()));
+    && /không phản hồi qua Wi-Fi[\s\S]*chạm "Điều khiển gần qua Bluetooth"[\s\S]*Cài đặt Wi-Fi/.test(await khoi.innerText()));
   ok('giá trị vừa bấm vẫn giữ, không báo lỗi', (await p.locator('.ctl-dial').innerText()) !== truocNghi
     && await p.locator('.devpage .form-message').count() === 0);
   await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(600);
@@ -199,7 +200,7 @@ try {
   const truocBam = await p.locator('.ctl-dial').innerText();
   await cong.click(); await cho(4200);
   ok('chưa ghép: khối Bluetooth nhắc "Chạm để điều khiển qua Bluetooth", icon "Mất Wi-Fi", không mở hộp chọn',
-    /Chạm để điều khiển qua Bluetooth/.test(await khoi.innerText()) && /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => ''))
+    /chạm "Điều khiển gần qua Bluetooth"/.test(await khoi.innerText()) && /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => ''))
     && await p.evaluate(() => window.__bleChon) === chon1);
   ok('chưa ghép: giá trị vừa bấm vẫn giữ, không báo lỗi', (await p.locator('.ctl-dial').innerText()) !== truocBam
     && await p.locator('.devpage .form-message').count() === 0);
