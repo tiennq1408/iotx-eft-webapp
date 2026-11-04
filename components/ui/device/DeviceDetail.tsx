@@ -287,7 +287,6 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
         {than}
 
         {loi && <p className="form-message" role="status">{loi}</p>}
-        <BleDieuKhien device={device} chan={!choDieuKhien} />
         {!choDieuKhien && <p className="small dim">{t("chan_khongQuyen")}</p>}
         {/* Máy đang ngoại tuyến: nhắc để biết lệnh có thể chưa tới ngay, nhưng vẫn bấm được. */}
         {choDieuKhien && !device.online && <p className="small dim">{t("nhac_offline")}</p>}
@@ -298,6 +297,8 @@ export default function DeviceDetail({ device, onClose, onCommand, onAn, onHienL
             <i>{loiHenGio && !hg ? loiHenGio : tomTatHenGio(hg, t)}</i>
           </button>
         )}
+
+        <BleDieuKhien device={device} chan={!choDieuKhien} />
 
         <div className="frow">
           {choXoa && (device.hidden

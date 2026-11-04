@@ -136,6 +136,8 @@ try {
   ok('màn quạt có khối điều khiển với hàng chọn Wi-Fi | Bluetooth, Wi-Fi đang chọn', await khoi.count() === 1
     && await khoi.locator('.ble-chedo button').count() === 2
     && await khoi.locator('.ble-chedo button[aria-pressed=true]', { hasText: 'Wi-Fi' }).count() === 1);
+  const hopHenGio = await p.locator('.devpage .hg-ghim').boundingBox(), hopKhoi = await khoi.boundingBox();
+  ok('thứ tự: Hẹn giờ ở trên, khối Wi-Fi/Bluetooth ở dưới', hopHenGio && hopKhoi && hopHenGio.y < hopKhoi.y);
   const hop = await khoi.locator('button').first().boundingBox();
   ok(`nút mở ≥44px (${Math.round(hop.height)})`, hop.height >= 44);
 
@@ -311,6 +313,15 @@ try {
   ok(`"Cài đặt Wi-Fi" → nối Bluetooth rồi gửi startWifiSetup (${JSON.stringify(lenhCai)})`, lenhCai.includes('startWifiSetup'));
   ok('"Cài đặt Wi-Fi" → mạch ngắt Bluetooth, khối chỉ tên mạng cài đặt và địa chỉ trang cài đặt',
     /mzService_ac30412/.test(await khoi.innerText()) && /172\.217\.28\.1/.test(await khoi.innerText()) && !/Đang điều khiển/.test(await khoi.innerText()));
+  ok('đang cài Wi-Fi → nút "Cài đặt Wi-Fi" sáng, hai nút Wi-Fi / Bluetooth không sáng',
+    await khoi.locator('button[aria-pressed=true]').count() === 1
+    && await khoi.locator('button[aria-pressed=true]', { hasText: 'Cài đặt Wi-Fi' }).count() === 1
+    && await khoi.locator('.ble-chedo button[aria-pressed=true]').count() === 0);
+  await khoi.locator('.ble-chedo button', { hasText: 'Wi-Fi' }).click(); await cho(200);
+  ok('chọn lại Wi-Fi → thôi trạng thái cài đặt, nút Wi-Fi sáng, hết hướng dẫn mạng cài đặt',
+    await khoi.locator('button[aria-pressed=true]', { hasText: 'Cài đặt Wi-Fi' }).count() === 0
+    && await khoi.locator('.ble-chedo button[aria-pressed=true]', { hasText: 'Wi-Fi' }).count() === 1
+    && !/mzService_/.test(await khoi.innerText()));
   await dongMan(p);
 
   /* ---------- thiết bị không có đường Bluetooth → không có khối ---------- */

@@ -52,6 +52,19 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     const h = setTimeout(() => setVeWifiDen(0), Math.max(0, veWifiDen - Date.now()));
     return () => clearTimeout(h);
   }, [veWifiDen]);
+  /**
+   * Vừa bấm "Cài đặt Wi-Fi": mạch đang phát mạng cài đặt. Nút đó sáng, không tự nối Bluetooth, không
+   * cảnh báo mất Wi-Fi. Xong khi mạch có Wi-Fi lại (đã mất rồi có lại), chọn chế độ khác, hoặc sau 5 phút.
+   */
+  const [caiWifiDen, setCaiWifiDen] = useState(0);
+  const daMatKhiCai = useRef(false);
+  useEffect(() => {
+    if (!caiWifiDen) { daMatKhiCai.current = false; return; }
+    if (!wifi) daMatKhiCai.current = true;
+    const xong = wifi && daMatKhiCai.current;
+    const h = setTimeout(() => setCaiWifiDen(0), xong ? 0 : Math.max(0, caiWifiDen - Date.now()));
+    return () => clearTimeout(h);
+  }, [caiWifiDen, wifi]);
   const coKhoi = coWebBluetooth() && coDuongBle(device) && !chan;
 
   const datChoMa = (p: PhienBle | null) => { choMaRef.current = p; setChoMa(p); };
@@ -79,7 +92,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
       if (p && !p.tuChon) p.ngat();
       return;
     }
-    if (!coKhoi || phienBle(device.id) || daTuNoi.current) return;
+    if (!coKhoi || phienBle(device.id) || daTuNoi.current || caiWifiDen) return;
     const maNho = docMaTem(device.id);
     if (!maNho) return;   // chưa nhớ mã: lời nhắc chạm tự hiện (`nhacCham`)
     daTuNoi.current = true;
@@ -99,13 +112,14 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi trạng thái mạng hay phiên đổi
-  }, [wifi, device.id, coKhoi, phien]);
+  }, [wifi, device.id, coKhoi, phien, caiWifiDen]);
 
   if (!coKhoi) return null;
   /** Vừa chọn Wi-Fi: mạch đang về mạng đã lưu (tới ~40 s) — chưa coi là mất Wi-Fi. */
   const choVeWifi = !wifi && veWifiDen > 0;
+  const dangCaiWifi = caiWifiDen > 0;
   /** Không có Wi-Fi và chưa điều khiển qua Bluetooth: khung cảnh báo với hai lựa chọn. */
-  const matWifi = !wifi && !phien && !choMa && !choVeWifi;
+  const matWifi = !wifi && !phien && !choMa && !choVeWifi && !dangCaiWifi;
 
   /** Mạng cài đặt mạch phát ra — phải khớp `build_identity_strings` trong firmware wifi_prov.c. */
   const mangCaiDat = `mzService_${(device.code ?? "").slice(-22)}`;
@@ -123,7 +137,8 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     setDangNoi(true);
     try {
       await p.gui("startWifiSetup", {});
-      setThongBao(t("ble_dang_cai_wifi", { mang: mangCaiDat }));
+      setThongBao("");
+      setCaiWifiDen(Date.now() + 5 * 60_000);
     } catch (e) {
       baoLoi(e);
     } finally {
@@ -164,6 +179,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     sauKhiNoiCaiWifi.current = caiWifiSau;
     setLoi("");
     setThongBao("");
+    setCaiWifiDen(0);
     setDangNoi(true);
     try {
       const daNho = docMaTem(device.id);
@@ -226,13 +242,13 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
   const maHopLe = /^\d{5}$/.test(ma);
   const cheDoBle = !!phien || !!choMa;
   /** Nút Wi-Fi chỉ sáng khi đang (hoặc vừa chọn) đi Wi-Fi — mất Wi-Fi thì không nút nào sáng. */
-  const cheDoWifi = !cheDoBle && (wifi || choVeWifi);
+  const cheDoWifi = !cheDoBle && !dangCaiWifi && (wifi || choVeWifi);
 
   return (
     <div className="card ble-dk">
       <div className="seg-group ble-chedo" role="group" aria-label={t("che_do")}>
         <button className={`seg-btn${cheDoWifi ? " sel" : ""}`} aria-pressed={cheDoWifi} disabled={dangNoi}
-          onClick={() => { if (phien) void dungWifi(phien); else if (choMa) { choMa.ngat(); datChoMa(null); setLoi(""); } }}>
+          onClick={() => { setCaiWifiDen(0); if (phien) void dungWifi(phien); else if (choMa) { choMa.ngat(); datChoMa(null); setLoi(""); } }}>
           <Wifi aria-hidden="true" /> {t("kenh_wifi")}
         </button>
         <button className={`seg-btn${cheDoBle ? " sel" : ""}`} aria-pressed={cheDoBle} disabled={dangNoi}
@@ -282,12 +298,14 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
         </div>
       ) : (
         <>
-          <button className="btn gh" disabled={dangNoi} onClick={() => { void bamNoi(true); }}>
+          <button className={dangCaiWifi ? "btn" : "btn gh"} aria-pressed={dangCaiWifi} disabled={dangNoi}
+            onClick={() => { void bamNoi(true); }}>
             <Settings aria-hidden="true" /> {t("ble_cai_wifi")}
           </button>
-          {!choVeWifi && <p className="small dim">{t("ble_mo_ta")}</p>}
+          {!choVeWifi && !dangCaiWifi && <p className="small dim">{t("ble_mo_ta")}</p>}
         </>
       )}
+      {dangCaiWifi && <p className="small" role="status">{t("ble_dang_cai_wifi", { mang: mangCaiDat })}</p>}
       {choVeWifi && <p className="small" role="status">{t("ble_dang_ve_wifi")}</p>}
       {thongBao && <p className="small" role="status">{thongBao}</p>}
       {loi && <p className="form-message" role="status">{loi}</p>}
