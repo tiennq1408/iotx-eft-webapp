@@ -94,7 +94,7 @@ Quy tắc:
 - Chưa xác thực thì mọi lệnh khác trả `{"id":n,"ok":false,"err":"auth"}`, không làm gì.
 - Sai **3 lần** trong một kết nối → trả `err:"locked"`, ngắt kết nối, khoá BLE điều khiển **60 giây**.
 - NONCE đổi mỗi kết nối, nên một `mac` nghe lén được không dùng lại được ở kết nối sau.
-- App nhớ mã trên máy người dùng (localStorage) sau lần nối đúng đầu tiên; sai thì app xoá và hỏi lại.
+- App không nhớ mã: lần nối nào cũng hỏi (mục 18). Mã bản trước còn trong localStorage bị xoá.
 
 Ví dụ kiểm tay (mã `12345`, NONCE toàn byte `00`):
 `HMAC-SHA256("12345", 00×16)` — tính bằng `openssl`:
@@ -226,7 +226,7 @@ cũ, **không** làm lại (tương tự `Idempotency-Key` của `/v1`).
 | Tệp | Việc |
 |---|---|
 | `lib/ble/dieuKhienBle.ts` | UUID, kết nối + xác thực HMAC, gửi lệnh chờ `{id, ok}`, nghe EVT, sổ phiên dùng chung |
-| `components/ui/device/BleDieuKhien.tsx` | Khối trên màn chi tiết quạt, điều hoà: nút nối, ô nhập mã tem, trạng thái, chọn kênh, nút ngắt, tự nối khi mất Wi-Fi |
+| `components/ui/device/BleDieuKhien.tsx` | Khối trên màn chi tiết quạt, điều hoà: nút nối, ô nhập mã tem, trạng thái, chọn kênh, cảnh báo mất Wi-Fi (không tự nối) |
 | `components/ui/device/KenhKetNoi.tsx` | Chip/icon kênh ở đầu màn và trên thẻ; kênh đang dùng tô đặc, kênh chờ chỉ viền |
 | `components/LivotecApp.tsx` | `guiLenh` / `doiNguon`: hỏi `phienDung` để chọn kênh; Wi-Fi hỏng vì đường truyền mà có phiên BLE thì gửi lại qua BLE |
 | `hooks/useDuLieuIotx.ts` | Áp trạng thái thiết bị báo qua BLE; giá trị BLE thắng dữ liệu máy chủ khi đang nối |
@@ -240,12 +240,14 @@ thiết bị ảo, và người dùng có quyền điều khiển. Rời màn ch
 | Thiết bị | Phiên BLE | Lệnh đi |
 |---|---|---|
 | Có Wi-Fi | không có | Wi-Fi |
-| Có Wi-Fi | có, tự động | Wi-Fi — BLE chờ sẵn |
-| Có Wi-Fi | có, người dùng chọn Bluetooth | Bluetooth |
+| Có Wi-Fi | có | Bluetooth |
 | Mất Wi-Fi | có | Bluetooth |
-| Mất Wi-Fi | không có | tự nối BLE (xem dưới); chưa được thì nhắc "Chạm để điều khiển qua Bluetooth" |
+| Mất Wi-Fi | không có | khung cảnh báo; người dùng nhấn nút và nhập mã mới nối |
 | Có Wi-Fi | có, nhưng BLE rớt / không trả lời | Wi-Fi (gửi lại lệnh vừa hỏng) |
-| Máy chủ nói có Wi-Fi, nhưng mạch không báo lại lệnh trong 3 s | bất kỳ | Bluetooth — app tự đánh dấu "Mất Wi-Fi" (xem dưới) |
+| Máy chủ nói có Wi-Fi, nhưng mạch không báo lại lệnh trong 3 s | bất kỳ | Bluetooth nếu có phiên; không thì app đánh dấu "Mất Wi-Fi" và cảnh báo |
+
+> Từ mục 18 app không còn tự nối: các đoạn dưới nói về nối ngầm, `noiLai`, `noiTuDong`, tự mở hộp chọn chỉ còn
+> là lịch sử. Phần phát hiện mất Wi-Fi (đợi xác nhận 3 s, nhịp tim) vẫn dùng để hiện cảnh báo.
 
 **Một cú bấm khi mạch mất Wi-Fi** (`guiQuaKenh` trong `components/LivotecApp.tsx`). Máy chủ chậm
 vài phút mới biết mạch mất Wi-Fi (keepalive MQTT 120 s của firmware, rồi thời gian "không hoạt
@@ -486,3 +488,30 @@ cho điều hoà. Bỏ `AT`, `AT+GMR`, `AT+CWMODE?` gửi xuống điều hoà l
 | `sys_evt` 2304 byte mà nay gọi vào Bluetooth; task UART 4096 byte mà ghi TLS và đẩy Bluetooth | `sys_evt` 4096, UART 6144 |
 | Không biết còn bao nhiêu RAM và stack khi chạy thật | Log `Health:` sau 1 phút rồi mỗi 5 phút: heap (trống, thấp nhất, khối lớn nhất), stack còn lại từng task |
 | Log `PUBLISHED`, `DISCONNECTED` lặp mỗi lần thử | `PUBLISHED` hạ xuống debug; `DISCONNECTED` chỉ khi đang nối mà rớt |
+
+## 18. Chỉ nối khi nhấn, lần nào cũng hỏi mã; AA 60; `ac_capacity` (firmware 1.1.7, 05/11/2026)
+
+**Đo đường lệnh trên A4** (điều hoà thật, Wi-Fi HOMICHI, máy tính cùng LAN, 19 lệnh `setTempTarget`): app → mạch
+trung vị 198 ms (cao nhất 434), mạch → điều hoà báo lại 208 ms (551), mạch → app 150 ms (322), tổng 565 ms (1109). Lệnh
+gửi 1,7 s sau khi MQTT vừa nối mất 3,8 s: lúc đó điều hoà đang gửi lại toàn bộ trạng thái. Hai lần có phiên
+Bluetooth tự nối trong lúc còn Wi-Fi, MQTT rớt sau 8–10 s (`No PING_RESP`).
+
+**App:** bỏ `noiLai`, `noiTuDong`, `getDevices`, mã tem đã nhớ. Nối chỉ khi nhấn Bluetooth hoặc Cài đặt Wi-Fi: hộp chọn →
+nối → nhập mã → `auth` luôn có `chon: true`. Mất Wi-Fi chỉ hiện cảnh báo. Lệnh không tới được máy chủ thì hoàn tác và
+báo lỗi; lệnh đã tới máy chủ mà mạch im lặng thì giữ giá trị và cảnh báo.
+
+**AA 60:** trước đây mạch gửi AA 60 ngay khi nhận AB 60 rồi khởi động lại. Giờ chỉ đổi chỗ gửi: khi cài Wi-Fi xong
+(`WIFI_PROV_CRED_SUCCESS`) hoặc OTA thành công (ảnh mới đã chạy, `zota_confirm_boot`).
+
+**`ac_capacity`** (W) = `ac_voltage` × `ac_current`, gửi khi có khung 0x77 hoặc 0x78 và đã có đủ hai giá trị. Đây là công
+suất biểu kiến, chưa tính hệ số công suất.
+
+## 19. Lưu nhiều mạng Wi-Fi (firmware 1.1.7, 05/11/2026)
+
+Firmware tự lưu tối đa 5 mạng đã từng cấp IP (`wifi_prov.c`, NVS `wifi_list/nets`), mạng dùng gần nhất đứng đầu; đầy thì bỏ mạng
+lâu không dùng nhất. Mạng sai mật khẩu không được lưu. Thêm mạng bằng cách cài Wi-Fi như cũ: mạng cũ vẫn giữ.
+
+Mất mạng: thử lại mạng đang dùng trước; hỏng thì quét, chọn mạng đã lưu có sóng mạnh nhất, hỏng tiếp thì mạng kế. Thời gian tới khi sang
+Bluetooth là 10 s, cộng 5 s cho mỗi mạng thêm. Ở chế độ Bluetooth vẫn thử lại mỗi 60 s như cũ. Chỉ một mạng thì hành vi như trước.
+
+Chưa làm: màn xem và xoá mạng đã lưu; mạng ẩn tên chỉ thử được khi đang là mạng hiện tại; có mạng lại không tự quay về mạng ưu tiên.

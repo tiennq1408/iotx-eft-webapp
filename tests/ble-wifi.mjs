@@ -8,9 +8,9 @@ import fs from 'node:fs';
  * Máy chủ thật chậm vài phút mới biết mạch mất Wi-Fi, nên trong khoảng đó nó vẫn nói "trực
  * tuyến". Dựng đúng cảnh ấy bằng máy chủ giả: `/__lam_ngo` làm mạch "câm" — nhận lệnh, trả
  * `ok`, nhưng không bao giờ báo giá trị mới. Bluetooth là một máy giả trong trang (chấp nhận
- * mọi mã, trả `ok`). Đo: Wi-Fi tốt thì không đụng Bluetooth; mạch im lặng thì sau ~3 giây lệnh
- * tự sang Bluetooth, icon thành "Mất Wi-Fi" + Bluetooth; bấm tiếp đi thẳng Bluetooth; mạch báo
- * lại thì về Wi-Fi; tải lại trang thì mở hộp chọn đúng một lần; chưa ghép thì nhắc nhập mã.
+ * mọi mã, trả `ok`). Đo: Wi-Fi tốt thì không đụng Bluetooth; mạch im lặng thì icon thành "Mất Wi-Fi"
+ * và khối nhắc nhưng app KHÔNG tự nối, không tự mở hộp chọn (máy chủ báo ngoại tuyến, mất nhịp tim, điện
+ * thoại mất mạng cũng vậy); người dùng nhấn nút và nhập mã thì lệnh đi Bluetooth; mạch báo lại thì về Wi-Fi.
  */
 const R = []; const ok = (t, c) => R.push(`${c ? 'PASS' : 'FAIL'}  ${t}`);
 const cho = ms => new Promise(r => setTimeout(r, ms));
@@ -101,18 +101,24 @@ try {
   ok('Wi-Fi tốt: lệnh đi Wi-Fi, mạch xác nhận, Bluetooth không bị đụng', rpc() === r0 + 1 && await ble() === b0 && await chip('wifi').count() === 1);
   ok('app nhớ mạch đã biết báo lại', await p.evaluate(id => localStorage.getItem(`livotec-bao-lai:${id}`), QUAT) === '1');
 
-  /* ---------- mạch mất Wi-Fi (máy chủ vẫn nói trực tuyến): một cú bấm là sang Bluetooth ---------- */
+  /* ---------- mạch mất Wi-Fi (máy chủ vẫn nói trực tuyến): chỉ cảnh báo, nhấn nút và nhập mã mới nối ---------- */
+  await vao();   // tải lại: thôi 40 s "đang về Wi-Fi" của lần bấm Wi-Fi ở đầu bài (khung cảnh báo chờ hết khoảng đó)
+  const chonMat = await p.evaluate(() => window.__bleChon);
   await lamNgo(true);
   r0 = rpc(); b0 = await ble();
-  const t0 = Date.now();
-  await cong.click();
-  await p.waitForFunction(n => window.__bleLenh.length > n, b0, { timeout: 8000 }).catch(() => undefined);
-  const mat = Date.now() - t0;
-  ok(`mạch im lặng → tự chuyển Bluetooth sau ${mat} ms (≈3 s), không mở hộp chọn`,
-    await ble() === b0 + 1 && rpc() === r0 + 1 && mat >= 2500 && mat < 6000 && await p.evaluate(() => window.__bleChon) === 1);
-  await cho(300);
-  ok('icon: "Mất Wi-Fi" + Bluetooth tô đặc', /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => '')) && await chip('ble').count() === 1);
+  await cong.click(); await cho(4200);
+  ok('mạch im lặng → lệnh vẫn đi Wi-Fi, KHÔNG tự sang Bluetooth, không mở hộp chọn',
+    await ble() === b0 && rpc() === r0 + 1 && await p.evaluate(() => window.__bleChon) === chonMat && await chip('ble').count() === 0);
+  ok('icon "Mất Wi-Fi", khối nhắc "không phản hồi qua Wi-Fi" kèm hai nút',
+    /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => ''))
+    && /không phản hồi qua Wi-Fi[\s\S]*Điều khiển gần qua Bluetooth[\s\S]*Cài đặt Wi-Fi/.test(await khoi.innerText()));
   ok('không hiện lỗi nào', await p.locator('.devpage .form-message').count() === 0);
+  const noiTay = async () => {
+    await khoi.locator('.ble-canh-bao button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(300);
+    await khoi.locator('input').fill('12345'); await khoi.locator('button', { hasText: 'Kết nối' }).click(); await cho(500);
+  };
+  await noiTay();
+  ok('nhấn nút, nhập mã → nối, hộp chọn mở đúng một lần', await p.evaluate(() => window.__bleChon) === chonMat + 1 && await chip('ble').count() === 1);
   r0 = rpc(); b0 = await ble();
   await cong.click(); await cho(600);
   ok('bấm tiếp → đi thẳng Bluetooth ngay, không thử Wi-Fi', await ble() === b0 + 1 && rpc() === r0);
@@ -134,26 +140,25 @@ try {
   b0 = await ble();
   const truocNghi = await p.locator('.ctl-dial').innerText();
   await cong.click(); await cho(4200);
-  ok('sau tải lại, mạch im lặng → KHÔNG tự bật hộp chọn; khối Bluetooth nhắc "không phản hồi qua Wi-Fi. Chạm…"',
+  ok('sau tải lại, mạch im lặng → KHÔNG tự bật hộp chọn; khối Bluetooth nhắc "không phản hồi qua Wi-Fi…"',
     await p.evaluate(() => window.__bleChon) === chon0 && await ble() === b0
     && /không phản hồi qua Wi-Fi[\s\S]*chạm "Điều khiển gần qua Bluetooth"[\s\S]*Cài đặt Wi-Fi/.test(await khoi.innerText()));
   ok('giá trị vừa bấm vẫn giữ, không báo lỗi', (await p.locator('.ctl-dial').innerText()) !== truocNghi
     && await p.locator('.devpage .form-message').count() === 0);
-  await khoi.locator('button', { hasText: 'Điều khiển gần qua Bluetooth' }).click(); await cho(600);
-  ok('chạm lời nhắc → hộp chọn mở một lần, nối được', await p.evaluate(() => window.__bleChon) === chon0 + 1 && await chip('ble').count() === 1);
+  await noiTay();
+  ok('nhấn nút, nhập mã → hộp chọn mở một lần, nối được', await p.evaluate(() => window.__bleChon) === chon0 + 1 && await chip('ble').count() === 1);
   b0 = await ble();
   await cong.click(); await cho(600);
   ok('bấm tiếp → đi Bluetooth ngay, không mở lại hộp chọn', await p.evaluate(() => window.__bleChon) === chon0 + 1 && await ble() === b0 + 1);
 
-  /* ---------- CHẮC mất Wi-Fi (máy chủ báo ngoại tuyến), tải lại trang: một cú bấm là mở hộp chọn ---------- */
+  /* ---------- máy chủ báo ngoại tuyến: bấm nút điều khiển không mở hộp chọn ---------- */
   await fetch(`${GOC_GIA}/v1/__truc_tuyen?id=${QUAT}&bat=0`);
   await vao(); await cho(800);
   const chon2 = await p.evaluate(() => window.__bleChon);
   b0 = await ble();
-  await tru.click();
-  await p.waitForFunction(n => window.__bleLenh.length > n, b0, { timeout: 4000 }).catch(() => undefined);
-  ok('máy chủ báo ngoại tuyến → bấm nút là mở hộp chọn ngay, lệnh đi Bluetooth',
-    await p.evaluate(() => window.__bleChon) === chon2 + 1 && await ble() === b0 + 1);
+  await tru.click(); await cho(800);
+  ok('máy chủ báo ngoại tuyến → bấm nút KHÔNG mở hộp chọn, không đi Bluetooth',
+    await p.evaluate(() => window.__bleChon) === chon2 && await ble() === b0);
   await fetch(`${GOC_GIA}/v1/__truc_tuyen?id=${QUAT}&bat=1`);
 
   /* ---------- nhịp tim: mạch gửi "hb" đều rồi im (mất Wi-Fi) → ~20 s sau app CHẮC mất Wi-Fi ---------- */
@@ -170,13 +175,12 @@ try {
     ok(`mất nhịp tim → icon "Mất Wi-Fi" sau ${sau} s, không cần bấm gì`, /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => '')) && sau <= 30);
     const chon3 = await p.evaluate(() => window.__bleChon);
     b0 = await ble();
-    await cong.click();
-    await p.waitForFunction(n => window.__bleLenh.length > n, b0, { timeout: 4000 }).catch(() => undefined);
-    ok('bấm nút → mở hộp chọn ngay (chắc mất Wi-Fi), lệnh đi Bluetooth',
-      await p.evaluate(() => window.__bleChon) === chon3 + 1 && await ble() === b0 + 1);
+    await cong.click(); await cho(800);
+    ok('mất nhịp tim, bấm nút → KHÔNG mở hộp chọn, không đi Bluetooth',
+      await p.evaluate(() => window.__bleChon) === chon3 && await ble() === b0);
   } finally { clearInterval(nhip); }
 
-  /* ---------- tắt router: máy tính CŨNG mất mạng → bấm nút là mở hộp chọn, lệnh đi Bluetooth ---------- */
+  /* ---------- tắt router: máy tính CŨNG mất mạng → báo lỗi nhắc nút Bluetooth, không mở hộp chọn ---------- */
   await lamNgo(false);
   await vao(); await cho(800);
   await ctx.setOffline(true);
@@ -184,26 +188,11 @@ try {
   ok('máy tính mất mạng → icon không còn Wi-Fi', await chip('wifi').count() === 0);
   const chon4 = await p.evaluate(() => window.__bleChon);
   b0 = await ble();
-  await tru.click();
-  await p.waitForFunction(n => window.__bleLenh.length > n, b0, { timeout: 4000 }).catch(() => undefined);
-  ok('máy tính mất mạng → bấm nút là mở hộp chọn, lệnh đi Bluetooth',
-    await p.evaluate(() => window.__bleChon) === chon4 + 1 && await ble() === b0 + 1);
+  await tru.click(); await cho(1000);
+  ok('máy tính mất mạng → bấm nút KHÔNG mở hộp chọn, không đi Bluetooth, báo lỗi',
+    await p.evaluate(() => window.__bleChon) === chon4 && await ble() === b0 && await p.locator('.devpage .form-message').count() === 1);
   await ctx.setOffline(false);
   await cho(500);
-
-  /* ---------- chưa ghép (chưa nhớ mã tem): khối Bluetooth nhắc ghép, nút không bị lật về ---------- */
-  await datTocDo(5);
-  await lamNgo(true);
-  await p.evaluate(id => localStorage.removeItem(`livotec-ble-ma:${id}`), QUAT);
-  await vao();
-  const chon1 = await p.evaluate(() => window.__bleChon);
-  const truocBam = await p.locator('.ctl-dial').innerText();
-  await cong.click(); await cho(4200);
-  ok('chưa ghép: khối Bluetooth nhắc "Chạm để điều khiển qua Bluetooth", icon "Mất Wi-Fi", không mở hộp chọn',
-    /chạm "Điều khiển gần qua Bluetooth"/.test(await khoi.innerText()) && /Mất Wi-Fi/.test(await chip('mat').innerText().catch(() => ''))
-    && await p.evaluate(() => window.__bleChon) === chon1);
-  ok('chưa ghép: giá trị vừa bấm vẫn giữ, không báo lỗi', (await p.locator('.ctl-dial').innerText()) !== truocBam
-    && await p.locator('.devpage .form-message').count() === 0);
   ok(`không lỗi JS (${loi.join(' | ')})`, loi.length === 0);
   await ctx.close();
 } finally {

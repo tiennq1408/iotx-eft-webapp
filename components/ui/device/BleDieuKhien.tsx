@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bluetooth, Settings, Wifi } from "lucide-react";
 import { useChu } from "../chu";
 import { useKenhBle } from "./KenhKetNoi";
-import { LoiBle, PhienBle, coWebBluetooth, docMaTem, coDuongBle, matWifiChac, nhoMaTem, phienBle } from "@/lib/ble/dieuKhienBle";
+import { LoiBle, PhienBle, coWebBluetooth, coDuongBle, matWifiChac, phienBle, xoaMaTemDaNho } from "@/lib/ble/dieuKhienBle";
 import type { Device } from "@/lib/types";
 
 /**
@@ -17,13 +17,12 @@ import type { Device } from "@/lib/types";
  * Firmware chạy MỘT đường điều khiển mỗi lúc: Wi-Fi, hoặc Bluetooth. Hàng nút "Điều khiển qua
  * Wi-Fi | Bluetooth" đổi qua lại bằng một chạm: Bluetooth = nối + xác thực (mạch tắt Wi-Fi);
  * Wi-Fi = gửi `setWifi` rỗng (mạch về mạng đã lưu, không khởi động lại) rồi ngắt Bluetooth.
- * Thiết bị mất Wi-Fi thì khối tự nối Bluetooth — không cần chạm nếu máy đã được chọn trước đó và
- * mã tem đã nhớ; trình duyệt bắt chạm thì hiện lời nhắc kèm nút. "Cài đặt Wi-Fi" chỉ để đổi sang
+ * Thiết bị mất Wi-Fi thì khối hiện cảnh báo kèm nút, không tự nối. "Cài đặt Wi-Fi" chỉ để đổi sang
  * mạng khác (nối Bluetooth trước nếu chưa nối): gửi `startWifiSetup`, mạch khởi động lại vào luồng
  * cài đặt ban đầu — phát mạng `mzService_<serial>`, người dùng chọn Wi-Fi ở trang cài đặt.
  *
- * Ghép tay: chọn máy và nối TRƯỚC, nhập mã tem SAU (`PhienBle.chonMay` rồi `xacThuc`). Mã đã nhớ
- * thì khỏi hỏi.
+ * Chỉ nối khi người dùng bấm, và lần nào cũng hỏi mã: chọn máy và nối TRƯỚC, nhập mã tem SAU
+ * (`PhienBle.chonMay` rồi `xacThuc`). App không nhớ mã.
  *
  * Rời màn chi tiết là ngắt, để không có một kết nối vô hình nào còn giữ thiết bị.
  */
@@ -36,15 +35,8 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
   const [ma, setMa] = useState("");
   const [dangNoi, setDangNoi] = useState(false);
   const [loi, setLoi] = useState("");
-  const [thongBao, setThongBao] = useState("");
-  /** Mất Wi-Fi mà trình duyệt không cho tự nối: cần người dùng chạm. */
-  const [canCham, setCanCham] = useState(false);
   /** Bấm "Cài đặt Wi-Fi" khi chưa nối: nối Bluetooth xong thì gửi luôn lệnh cài đặt. */
   const sauKhiNoiCaiWifi = useRef(false);
-  /** Mỗi lần mất Wi-Fi chỉ tự nối một lần — hỏng thì để người dùng chạm, không thử dồn dập. */
-  const daTuNoi = useRef(false);
-  /** Đang tự nối Bluetooth vì mất Wi-Fi (máy đã từng ghép). */
-  const [tuChuyen, setTuChuyen] = useState(false);
   /** Vừa bấm Wi-Fi: chờ mạch về mạng đã lưu (hết hạn sau ~40 s), chưa hiện cảnh báo mất Wi-Fi. */
   const [veWifiDen, setVeWifiDen] = useState(0);
   useEffect(() => {
@@ -53,8 +45,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     return () => clearTimeout(h);
   }, [veWifiDen]);
   /**
-   * Vừa bấm "Cài đặt Wi-Fi": mạch đang phát mạng cài đặt. Nút đó sáng, không tự nối Bluetooth, không
-   * cảnh báo mất Wi-Fi. Xong khi mạch có Wi-Fi lại (đã mất rồi có lại), chọn chế độ khác, hoặc sau 5 phút.
+   * Vừa bấm "Cài đặt Wi-Fi": mạch đang phát mạng cài đặt. Nút đó sáng, không cảnh báo mất Wi-Fi. Xong khi mạch có Wi-Fi lại (đã mất rồi có lại), chọn chế độ khác, hoặc sau 5 phút.
    */
   const [caiWifiDen, setCaiWifiDen] = useState(0);
   const daMatKhiCai = useRef(false);
@@ -71,6 +62,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
 
   // Rời màn chi tiết → ngắt (cả kết nối đang chờ mã).
   useEffect(() => () => { phienBle(device.id)?.ngat(); choMaRef.current?.ngat(); }, [device.id]);
+  useEffect(() => { xoaMaTemDaNho(); }, []);
 
   function baoLoi(e: unknown) {
     if (e instanceof LoiBle) {
@@ -81,38 +73,6 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
       setLoi(t("ble_loi_chung", { loi: e instanceof Error ? e.message : String(e) }));
     }
   }
-
-  // Mất Wi-Fi → tự nối Bluetooth (cần mã tem đã nhớ); có Wi-Fi lại → bỏ phiên tự nối (mạch vẫn giữ
-  // Wi-Fi với phiên tự động — firmware ≥ 1.1.5) và cho tự nối ở lần mất sau. Phiên người dùng tự chọn
-  // thì giữ, tới khi họ bấm Wi-Fi.
-  useEffect(() => {
-    if (wifi) {
-      daTuNoi.current = false;
-      const p = phienBle(device.id);
-      if (p && !p.tuChon) p.ngat();
-      return;
-    }
-    if (!coKhoi || phienBle(device.id) || daTuNoi.current || caiWifiDen) return;
-    const maNho = docMaTem(device.id);
-    if (!maNho) return;   // chưa nhớ mã: lời nhắc chạm tự hiện (`nhacCham`)
-    daTuNoi.current = true;
-    void (async () => {
-      setDangNoi(true);
-      setTuChuyen(true);
-      try {
-        await PhienBle.noiLai(device.id, maNho, device.code);
-        setLoi("");
-        setThongBao(t("ble_da_tu_chuyen"));
-      } catch (e) {
-        if (e instanceof LoiBle && e.ma === "can_cham") setCanCham(true);
-        else baoLoi(e);
-      } finally {
-        setDangNoi(false);
-        setTuChuyen(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi trạng thái mạng hay phiên đổi
-  }, [wifi, device.id, coKhoi, phien, caiWifiDen]);
 
   if (!coKhoi) return null;
   /** Vừa chọn Wi-Fi: mạch đang về mạng đã lưu (tới ~40 s) — chưa coi là mất Wi-Fi. */
@@ -126,7 +86,6 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
 
   /** Đã xác thực xong: bấm "Cài đặt Wi-Fi" từ trạng thái thường thì gửi luôn lệnh cài đặt. */
   function daNoiXong(p: PhienBle) {
-    setCanCham(false);
     if (sauKhiNoiCaiWifi.current) void caiWifi(p);
     sauKhiNoiCaiWifi.current = false;
   }
@@ -137,7 +96,6 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     setDangNoi(true);
     try {
       await p.gui("startWifiSetup", {});
-      setThongBao("");
       setCaiWifiDen(Date.now() + 5 * 60_000);
     } catch (e) {
       baoLoi(e);
@@ -148,14 +106,11 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
 
   /**
    * Nút "Wi-Fi" khi đang Bluetooth: mạch về mạng đã lưu ngay (`setWifi` rỗng), rồi ngắt Bluetooth.
-   * Không tự nối Bluetooth lại cho tới khi máy có Wi-Fi trở lại: người dùng vừa chọn Wi-Fi — mạch
-   * không vào được mạng thì sau 30 s tự bật Bluetooth, khi đó hiện lời nhắc chạm.
+   * Mạch không vào được mạng thì sau 30 s tự bật Bluetooth, khi đó khối hiện cảnh báo mất Wi-Fi.
    */
   async function dungWifi(p: PhienBle) {
     setLoi("");
-    setThongBao("");
     setDangNoi(true);
-    daTuNoi.current = true;
     try {
       await p.gui("setWifi", {});
     } catch (e) {
@@ -172,43 +127,16 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
   }
 
   /**
-   * Chạm nút: hộp chọn → nối → (mã đã nhớ thì xác thực luôn, chưa thì hỏi mã). `caiWifiSau`:
-   * nút "Cài đặt Wi-Fi" — lệnh gửi cho mạch qua Bluetooth nên cũng phải nối trước.
+   * Chạm nút: hộp chọn → nối → hỏi mã tem. `caiWifiSau`: nút "Cài đặt Wi-Fi" — lệnh gửi cho mạch qua
+   * Bluetooth nên cũng phải nối trước.
    */
   async function bamNoi(caiWifiSau = false) {
     sauKhiNoiCaiWifi.current = caiWifiSau;
     setLoi("");
-    setThongBao("");
     setCaiWifiDen(0);
     setDangNoi(true);
     try {
-      const daNho = docMaTem(device.id);
-      // Đã ghép trước đó: thử nối NGẦM trước (máy đã chọn trong lần mở trang này, hoặc
-      // getDevices) — "Cài đặt Wi-Fi" khi đó chỉ là một cú bấm, không hộp chọn, không hỏi mã.
-      if (daNho) {
-        try {
-          // Người dùng bấm = chọn Bluetooth (`tuChon`): firmware tắt Wi-Fi, lệnh đi Bluetooth.
-          const ngam = await PhienBle.noiLai(device.id, daNho, device.code, true);
-          daNoiXong(ngam);
-          return;
-        } catch (e) {
-          if (!(e instanceof LoiBle && e.ma === "can_cham")) throw e;
-        }
-      }
-      // Nối tay (hộp chọn) = người dùng chọn Bluetooth, có Wi-Fi hay không.
-      const p = await PhienBle.chonMay(device.id, device.code, true);
-      if (daNho) {
-        try {
-          await p.xacThuc(daNho);
-          daNoiXong(p);
-          return;
-        } catch (e) {
-          // Mã đã nhớ không còn đúng: quên nó, giữ kết nối và hỏi lại.
-          if (!(e instanceof LoiBle && e.ma === "auth")) { p.ngat(); throw e; }
-          nhoMaTem(device.id, "");
-          baoLoi(e);
-        }
-      }
+      const p = await PhienBle.chonMay(device.id, device.code);
       setMa("");
       datChoMa(p);
     } catch (e) {
@@ -228,7 +156,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
     setDangNoi(true);
     try {
       await p.xacThuc(ma);
-      nhoMaTem(device.id, ma);
+      setMa("");
       datChoMa(null);
       daNoiXong(p);
     } catch (e) {
@@ -288,7 +216,7 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
             <AlertTriangle aria-hidden="true" />{" "}
             {t(device.online && !matWifiChac(device.id) ? "ble_nghi_mat_wifi" : "ble_mat_wifi")}
           </p>
-          <p className="small">{tuChuyen && !canCham ? t("ble_dang_tu_chuyen") : t("ble_mat_wifi_cach")}</p>
+          <p className="small">{t("ble_mat_wifi_cach")}</p>
           <button className="btn" disabled={dangNoi} onClick={() => { void bamNoi(); }}>
             <Bluetooth aria-hidden="true" /> {dangNoi ? t("working") : t("ble_mo")}
           </button>
@@ -307,7 +235,6 @@ export default function BleDieuKhien({ device, chan }: { device: Device; chan: b
       )}
       {dangCaiWifi && <p className="small" role="status">{t("ble_dang_cai_wifi", { mang: mangCaiDat })}</p>}
       {choVeWifi && <p className="small" role="status">{t("ble_dang_ve_wifi")}</p>}
-      {thongBao && <p className="small" role="status">{thongBao}</p>}
       {loi && <p className="form-message" role="status">{loi}</p>}
     </div>
   );
