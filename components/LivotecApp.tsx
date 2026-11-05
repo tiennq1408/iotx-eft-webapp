@@ -19,8 +19,8 @@ import {
 import { BO_LOC_DAU, cacNhomCua, locThietBi, type BoLoc, type LoaiLoc } from "@/lib/ui/boLoc";
 import { capNguonCua } from "@/lib/ui/khuon";
 import {
-  CHO_WIFI_MS, LoiBle, coDuongBle, coWebBluetooth, coWifi, daBietBaoLai, danhDauMatWifi, laLoiDuongBle, loiBle, matWifiChac, nhoBaoLai,
-  noiTuDong, phienBle, phienDung,
+  CHO_WIFI_MS, coDuongBle, coWebBluetooth, coWifi, daBietBaoLai, danhDauMatWifi, laLoiDuongBle, loiBle, matWifiChac, nhoBaoLai,
+  phienBle, phienDung,
 } from "@/lib/ble/dieuKhienBle";
 import { CHU, laMaNgonNgu } from "@/lib/ui/strings";
 import {
@@ -122,15 +122,10 @@ export default function LivotecApp() {
    *
    *   1. Lệnh đang phải đi Bluetooth (`phienDung`: mất Wi-Fi, hoặc người dùng chọn Bluetooth) →
    *      Bluetooth. Bluetooth rớt/im lặng mà máy còn Wi-Fi → xuống bước 3.
-   *   2. Máy mất Wi-Fi, chưa có phiên → tự nối Bluetooth ngay trong cú bấm (`noiTuDong`) rồi gửi.
-   *      Hộp chọn Bluetooth chỉ tự bật khi CHẮC mất Wi-Fi: máy chủ báo ngoại tuyến, mạch mất nhịp
-   *      tim (`soatNhipTim`), hoặc chính điện thoại không gửi được yêu cầu. Chỉ nghi (bước 3) thì nối ngầm nếu được, không thì khối
-   *      Bluetooth nhắc chạm — và lần bấm sau vẫn thử Wi-Fi lại, đúng thì tự gỡ nghi.
-   *   3. Wi-Fi. Máy chủ chậm vài phút mới biết mạch mất Wi-Fi, nên với máy có đường Bluetooth app
+   *   2. Wi-Fi. Máy chủ chậm vài phút mới biết mạch mất Wi-Fi, nên với máy có đường Bluetooth app
    *      đợi mạch báo lại đúng giá trị vừa đặt (`CHO_WIFI_MS`, hỏi lại sớm cho nhanh). Không thấy,
-   *      hoặc lỗi đường truyền → coi như mạch mất Wi-Fi: đánh dấu (`danhDauMatWifi`), nối Bluetooth
-   *      — vẫn trong cú bấm nên được mở hộp chọn — rồi gửi lại lệnh qua đó. Chưa ghép (chưa có mã
-   *      tem) thì báo để người dùng ghép một lần ở khối Bluetooth.
+   *      hoặc lỗi đường truyền → đánh dấu mạch mất Wi-Fi (`danhDauMatWifi`), khối Bluetooth hiện
+   *      cảnh báo. App KHÔNG tự nối: chỉ nối khi người dùng bấm nút và nhập mã tem.
    *
    *      Im lặng chỉ được tính là mất Wi-Fi với mạch ĐÃ TỪNG báo lại lệnh qua Wi-Fi (`daBietBaoLai`).
    *      Mạch chưa báo lại lần nào — mạch thử chưa nối điều hoà, mạch chưa có telemetry — thì im lặng
@@ -155,11 +150,7 @@ export default function LivotecApp() {
       mayChuNoiTrucTuyen: truoc.online, coWifi: coWifi(truoc), chacMatWifi: matWifiChac(id),
       phienBle: Boolean(phienBle(id)), phienDung: Boolean(phienDung(truoc)),
     });
-    const ble = !truoc ? phienBle(id)
-      : phienDung(truoc) ?? (coWifi(truoc) ? undefined : await noiTuDong(truoc, !truoc.online || matWifiChac(id)).catch(error => {
-        console.info("[kenh]", id, "tự nối Bluetooth hỏng:", error instanceof Error ? `${error.name}: ${error.message}` : error);
-        return undefined;
-      }));
+    const ble = truoc ? phienDung(truoc) : phienBle(id);
     if (truoc && !coWifi(truoc)) console.info("[kenh]", id, ble ? "gửi qua Bluetooth" : "chưa có Bluetooth — thử Wi-Fi");
     if (ble) {
       try { await ble.gui(method, params); return; }
@@ -192,32 +183,23 @@ export default function LivotecApp() {
     }
     if (!coDuongLui) return;
 
-    // Điện thoại không gửi nổi yêu cầu (TypeError) là CHẮC; máy chủ trả 5xx/hết giờ hay mạch không
-    // báo lại chỉ là NGHI — mạch có thể vẫn còn Wi-Fi mà không báo trạng thái.
-    // `iotxClient` gói "máy mất mạng" thành IotxApiError(0, "offline") — cũng là CHẮC.
-    const chacChan = ketQua.loi instanceof TypeError
-      || (ketQua.loi instanceof IotxApiError && ketQua.loi.status === 0) || matWifiChac(id);
-    console.info("[kenh]", id, chacChan ? "điện thoại mất mạng" : "nghi mạch mất Wi-Fi:",
+    console.info("[kenh]", id, "nghi mạch mất Wi-Fi:",
       ketQua.loi !== undefined ? moTaLoi(ketQua.loi) : `không thấy mạch báo lại ${key}=${String(value)} trong ${CHO_WIFI_MS} ms`);
 
-    // Mạch im lặng qua Wi-Fi → Bluetooth. Khối Bluetooth đổi theo dấu này: chưa ghép thì nó nhắc
-    // nhập mã tem một lần; lệnh qua Wi-Fi khi đó vẫn được giữ như thường (`SoLenhCho`).
+    // Khối Bluetooth đổi theo dấu này và nhắc người dùng; lệnh đã tới máy chủ thì vẫn giữ (`SoLenhCho`).
     danhDauMatWifi(id);
-    let phien = phienBle(id);
-    if (!phien) {
-      try { phien = await noiTuDong(truoc, chacChan); }
-      catch (error) {
-        console.info("[kenh]", id, "nối Bluetooth hỏng:", error instanceof Error ? `${error.name}: ${error.message}` : error);
-        boGhiNhanLenh(id, key);
-        // Sai mã, bị khoá… thì nói đúng lỗi đó; hộp chọn bị đóng hay hết hạn cú bấm thì nhắc chạm.
-        throw error instanceof LoiBle && error.ma !== "can_cham" ? error : loiBle("khong_phan_hoi");
-      }
+    // Người dùng vừa nối Bluetooth trong lúc đợi: giá trị giờ đến từ Bluetooth (`apTrangThaiBle`).
+    const phien = phienBle(id);
+    if (phien) {
+      boGhiNhanLenh(id, key);
+      await phien.gui(method, params);
+      return;
     }
-    console.info("[kenh]", id, phien ? "gửi lại qua Bluetooth" : "không nối được Bluetooth (chưa có mã tem, hoặc cần chạm)");
-    if (!phien) return;
-    // Giá trị giờ đến từ Bluetooth (`apTrangThaiBle`), không đợi máy chủ nữa.
-    boGhiNhanLenh(id, key);
-    await phien.gui(method, params);
+    // Lệnh không tới được máy chủ thì không có gì để giữ: hoàn tác và nhắc chạm nút Bluetooth.
+    if (ketQua.loi !== undefined) {
+      boGhiNhanLenh(id, key);
+      throw loiBle("khong_phan_hoi");
+    }
   }
 
   /**
