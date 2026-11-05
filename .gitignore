@@ -11,3 +11,8 @@ loadtest/__pycache__/
 *.jsonl
 *.pyc
 tests/.tam/
+
+# Rác hệ điều hành
+.DS_Store
+desktop.ini
+Thumbs.db

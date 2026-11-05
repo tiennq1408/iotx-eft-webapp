@@ -828,6 +828,16 @@ button.switch::before{content:"";position:absolute;top:50%;left:50%;transform:tr
 .devpage .ble-dk .frow .btn{flex:0 0 auto; width:auto;}
 .devpage .ble-dk .fsel{font-size:1rem; letter-spacing:.2em; text-align:center;}
 .devpage .ble-dk .ble-nhac{font-weight:600;}
+/* Hàng chọn đường điều khiển Wi-Fi | Bluetooth: một chạm đổi qua lại. */
+.devpage .ble-dk .ble-chedo{flex-wrap:nowrap;}
+.devpage .ble-dk .ble-chedo .seg-btn{display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px;}
+.devpage .ble-dk .ble-chedo .seg-btn svg{width:16px; height:16px; flex:none;}
+.devpage .ble-dk .ble-chedo .seg-btn:disabled{opacity:.6;}
+/* Mất Wi-Fi: khung cảnh báo với hai lựa chọn (Bluetooth gần / Cài đặt Wi-Fi). */
+.devpage .ble-dk .ble-canh-bao{display:flex; flex-direction:column; gap:.45rem; padding:10px 12px; border:1px solid var(--amber); border-radius:var(--r-sm); background:color-mix(in srgb, var(--amber) 12%, transparent);}
+.devpage .ble-dk .ble-canh-bao p{margin:0;}
+.devpage .ble-dk .ble-canh-bao .ble-nhac{display:flex; align-items:center; gap:6px;}
+.devpage .ble-dk .ble-canh-bao .ble-nhac svg{width:18px; height:18px; flex:none; color:var(--amber);}
 
 /* Lựa chọn dạng chip — ô chạm cao 44px như bản tham chiếu. */
 .devpage .mchips{display:flex; flex-wrap:wrap; gap:.4rem;}
